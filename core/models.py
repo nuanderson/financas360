@@ -1,3 +1,62 @@
 from django.db import models
+from django.contrib.auth.models import User
+from django.utils.translation import gettext_lazy as _
 
-# Create your models here.
+# Modelo para guardar as empresas dos clientes
+class Company(models.Model):
+    name = models.CharField(_("name"),max_length=100, unique=True, help_text=_("Client company name"))
+    # Relação Muitos-para-Muitos.
+    # Um usuário pode gerenciar várias empresas.
+    # Uma empresa pode ser gerenciada por vários usuários (equipe).
+    users = models.ManyToManyField(User, related_name='companies', verbose_name=_("users"),help_text=_("Users who can manage this company"))
+
+    def __str__(self):
+        # Retorna o nome da empresa como sua representação em texto
+        return self.name
+        
+    class Meta:
+        verbose_name = _("Company") # Nome do modelo no singular
+        verbose_name_plural = _("Companies") # Nome do modelo no plural
+
+# Modelo para o plano de contas de cada empresa
+class ChartOfAccounts(models.Model):
+    ACCOUNT_TYPE_CHOICES = (
+        ('R', _('Revenue')), # Receita
+        ('E', _('Expense')), # Despesa
+    )
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("company"))
+    code = models.CharField(_("code"),max_length=20, help_text=_("Account code, e.g., 1.01.01"))
+    name = models.CharField(_("name"),max_length=100, help_text=_("Account name, e.g., Product Sales"))
+    account_type = models.CharField(_("account type"),max_length=1, choices=ACCOUNT_TYPE_CHOICES)
+
+    parent_account = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='sub_accounts', verbose_name=_("parent account"))
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+    class Meta:
+        verbose_name = _("Chart of Account")
+        verbose_name_plural = _("Chart of Accounts")
+
+# Modelo para cada transação (entrada ou saída)
+class Transaction(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("company"))
+    account = models.ForeignKey(ChartOfAccounts, on_delete=models.PROTECT, verbose_name=_("account"))
+
+    date = models.DateField(_("date"))
+    amount = models.DecimalField(_("amount"),max_digits=12, decimal_places=2)
+    description = models.TextField(_("description"),blank=True, null=True)
+
+    def __str__(self):
+        return f"[{self.date}] {self.account.name} - R$ {self.amount}"
+
+    class Meta:
+        verbose_name = _("Transaction")
+        verbose_name_plural = _("Transactions")
+
+
+    
+    
+    
+    

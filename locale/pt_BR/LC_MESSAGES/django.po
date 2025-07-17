@@ -1,0 +1,107 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-07-17 00:53-0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+#: .\core\models.py:7 .\core\models.py:30
+
+msgid "name"
+msgstr "Nome"
+
+#: .\core\models.py:7
+msgid "Client company name"
+msgstr "Nome da empresa cliente"
+
+#: .\core\models.py:11
+msgid "users"
+msgstr "Usuários"
+
+#: .\core\models.py:11
+msgid "Users who can manage this company"
+msgstr "Usuários que podem gerenciar esta empresa"
+
+#: .\core\models.py:18
+msgid "Company"
+msgstr "Empresa"
+
+#: .\core\models.py:19
+msgid "Companies"
+msgstr "Empresas"
+
+#: .\core\models.py:24
+msgid "Revenue"
+msgstr "Receita"
+
+#: .\core\models.py:25
+msgid "Expense"
+msgstr "Despesa"
+
+#: .\core\models.py:28 .\core\models.py:44
+msgid "company"
+msgstr "Empresa"
+
+#: .\core\models.py:29
+msgid "code"
+msgstr "Código"
+
+#: .\core\models.py:29
+msgid "Account code, e.g., 1.01.01"
+msgstr "Código da conta, ex: 1.01.01"
+
+#: .\core\models.py:30
+msgid "Account name, e.g., Product Sales"
+msgstr "Nome da conta, ex: Venda de Produtos"
+
+#: .\core\models.py:31
+msgid "account type"
+msgstr "Tipo de conta"
+
+#: .\core\models.py:33
+msgid "parent account"
+msgstr "Conta pai"
+
+#: .\core\models.py:39
+msgid "Chart of Account"
+msgstr "Plano de Conta"
+
+#: .\core\models.py:40
+msgid "Chart of Accounts"
+msgstr "Plano de Contas"
+
+#: .\core\models.py:45
+msgid "account"
+msgstr "Conta"
+
+#: .\core\models.py:47
+msgid "date"
+msgstr "Data"
+
+#: .\core\models.py:48
+msgid "amount"
+msgstr "Valor"
+
+#: .\core\models.py:49
+msgid "description"
+msgstr "Descrição"
+
+#: .\core\models.py:55
+msgid "Transaction"
+msgstr "Lançamento"
+
+#: .\core\models.py:56
+msgid "Transactions"
+msgstr "Lançamentos"
