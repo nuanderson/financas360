@@ -17,3 +17,5 @@ Thumbs.db
 # Arquivos de IDEs
 .idea/
 .vscode/
+
+.env

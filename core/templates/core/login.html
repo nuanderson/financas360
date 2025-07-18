@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+    <head>
+        <meta charset="UTF-8">
+        <title>Login - Finanças 360</title>
+        <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f4f4f4; }
+        .login-box { padding: 2em; background: white; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1 { text-align: center; }
+        </style>
+    </head>
+    <body>
+        <div class="login-box">
+            <h1>Finanças 360</h1>
+            <p>Por favor, entre com suas credenciais.</p>
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit">Entrar</button>
+            </form>
+        </div>
+    </body>
+</html>

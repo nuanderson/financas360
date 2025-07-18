@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+    <head>
+        <meta charset="UTF-8">
+        <title>Minhas Empresas</title>
+        <style> body { font-family: sans-serif; margin: 2em; } </style>
+    </head>
+    <body>
+        <h1>Minhas Empresas</h1>
+        <p>
+            Olá, {{ user.username }}! <a href="{% url 'core:logout' %}">Sair</a>
+        </p>
+        <ul>
+            {% for company in companies %}
+                <li>
+                    <a href="{% url 'core:set_active_company' company.id %}">{{ company.name }}</a>
+                </li>
+            {% empty %}
+                <li>Você ainda não gerencia nenhuma empresa.</li>
+            {% endfor %}
+        </ul>
+    </body>
+</html>

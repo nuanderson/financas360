@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Plano de Contas - {{ company.name }}{% endblock %}
+{% block content %}
+    <h1>Plano de Contas</h1>
+    <div class="card">
+        <div class="card-header">Contas Existentes</div>
+        <div class="card-body">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Nome</th>
+                        <th>Tipo</th>
+                        <th>Conta Pai</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for account in accounts %}
+                        <tr>
+                            <td>{{ account.code }}</td>
+                            <td>{{ account.name }}</td>
+                            <td>{{ account.get_account_type_display }}</td>
+                            <td>{{ account.parent_account.name|default:"-" }}</td>
+                            <td>
+                                <a href="{% url 'core:account_update' company.id account.id %}"
+                                   class="btn btn-sm btn-primary">Editar</a>
+                                <a href="{% url 'core:account_delete' company.id account.id %}"
+                                   class="btn btn-sm btn-danger">Excluir</a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5">Nenhuma conta cadastrada para esta empresa.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card mt-4">
+        <div class="card-header">Adicionar Nova Conta</div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit" class="btn btn-success">Salvar Conta</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Editar Conta - {{ account.name }}{% endblock %}
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'core:company_list' %}">Minhas Empresas</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'core:chart_of_accounts_list' company.id %}">Plano de Contas</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Editar Conta</li>
+        </ol>
+    </nav>
+    <div class="card">
+        <div class="card-header">
+            <h2>Editar Conta: {{ account.name }}</h2>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <hr>
+                <a href="{% url 'core:chart_of_accounts_list' company.id %}"
+                   class="btn btn-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}

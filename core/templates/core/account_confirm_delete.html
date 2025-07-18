@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Confirmar Exclusão{% endblock %}
+{% block content %}
+    <div class="card border-danger">
+        <div class="card-header bg-danger text-white">
+            <h2>Tem certeza?</h2>
+        </div>
+        <div class="card-body">
+            <p>
+                Você está prestes a excluir a conta: <strong>{{ account.code }} - {{ account.name }}</strong>.
+            </p>
+            <p class="text-danger">Esta ação não pode ser desfeita.</p>
+            <hr>
+            <form method="post">
+                {% csrf_token %}
+                <a href="{% url 'core:chart_of_accounts_list' company.id %}"
+                   class="btn btn-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-danger">Sim, quero excluir</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}
