@@ -6,6 +6,12 @@ from django.urls import reverse_lazy
 from .models import Company, ChartOfAccounts, Transaction
 from .forms import ChartOfAccountsForm, TransactionForm, CompanyForm
 from django.contrib import messages
+from django.db.models import Sum, Q, F, Value, DecimalField
+from django.db.models.functions import Coalesce 
+from datetime import datetime, date
+from django.http import JsonResponse
+from dateutil.relativedelta import relativedelta
+import calendar
 
 
 class AccountUpdateView(LoginRequiredMixin, UpdateView):
@@ -277,3 +283,149 @@ class CompanyDeleteView(LoginRequiredMixin, DeleteView):
     def form_valid(self, form):
         messages.success(self.request, f"A empresa '{self.object.name}' foi excluída com sucesso.")
         return super().form_valid(form)
+
+@login_required
+def home_redirect(request):
+    # Verificamos se há uma empresa ativa na sessão
+    active_company_id = request.session.get('active_company_id')
+
+    if active_company_id:
+        # Se houver, redireciona para o dashboard daquela empresa
+        return redirect('core:dashboard', company_id=active_company_id)
+    else:
+        # Se não houver, redireciona para a lista de empresas para o usuário escolher uma
+        return redirect('core:company_list')
+
+@login_required
+def dashboard(request, company_id):
+    # Checagem de segurança padrão
+    company = get_object_or_404(Company, pk=company_id, users=request.user)
+
+    today = date.today()
+    # Pega as datas do GET ou define o mês atual como padrão
+    start_date_str = request.GET.get('start_date', today.replace(day=1).strftime('%Y-%m-%d'))
+    end_date_str = request.GET.get('end_date', (today.replace(day=calendar.monthrange(today.year, today.month)[1])).strftime('%Y-%m-%d'))
+
+    # Converte as strings de data para objetos date
+    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+
+    # Filtra os lançamentos da empresa para o PERÍODO SELECIONADO
+    transactions = Transaction.objects.filter(
+        company=company,
+        date__range=[start_date, end_date]
+    )
+
+    # Os cálculos agora usam a base de transações já filtrada
+    total_revenue = transactions.filter(account__account_type='R').aggregate(Sum('amount'))['amount__sum'] or 0
+    total_expenses = transactions.filter(account__account_type='E').aggregate(Sum('amount'))['amount__sum'] or 0
+    net_result = total_revenue - total_expenses
+
+    context = {
+        'company': company,
+        'total_revenue': total_revenue,
+        'total_expenses': total_expenses,
+        'net_result': net_result,
+        # Passa as datas para o template para preencher o formulário
+        'start_date_str': start_date_str,
+        'end_date_str': end_date_str,
+    }
+    return render(request, 'core/dashboard.html', context)
+
+@login_required
+def expense_chart_data(request):
+    # Pega a empresa ativa da sessão
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        return JsonResponse({'error': 'Nenhuma empresa ativa'}, status=404)
+
+    company = get_object_or_404(Company, pk=active_company_id, users=request.user)
+
+    today = date.today()
+    start_date_str = request.GET.get('start_date', today.replace(day=1).strftime('%Y-%m-%d'))
+    end_date_str = request.GET.get('end_date', (today.replace(day=calendar.monthrange(today.year, today.month)[1])).strftime('%Y-%m-%d'))
+
+    # Filtra as despesas para o PERÍODO SELECIONADO
+    expenses = Transaction.objects.filter(
+        company=company,
+        account__account_type='E',
+        date__range=[start_date_str, end_date_str]
+    )
+
+    # O resto do código continua igual
+    category_expenses = expenses.values(
+        'account__parent_account__name'
+    ).annotate(
+        total=Coalesce(Sum('amount'), Value(0.0), output_field=DecimalField())
+    ).order_by('-total')
+
+    labels = [item['account__parent_account__name'] or 'Sem Categoria' for item in category_expenses]
+    data = [float(item['total']) for item in category_expenses]
+
+    return JsonResponse({'labels': labels, 'data': data})
+
+@login_required
+def revenue_expense_summary_data(request):
+    # Pega a empresa ativa da sessão
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        return JsonResponse({'error': 'Nenhuma empresa ativa'}, status=404)
+
+    company = get_object_or_404(Company, pk=active_company_id, users=request.user)
+
+    # Listas para guardar os dados dos últimos 6 meses
+    labels = []
+    revenue_data = []
+    expense_data = []
+
+    # Itera pelos últimos 6 meses, começando pelo atual
+    for i in range(6):
+        # Calcula o mês e ano para a iteração atual
+        # relativedelta(months=i) subtrai 'i' meses da data atual
+        target_date = datetime.now() - relativedelta(months=i)
+        target_month = target_date.month
+        target_year = target_date.year
+
+        # Adiciona o rótulo do mês/ano à nossa lista de labels (ex: "Jul/2025")
+        labels.append(target_date.strftime("%b/%Y"))
+
+        # Filtra os lançamentos para o mês e ano da iteração
+        transactions = Transaction.objects.filter(
+            company=company,
+            date__year=target_year,
+            date__month=target_month
+        )
+
+       # Calcula o total de receitas para o mês atual do loop
+        revenue = transactions.filter(account__account_type='R').aggregate(
+            total=Coalesce(
+                Sum('amount'),              # Tenta somar os valores do campo 'amount'
+                Value(0.0),                 # Se a soma resultar em 'None' (nenhuma receita), usa 0.0 como padrão
+                output_field=DecimalField() # **A CORREÇÃO:** Especifica que o resultado final da operação (seja a soma ou o padrão) deve ser do tipo DecimalField, evitando o conflito de tipos.
+            )
+        )['total']
+        
+        # Calcula o total de despesas para o mês atual do loop
+        expense = transactions.filter(account__account_type='E').aggregate(
+            total=Coalesce(
+                Sum('amount'), 
+                Value(0.0), 
+                output_field=DecimalField() # **A MESMA CORREÇÃO:** Garante a consistência do tipo de dado também para as despesas.
+            )
+        )['total']
+
+        # Adiciona os totais às nossas listas de dados
+        revenue_data.append(float(revenue))
+        expense_data.append(float(expense))
+
+    # O Chart.js mostra os dados da esquerda para a direita, então precisamos inverter
+    # nossas listas para que o mês mais antigo apareça primeiro.
+    labels.reverse()
+    revenue_data.reverse()
+    expense_data.reverse()
+
+    return JsonResponse({
+        'labels': labels,
+        'revenue_data': revenue_data,
+        'expense_data': expense_data,
+    })

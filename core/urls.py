@@ -5,7 +5,8 @@ from . import views
 app_name = 'core'
 
 urlpatterns = [
-    # Página principal após o login (Hub de Empresas)
+    path('', views.home_redirect, name='home'),
+    # Hub de Empresas
     path('empresas/', views.company_list, name='company_list'),
     path('empresas/nova/', views.CompanyCreateView.as_view(), name='company_create'),
     path('empresas/<int:pk>/editar/', views.CompanyUpdateView.as_view(), name='company_update'),
@@ -15,6 +16,7 @@ urlpatterns = [
     path('empresa/<int:company_id>/plano-de-contas/<int:account_id>/editar/', views.AccountUpdateView.as_view(), name='account_update'),
     path('empresa/<int:company_id>/plano-de-contas/<int:account_id>/excluir/', views.AccountDeleteView.as_view(), name='account_delete'),
     path('empresa/<int:company_id>/ativar/', views.set_active_company, name='set_active_company'),
+    path('empresa/<int:company_id>/dashboard', views.dashboard, name='dashboard'),
     # Página de Lançamentos
     path('lancamentos/', views.transaction_list, name='transaction_list'),
     path('lancamentos/<int:pk>/editar/', views.TransactionUpdateView.as_view(), name='transaction_update'),
@@ -23,4 +25,7 @@ urlpatterns = [
     path('login/', auth_views.LoginView.as_view(template_name='core/login.html'), name='login'),
     # Ação de Logout
     path('logout/', auth_views.LogoutView.as_view(next_page='core:login'), name='logout'),
+    # API do Gráfico
+    path('api/dados-grafico-despesas', views.expense_chart_data, name='expense_chart_data'),
+     path('api/resumo-receita-despesa/', views.revenue_expense_summary_data, name='revenue_expense_summary_data'),
 ]

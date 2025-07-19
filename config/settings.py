@@ -132,7 +132,7 @@ LOCALE_PATHS = [
 ]
 
 # Para onde ir DEPOIS de um login bem-sucedido
-LOGIN_REDIRECT_URL = 'core:company_list'
+LOGIN_REDIRECT_URL = 'core:home'
 
 # Qual a URL da página de login (o nome da URL que vamos criar)
 LOGIN_URL = 'core:login'

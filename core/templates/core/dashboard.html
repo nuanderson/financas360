@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% load l10n %}
+{% block title %}Dashboard - {{ company.name }}{% endblock %}
+{% block content %}
+    <h1>
+        Dashboard <span class="text-muted fs-4">{{ company.name }}</span>
+    </h1>
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="" class="row g-3 align-items-center">
+                <div class="col-auto">
+                    <label for="start_date" class="form-label">Data Início</label>
+                    <input type="date"
+                           class="form-control"
+                           id="start_date"
+                           name="start_date"
+                           value="{{ start_date_str }}">
+                </div>
+                <div class="col-auto">
+                    <label for="end_date" class="form-label">Data Fim</label>
+                    <input type="date"
+                           class="form-control"
+                           id="end_date"
+                           name="end_date"
+                           value="{{ end_date_str }}">
+                </div>
+                <div class="col-auto mt-auto">
+                    <button type="submit" class="btn btn-primary">Filtrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <p class="lead">Resumo financeiro para o período selecionado.</p>
+    <hr>
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card text-center text-white bg-success">
+                <div class="card-header">RECEITA DO PERÍODO</div>
+                <div class="card-body">
+                    <h2 class="card-title">R$ {{ total_revenue|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center text-white bg-danger">
+                <div class="card-header">DESPESA DO PERÍODO</div>
+                <div class="card-body">
+                    <h2 class="card-title">R$ {{ total_expenses|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center text-white {% if net_result >= 0 %}bg-primary{% else %}bg-dark{% endif %}">
+                <div class="card-header">RESULTADO DO PERÍODO</div>
+                <div class="card-body">
+                    <h2 class="card-title">R$ {{ net_result|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mt-5">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Distribuição de Despesas por Categoria</h5>
+                    <canvas id="expenseChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Receita vs. Despesa (Últimos 6 Meses)</h5>
+                    <canvas id="revenueExpenseChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // --- GRÁFICO DE PIZZA (COM FILTRO DE DATA) ---
+            const ctxExpense = document.getElementById('expenseChart').getContext('2d');
+            
+            // Pegamos as datas que o Django colocou no contexto do template
+            const startDate = "{{ start_date_str }}";
+            const endDate = "{{ end_date_str }}";
+
+            // Montamos a URL da API com os parâmetros de data
+            const expenseChartUrl = `{% url 'core:expense_chart_data' %}?start_date=${startDate}&end_date=${endDate}`;
+
+            fetch(expenseChartUrl)
+                .then(response => response.json())
+                .then(data => {
+                    new Chart(ctxExpense, {
+                        type: 'doughnut',
+                        data: {
+                            labels: data.labels,
+                            datasets: [{
+                                label: 'Despesas por Categoria',
+                                data: data.data,
+                                backgroundColor: [
+                                    'rgba(255, 99, 132, 0.8)', 'rgba(54, 162, 235, 0.8)',
+                                    'rgba(255, 206, 86, 0.8)', 'rgba(75, 192, 192, 0.8)',
+                                    'rgba(153, 102, 255, 0.8)', 'rgba(255, 159, 64, 0.8)'
+                                ],
+                                borderColor: 'rgba(255, 255, 255, 1)',
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { position: 'top' }
+                            }
+                        }
+                    });
+                })
+                .catch(error => console.error('Erro ao buscar dados do gráfico de despesas:', error));
+
+            // --- GRÁFICO DE BARRAS (AINDA FIXO NOS ÚLTIMOS 6 MESES) ---
+            const ctxRevenueExpense = document.getElementById('revenueExpenseChart').getContext('2d');
+            fetch("{% url 'core:revenue_expense_summary_data' %}")
+                .then(response => response.json())
+                .then(data => {
+                    new Chart(ctxRevenueExpense, {
+                        type: 'bar',
+                        data: {
+                            labels: data.labels,
+                            datasets: [
+                                {
+                                    label: 'Receitas',
+                                    data: data.revenue_data,
+                                    backgroundColor: 'rgba(75, 192, 192, 0.6)'
+                                },
+                                {
+                                    label: 'Despesas',
+                                    data: data.expense_data,
+                                    backgroundColor: 'rgba(255, 99, 132, 0.6)'
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
+                        }
+                    });
+                })
+                .catch(error => console.error('Erro ao buscar dados do resumo mensal:', error));
+        });
+    </script>
+{% endblock %}
