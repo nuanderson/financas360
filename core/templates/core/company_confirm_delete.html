@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Confirmar Exclusão{% endblock %}
+{% block content %}
+    <div class="card border-danger">
+        <div class="card-header bg-danger text-white">
+            <h2>Tem certeza?</h2>
+        </div>
+        <div class="card-body">
+            <p>
+                Você está prestes a excluir a empresa: <strong>{{ object.name }}</strong>.
+            </p>
+            <p class="text-danger">
+                Atenção: Todos os dados associados a ela (plano de contas, lançamentos, etc.) também serão excluídos. Esta ação não pode ser desfeita.
+            </p>
+            <hr>
+            <form method="post">
+                {% csrf_token %}
+                <a href="{% url 'core:company_list' %}" class="btn btn-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-danger">Sim, quero excluir</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}

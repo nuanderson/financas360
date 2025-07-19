@@ -7,6 +7,9 @@ app_name = 'core'
 urlpatterns = [
     # Página principal após o login (Hub de Empresas)
     path('empresas/', views.company_list, name='company_list'),
+    path('empresas/nova/', views.CompanyCreateView.as_view(), name='company_create'),
+    path('empresas/<int:pk>/editar/', views.CompanyUpdateView.as_view(), name='company_update'),
+    path('empresas/<int:pk>/excluir/', views.CompanyDeleteView.as_view(), name='company_delete'),
     # Página da Empresa
     path('empresa/<int:company_id>/plano-de-contas/', views.chart_of_accounts_list, name='chart_of_accounts_list'),
     path('empresa/<int:company_id>/plano-de-contas/<int:account_id>/editar/', views.AccountUpdateView.as_view(), name='account_update'),

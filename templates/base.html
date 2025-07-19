@@ -36,29 +36,46 @@
         </style>
     </head>
     <body>
-        <aside class="sidebar">
-            <h3>Finanças 360</h3>
-            <hr>
-            {% if active_company %}
-                <div class="mb-3">
-                    <small>Empresa Ativa:</small>
-                    <h5>{{ active_company.name }}</h5>
-                </div>
-            {% endif %}
-            <ul class="nav flex-column">
-                <li class="nav-item">
-                    <a class="nav-link text-white" href="{% url 'core:company_list' %}">Trocar Empresa</a>
-                </li>
+        <aside class="sidebar d-flex flex-column">
+            <div>
+                <h3>Finanças 360</h3>
                 {% if active_company %}
-                    <li class="nav-item">
-                        <a class="nav-link text-white"
-                           href="{% url 'core:chart_of_accounts_list' active_company.id %}">Plano de Contas</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="{% url 'core:transaction_list' %}">Lançamentos</a>
-                    </li>
+                    <div class="mt-3 mb-3">
+                        <small>Empresa Ativa:</small>
+                        <h5 class="text-white">{{ active_company.name }}</h5>
+                    </div>
+                {% else %}
+                    <div class="mt-3 mb-3">
+                        <small class="text-white-50">Nenhuma empresa ativa.</small>
+                        <h5 class="text-white">Selecione uma empresa</h5>
+                    </div>
                 {% endif %}
-            </ul>
+                <hr style="border-color: rgba(255,255,255,0.5);">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'core:company_list' %}">
+                            <i class="bi bi-building"></i> Minhas Empresas
+                        </a>
+                    </li>
+                    {% if active_company %}
+                        <li class="nav-item">
+                            <a class="nav-link text-white"
+                               href="{% url 'core:chart_of_accounts_list' active_company.id %}">Plano de Contas</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="{% url 'core:transaction_list' %}">Lançamentos</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+            <div class="mt-auto">
+                <hr style="border-color: rgba(255,255,255,0.5);">
+                <div class="text-white">
+                    <small>{{ user.username }}</small>
+                    <br>
+                    <a class="text-white fw-bold" href="{% url 'core:logout' %}">Sair</a>
+                </div>
+            </div>
         </aside>
         <main class="main-content">
             {% block content %}{% endblock %}

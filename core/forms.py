@@ -1,5 +1,5 @@
 from django import forms
-from .models import ChartOfAccounts, Transaction
+from .models import ChartOfAccounts, Transaction, Company
 
 class ChartOfAccountsForm(forms.ModelForm):
     class Meta:
@@ -42,3 +42,9 @@ class TransactionForm(forms.ModelForm):
         # da empresa ativa. Não queremos que o usuário lance na conta de outro cliente.
         if company:
             self.fields['account'].queryset = ChartOfAccounts.objects.filter(company=company)
+
+class CompanyForm(forms.ModelForm):
+    class Meta:
+        model = Company
+        # O usuário só precisa informar o nome. A associação com o usuário será automática.
+        fields = ['name']

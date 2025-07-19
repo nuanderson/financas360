@@ -1,10 +1,10 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.views.generic import UpdateView, DeleteView
+from django.views.generic import UpdateView, DeleteView, CreateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from .models import Company, ChartOfAccounts, Transaction
-from .forms import ChartOfAccountsForm, TransactionForm
+from .forms import ChartOfAccountsForm, TransactionForm, CompanyForm
 from django.contrib import messages
 
 
@@ -220,3 +220,60 @@ class TransactionDeleteView(LoginRequiredMixin, DeleteView):
         """ Redireciona para a lista de lançamentos após o sucesso. """
         messages.success(self.request, "Lançamento excluído com sucesso.")
         return reverse_lazy('core:transaction_list')
+
+class CompanyCreateView(LoginRequiredMixin, CreateView):
+    model = Company
+    form_class = CompanyForm
+    template_name = 'core/company_form.html'
+    success_url = reverse_lazy('core:company_list') # Para onde ir após criar
+
+    def form_valid(self, form):
+        """
+        Este método é chamado quando o formulário é válido.
+        Aqui nós associamos o usuário logado à nova empresa.
+        """
+        # Salva o objeto da empresa primeiro
+        response = super().form_valid(form)
+        # Adiciona o usuário atual à relação ManyToMany
+        self.object.users.add(self.request.user)
+        messages.success(self.request, "Empresa criada com sucesso!")
+        return response
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = 'Adicionar Nova Empresa'
+        return context
+
+
+class CompanyUpdateView(LoginRequiredMixin, UpdateView):
+    model = Company
+    form_class = CompanyForm
+    template_name = 'core/company_form.html'
+    success_url = reverse_lazy('core:company_list')
+
+    def get_queryset(self):
+        """ Garante que um usuário só pode editar as empresas que ele gerencia. """
+        return self.request.user.companies.all()
+
+    def form_valid(self, form):
+        messages.success(self.request, "Empresa atualizada com sucesso!")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = 'Editar Empresa'
+        return context
+
+
+class CompanyDeleteView(LoginRequiredMixin, DeleteView):
+    model = Company
+    template_name = 'core/company_confirm_delete.html'
+    success_url = reverse_lazy('core:company_list')
+
+    def get_queryset(self):
+        """ Garante que um usuário só pode excluir as empresas que ele gerencia. """
+        return self.request.user.companies.all()
+
+    def form_valid(self, form):
+        messages.success(self.request, f"A empresa '{self.object.name}' foi excluída com sucesso.")
+        return super().form_valid(form)
