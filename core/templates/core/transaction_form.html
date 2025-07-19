@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}{{ page_title }} - {{ active_company.name }}{% endblock %}
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'core:company_list' %}">Minhas Empresas</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'core:transaction_list' %}">Lançamentos</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">{{ page_title }}</li>
+        </ol>
+    </nav>
+    <div class="card">
+        <div class="card-header">
+            <h2>{{ page_title }}</h2>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <hr>
+                <a href="{% url 'core:transaction_list' %}" class="btn btn-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-primary">Salvar</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}

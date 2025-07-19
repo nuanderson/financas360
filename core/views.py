@@ -1,7 +1,79 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from .models import Company, ChartOfAccounts
-from .forms import ChartOfAccountsForm
+from django.views.generic import UpdateView, DeleteView
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.urls import reverse_lazy
+from .models import Company, ChartOfAccounts, Transaction
+from .forms import ChartOfAccountsForm, TransactionForm
+from django.contrib import messages
+
+
+class AccountUpdateView(LoginRequiredMixin, UpdateView):
+    # De qual modelo esta view vai editar os dados
+    model = ChartOfAccounts
+    # Qual formulário ela vai usar
+    form_class = ChartOfAccountsForm
+    # Qual template ela vai renderizar
+    template_name = 'core/account_update.html'
+    # Como a URL chama o ID da conta (pk = primary key)
+    pk_url_kwarg = 'account_id'
+
+    def get_queryset(self):
+        """
+        Sobrescrevemos o queryset para garantir a segurança.
+        Isso garante que um usuário só pode editar contas da empresa que ele gerencia.
+        """
+        company_id = self.kwargs.get('company_id')
+        company = get_object_or_404(Company, pk=company_id, users=self.request.user)
+        return ChartOfAccounts.objects.filter(company=company)
+
+    def get_form_kwargs(self):
+        """
+        Este método passa argumentos extras para o __init__ do nosso formulário.
+        Usamos para passar a 'company' para que o dropdown de 'conta pai' seja filtrado.
+        """
+        kwargs = super().get_form_kwargs()
+        kwargs['company'] = self.get_object().company
+        return kwargs
+
+    def get_success_url(self):
+        """
+        Define para onde o usuário será redirecionado após salvar o formulário com sucesso.
+        """
+        company_id = self.kwargs.get('company_id')
+        return reverse_lazy('core:chart_of_accounts_list', kwargs={'company_id': company_id})
+
+    def get_context_data(self, **kwargs):
+        """
+        Adiciona dados extras ao contexto do template.
+        Precisamos da 'company' no template para o link 'Voltar para a lista' funcionar.
+        """
+        context = super().get_context_data(**kwargs)
+        context['company'] = self.get_object().company
+        return context
+
+
+class AccountDeleteView(LoginRequiredMixin, DeleteView):
+    model = ChartOfAccounts
+    template_name = 'core/account_confirm_delete.html'
+    pk_url_kwarg = 'account_id'
+
+    def get_queryset(self):
+        """ Mesma lógica de segurança da view de Update. """
+        company_id = self.kwargs.get('company_id')
+        company = get_object_or_404(Company, pk=company_id, users=self.request.user)
+        return ChartOfAccounts.objects.filter(company=company)
+
+    def get_success_url(self):
+        """ Define para onde ir após a exclusão bem-sucedida. """
+        company_id = self.kwargs.get('company_id')
+        return reverse_lazy('core:chart_of_accounts_list', kwargs={'company_id': company_id})
+    
+    def get_context_data(self, **kwargs):
+        """ Adiciona a 'company' ao contexto para o link 'Cancelar' funcionar. """
+        context = super().get_context_data(**kwargs)
+        context['company'] = self.get_object().company
+        return context
 
 @login_required
 def company_list(request):
@@ -46,48 +118,6 @@ def chart_of_accounts_list(request, company_id):
     }
     return render(request, 'core/chart_of_accounts_list.html', context)
 
-@login_required
-def account_update(request, company_id, account_id):
-    # Checagem de segurança dupla: garante que a empresa pertence ao usuário
-    # E que a conta pertence à empresa.
-    company = get_object_or_404(Company, pk=company_id, users=request.user)
-    account = get_object_or_404(ChartOfAccounts, pk=account_id, company=company)
-
-    if request.method == 'POST':
-        # 'instance=account' preenche o formulário com os dados do objeto existente
-        form = ChartOfAccountsForm(request.POST, instance=account, company=company)
-        if form.is_valid():
-            form.save()
-            # Redireciona para a lista de contas após a edição
-            return redirect('core:chart_of_accounts_list', company_id=company.id)
-    else:
-        # Se for um GET, apenas exibe o formulário preenchido com os dados da conta
-        form = ChartOfAccountsForm(instance=account, company=company)
-
-    context = {
-        'form': form,
-        'company': company,
-        'account': account, # Passamos a conta para usar o nome no título, por exemplo
-    }
-    return render(request, 'core/account_update.html', context)
-
-@login_required
-def account_delete(request, company_id, account_id):
-    company = get_object_or_404(Company, pk=company_id, users=request.user)
-    account = get_object_or_404(ChartOfAccounts, pk=account_id, company=company)
-
-    if request.method == 'POST':
-        # Se o formulário de confirmação foi enviado, apaga o objeto
-        account.delete()
-        # E redireciona para a lista
-        return redirect('core:chart_of_accounts_list', company_id=company.id)
-
-    # Se for um GET, apenas mostra a página de confirmação
-    context = {
-        'account': account,
-        'company': company,
-    }
-    return render(request, 'core/account_confirm_delete.html', context)
 
 @login_required
 def set_active_company(request, company_id):
@@ -99,3 +129,94 @@ def set_active_company(request, company_id):
 
     # Redirecionamos o usuário para a página do plano de contas da empresa recém-ativada
     return redirect('core:chart_of_accounts_list', company_id=company.id)
+
+@login_required
+def transaction_list(request):
+    # Buscamos o ID da empresa ativa diretamente da sessão
+    active_company_id = request.session.get('active_company_id')
+    
+    # Se não houver empresa na sessão, redirecionamos para a seleção
+    if not active_company_id:
+        messages.error(request, "Por favor, selecione uma empresa primeiro.")
+        return redirect('core:company_list')
+
+    # Com o ID em mãos, buscamos o objeto da empresa no banco
+    # A checagem de segurança continua aqui para garantir que o usuário ainda tem acesso
+    active_company = get_object_or_404(Company, pk=active_company_id, users=request.user)
+
+    # Lógica para o formulário de adição
+    if request.method == 'POST':
+        form = TransactionForm(request.POST, company=active_company)
+        if form.is_valid():
+            new_transaction = form.save(commit=False)
+            new_transaction.company = active_company
+            new_transaction.save()
+            messages.success(request, "Lançamento salvo com sucesso!")
+            return redirect('core:transaction_list')
+    else:
+        form = TransactionForm(company=active_company)
+
+    # Busca os lançamentos da empresa ativa para listar
+    transactions = Transaction.objects.filter(company=active_company).order_by('-date')
+
+    context = {
+        'transactions': transactions,
+        'form': form,
+    }
+    return render(request, 'core/transaction_list.html', context)
+
+
+class TransactionUpdateView(LoginRequiredMixin, UpdateView):
+    model = Transaction
+    form_class = TransactionForm
+    template_name = 'core/transaction_form.html' # Vamos reutilizar um template de formulário
+
+    def get_queryset(self):
+        """ Garante que o usuário só pode editar lançamentos da empresa ativa na sessão. """
+        active_company_id = self.request.session.get('active_company_id')
+        if not active_company_id:
+            return Transaction.objects.none() # Não retorna nada se não houver empresa ativa
+
+        # Filtra as transações pela empresa ativa
+        active_company = get_object_or_404(Company, pk=active_company_id, users=self.request.user)
+        return Transaction.objects.filter(company=active_company)
+
+    def get_form_kwargs(self):
+        """ Passa a empresa ativa para o formulário. """
+        kwargs = super().get_form_kwargs()
+        # CORREÇÃO: Busca a empresa da sessão, não do request.
+        active_company_id = self.request.session.get('active_company_id')
+        if active_company_id:
+            # Encontramos a empresa para passar ao formulário,
+            # para que ele possa filtrar o campo 'account' corretamente.
+            kwargs['company'] = get_object_or_404(Company, pk=active_company_id)
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        """ Adiciona um título dinâmico ao contexto. """
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = 'Editar Lançamento'
+        return context
+
+    def get_success_url(self):
+        """ Redireciona para a lista de lançamentos após o sucesso. """
+        return reverse_lazy('core:transaction_list')
+
+
+class TransactionDeleteView(LoginRequiredMixin, DeleteView):
+    model = Transaction
+    template_name = 'core/transaction_confirm_delete.html'
+
+    def get_queryset(self):
+        """ Mesma lógica de segurança da view de Update. """
+        active_company_id = self.request.session.get('active_company_id')
+        if not active_company_id:
+            return Transaction.objects.none()
+
+        active_company = get_object_or_404(Company, pk=active_company_id, users=self.request.user)
+        return Transaction.objects.filter(company=active_company)
+
+    def get_success_url(self):
+        """ Redireciona para a lista de lançamentos após o sucesso. """
+        messages.success(self.request, "Lançamento excluído com sucesso.")
+        return reverse_lazy('core:transaction_list')

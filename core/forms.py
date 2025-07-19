@@ -1,5 +1,5 @@
 from django import forms
-from .models import ChartOfAccounts
+from .models import ChartOfAccounts, Transaction
 
 class ChartOfAccountsForm(forms.ModelForm):
     class Meta:
@@ -18,4 +18,27 @@ class ChartOfAccountsForm(forms.ModelForm):
         if company:
             self.fields['parent_account'].queryset = ChartOfAccounts.objects.filter(company=company)
 
+class TransactionForm(forms.ModelForm):
+    # Usamos um DateInput para que o navegador mostre um seletor de calendário
+    date = forms.DateField(
+        widget=forms.DateInput(
+            attrs={'type': 'date'},
+            format='%Y-%m-%d'  # <--- Adicione esta linha
+        ),
+        label="Data"
+    )
+
+    class Meta:
+        model = Transaction
+        # Campos que o usuário irá preencher
+        fields = ['date', 'account', 'amount', 'description']
         
+    def __init__(self, *args, **kwargs):
+        # Pegamos a 'company' que será passada pela view
+        company = kwargs.pop('company', None)
+        super().__init__(*args, **kwargs)
+
+        # Filtramos o campo 'account' para mostrar apenas as contas
+        # da empresa ativa. Não queremos que o usuário lance na conta de outro cliente.
+        if company:
+            self.fields['account'].queryset = ChartOfAccounts.objects.filter(company=company)

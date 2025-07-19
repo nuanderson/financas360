@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}Confirmar Exclusão de Lançamento{% endblock %}
+{% block content %}
+    <div class="card border-danger">
+        <div class="card-header bg-danger text-white">
+            <h2>Tem certeza?</h2>
+        </div>
+        <div class="card-body">
+            <p>Você está prestes a excluir o lançamento:</p>
+            <p>
+                <strong>Data:</strong> {{ object.date|date:"d/m/Y" }}
+            </p>
+            <p>
+                <strong>Conta:</strong> {{ object.account.name }}
+            </p>
+            <p>
+                <strong>Valor:</strong> R$ {{ object.amount }}
+            </p>
+            <p class="text-danger">Esta ação não pode ser desfeita.</p>
+            <hr>
+            <form method="post">
+                {% csrf_token %}
+                <a href="{% url 'core:transaction_list' %}" class="btn btn-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-danger">Sim, quero excluir</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}

@@ -54,6 +54,9 @@
                         <a class="nav-link text-white"
                            href="{% url 'core:chart_of_accounts_list' active_company.id %}">Plano de Contas</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'core:transaction_list' %}">Lançamentos</a>
+                    </li>
                 {% endif %}
             </ul>
         </aside>
