@@ -4,7 +4,7 @@ from django.views.generic import UpdateView, DeleteView, CreateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from .models import Company, ChartOfAccounts, Transaction
-from .forms import ChartOfAccountsForm, TransactionForm, CompanyForm
+from .forms import ChartOfAccountsForm, TransactionForm, CompanyForm, CSVImportForm
 from django.contrib import messages
 from django.db.models import Sum, Q, F, Value, DecimalField
 from django.db.models.functions import Coalesce 
@@ -12,6 +12,8 @@ from datetime import datetime, date
 from django.http import JsonResponse
 from dateutil.relativedelta import relativedelta
 import calendar
+import csv
+import io
 
 
 class AccountUpdateView(LoginRequiredMixin, UpdateView):
@@ -429,3 +431,192 @@ def revenue_expense_summary_data(request):
         'revenue_data': revenue_data,
         'expense_data': expense_data,
     })
+
+
+@login_required
+def import_chart_of_accounts(request, company_id):
+    company = get_object_or_404(Company, pk=company_id, users=request.user)
+    
+    if request.method == 'POST':
+        form = CSVImportForm(request.POST, request.FILES)
+        if form.is_valid():
+            csv_file = request.FILES['csv_file']
+            
+            if not csv_file.name.endswith('.csv'):
+                messages.error(request, 'Este não é um arquivo CSV válido.')
+                return redirect('core:import_chart_of_accounts', company_id=company.id)
+
+            # Decodifica o arquivo da forma mais robusta possível
+            try:
+                data_set = csv_file.read().decode('utf-8-sig')
+            except UnicodeDecodeError:
+                csv_file.seek(0)
+                data_set = csv_file.read().decode('latin-1')
+            
+            io_string = io.StringIO(data_set)
+
+            # Detecção automática do separador (vírgula ou ponto e vírgula)
+            try:
+                dialect = csv.Sniffer().sniff(io_string.readline(), delimiters=';,')
+                io_string.seek(0) # Volta para o início do arquivo
+                reader = csv.DictReader(io_string, dialect=dialect)
+                # Verifica se as colunas essenciais existem no cabeçalho
+                if not all(key in reader.fieldnames for key in ['code', 'name', 'account_type']):
+                    raise csv.Error("O cabeçalho do CSV é inválido. Faltam colunas obrigatórias.")
+            except csv.Error as e:
+                messages.error(request, f"Erro ao processar o arquivo CSV: {e}. Verifique o cabeçalho e o separador.")
+                return redirect('core:import_chart_of_accounts', company_id=company.id)
+            
+            parent_accounts_map = {}
+            child_accounts_rows = []
+            success_count = 0
+            error_count = 0
+
+            # --- PRIMEIRA PASSAGEM: Criar contas principais (sem pai) ---
+            for row in reader:
+                # Se a coluna 'parent_code' estiver vazia ou não existir, é uma conta principal
+                if not row.get('parent_code'):
+                    try:
+                        account, created = ChartOfAccounts.objects.get_or_create(
+                            company=company,
+                            code=row['code'],
+                            defaults={
+                                'name': row['name'],
+                                'account_type': row['account_type'].upper()
+                            }
+                        )
+                        if created:
+                            success_count += 1
+                        # Guarda a conta criada no mapa para referência futura
+                        parent_accounts_map[account.code] = account
+                    except Exception as e:
+                        error_count += 1
+                        messages.warning(request, f"Erro ao importar a conta {row.get('code', 'desconhecida')}: {e}")
+                else:
+                    # Se tiver um pai, guarda a linha para a segunda passagem
+                    child_accounts_rows.append(row)
+
+            # --- SEGUNDA PASSAGEM: Criar contas-filhas ---
+            for row in child_accounts_rows:
+                try:
+                    # Busca a conta pai no mapa que criamos
+                    parent_account = parent_accounts_map.get(row['parent_code'])
+                    if parent_account:
+                        account, created = ChartOfAccounts.objects.get_or_create(
+                            company=company,
+                            code=row['code'],
+                            defaults={
+                                'name': row['name'],
+                                'account_type': row['account_type'].upper(),
+                                'parent_account': parent_account
+                            }
+                        )
+                        if created:
+                            success_count += 1
+                        # Adiciona a conta filha recém-criada ao mapa, caso ela também seja pai de outra
+                        parent_accounts_map[account.code] = account
+                    else:
+                        # Se não encontrou o pai, registra um erro
+                        error_count += 1
+                        messages.warning(request, f"Não foi possível criar a conta '{row.get('code')}' pois a conta-pai '{row.get('parent_code')}' não foi encontrada ou criada na primeira passagem.")
+                except Exception as e:
+                    error_count += 1
+                    messages.warning(request, f"Erro ao importar a conta {row.get('code', 'desconhecida')}: {e}")
+
+            # Mensagem final para o usuário
+            if success_count > 0:
+                messages.success(request, f"{success_count} contas foram importadas ou atualizadas com sucesso.")
+            if error_count > 0:
+                 messages.error(request, f"Falha ao importar {error_count} contas. Verifique as mensagens de aviso.")
+            
+            return redirect('core:chart_of_accounts_list', company_id=company.id)
+
+    else: # Se o método for GET
+        form = CSVImportForm()
+
+    context = {
+        'form': form,
+        'company': company,
+    }
+    return render(request, 'core/import_chart_of_accounts.html', context)
+
+
+def get_account_total(account, transactions):
+    """
+    Função auxiliar recursiva.
+    Calcula o total de um conta somando seus próprios lançamentos
+    e os totais de todas as suas contas-filhas.
+    """
+    total = transactions.filter(account=account).aggregate(total=Coalesce(Sum('amount'), Value(0.0), output_field=DecimalField()))['total']
+
+    # Pega todas as subcontas desta conta
+    sub_accounts = account.sub_accounts.all()
+    for sub_account in sub_accounts:
+        # Chama a si mesma para cada subconta e soma o resultado
+        total += get_account_total(sub_account, transactions)
+
+    return total
+
+@login_required
+def dre_report(request):
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        messages.error(request, "Por favor, selecione uma empresa primeiro.")
+        return redirect('core:company_list')
+    active_company = get_object_or_404(Company, pk=active_company_id, users=request.user)
+    
+    # Reutilizamos a mesma lógica de filtro de data do dashboard
+    today = date.today()
+    start_date_str = request.GET.get('start_date', today.replace(day=1).strftime('%Y-%m-%d'))
+    end_date_str = request.GET.get('end_date', (today.replace(day=calendar.monthrange(today.year, today.month)[1])).strftime('%Y-%m-%d'))
+    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+
+    # Filtra todas as transações da empresa para o período selecionado
+    transactions = Transaction.objects.filter(
+        company=active_company,
+        date__range=[start_date, end_date]
+    )
+
+    # Buscamos as contas-raiz do plano de contas (Receitas e Despesas)
+    root_revenue_account = ChartOfAccounts.objects.get(company=active_company, code='1')
+    root_expense_account = ChartOfAccounts.objects.get(company=active_company, code='2')
+
+    # Calculamos os totais usando nossa função recursiva
+    total_revenue = get_account_total(root_revenue_account, transactions)
+    total_expense = get_account_total(root_expense_account, transactions)
+    net_result = total_revenue - total_expense
+
+    # Montamos uma estrutura de dados para o template
+    dre_data = {
+        'revenue_lines': [],
+        'expense_lines': [],
+    }
+
+    # Função para construir a estrutura de linhas para o template
+    def build_structure(account, level=0):
+        total = get_account_total(account, transactions)
+        line_data = {'account': account, 'total': total, 'level': level}
+
+        if account.account_type == 'R':
+            dre_data['revenue_lines'].append(line_data)
+        else:
+            dre_data['expense_lines'].append(line_data)
+
+        for sub_account in account.sub_accounts.all().order_by('code'):
+            build_structure(sub_account, level + 1)
+
+    # Construímos a estrutura começando pelas contas-raiz
+    build_structure(root_revenue_account)
+    build_structure(root_expense_account)
+
+    context = {
+        'company': active_company,
+        'start_date_str': start_date_str,
+        'end_date_str': end_date_str,
+        'dre_data': dre_data,
+        'total_revenue': total_revenue,
+        'total_expense': total_expense,
+        'net_result': net_result,
+    }
+    return render(request, 'core/dre_report.html', context)

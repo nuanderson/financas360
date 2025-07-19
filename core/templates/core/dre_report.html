@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% load l10n %}
+{% load humanize %}
+{% block title %}DRE - {{ company.name }}{% endblock %}
+{% block content %}
+    <h1>
+        DRE Gerencial <span class="text-muted fs-4">{{ company.name }}</span>
+    </h1>
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="" class="row g-3 align-items-center">
+                <div class="col-auto">
+                    <label for="start_date" class="form-label">Data Início</label>
+                    <input type="date"
+                           class="form-control"
+                           id="start_date"
+                           name="start_date"
+                           value="{{ start_date_str }}">
+                </div>
+                <div class="col-auto">
+                    <label for="end_date" class="form-label">Data Fim</label>
+                    <input type="date"
+                           class="form-control"
+                           id="end_date"
+                           name="end_date"
+                           value="{{ end_date_str }}">
+                </div>
+                <div class="col-auto mt-auto">
+                    <button type="submit" class="btn btn-primary">Filtrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-hover">
+                <tbody>
+                    {% for line in dre_data.revenue_lines %}
+                        <tr class="{% if line.level == 0 %}table-light fw-bold{% endif %}">
+                            <td style="padding-left: {{ line.level|add:1 }}rem;">{{ line.account.code }} - {{ line.account.name }}</td>
+                            <td class="text-end">R$ {{ line.total|floatformat:2|intcomma }}</td>
+                        </tr>
+                    {% endfor %}
+                    <tr class="table-success fw-bold">
+                        <td class="text-end">TOTAL DE RECEITAS</td>
+                        <td class="text-end">R$ {{ total_revenue|floatformat:2|intcomma }}</td>
+                    </tr>
+                    {% for line in dre_data.expense_lines %}
+                        <tr class="{% if line.level == 0 %}table-light fw-bold{% endif %}">
+                            <td style="padding-left: {{ line.level|add:1 }}rem;">{{ line.account.code }} - {{ line.account.name }}</td>
+                            <td class="text-end">R$ {{ line.total|floatformat:2|intcomma }}</td>
+                        </tr>
+                    {% endfor %}
+                    <tr class="table-danger fw-bold">
+                        <td class="text-end">TOTAL DE DESPESAS E CUSTOS</td>
+                        <td class="text-end">R$ {{ total_expense|floatformat:2|intcomma }}</td>
+                    </tr>
+                    <tr class="{% if net_result >= 0 %}table-primary{% else %}table-dark{% endif %} fw-bolder fs-5">
+                        <td class="text-end">RESULTADO LÍQUIDO</td>
+                        <td class="text-end">R$ {{ net_result|floatformat:2|intcomma }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

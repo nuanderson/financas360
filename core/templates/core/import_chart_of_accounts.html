@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Importar Plano de Contas{% endblock %}
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'core:company_list' %}">Minhas Empresas</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'core:chart_of_accounts_list' company.id %}">Plano de Contas</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Importar via CSV</li>
+        </ol>
+    </nav>
+    <div class="card">
+        <div class="card-header">
+            <h2>Importar Plano de Contas para: {{ company.name }}</h2>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <h5 class="alert-heading">Instruções</h5>
+                <p>
+                    O arquivo CSV deve conter as seguintes colunas, nesta ordem: <code>code,name,account_type,parent_code</code>
+                </p>
+                <ul>
+                    <li>
+                        <strong>code:</strong> O código da conta (ex: 1.01).
+                    </li>
+                    <li>
+                        <strong>name:</strong> O nome da conta (ex: Vendas).
+                    </li>
+                    <li>
+                        <strong>account_type:</strong> Use 'R' para Receita e 'E' para Despesa.
+                    </li>
+                    <li>
+                        <strong>parent_code:</strong> O código da conta-pai. Deixe em branco para contas principais.
+                    </li>
+                </ul>
+            </div>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <hr>
+                <button type="submit" class="btn btn-primary">Importar Arquivo</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}

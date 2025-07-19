@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}{{ page_title }} - {{ active_company.name }}{% endblock %}
 {% block content %}
-    <nav aria-label="breadcrumb">
+    <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
             <li class="breadcrumb-item">
                 <a href="{% url 'core:company_list' %}">Minhas Empresas</a>
@@ -12,17 +12,28 @@
             <li class="breadcrumb-item active" aria-current="page">{{ page_title }}</li>
         </ol>
     </nav>
-    <div class="card">
-        <div class="card-header">
-            <h2>{{ page_title }}</h2>
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <h4 class="mb-0">{{ page_title }}</h4>
         </div>
         <div class="card-body">
-            <form method="post">
+            <form method="post" novalidate>
                 {% csrf_token %}
-                {{ form.as_p }}
-                <hr>
-                <a href="{% url 'core:transaction_list' %}" class="btn btn-secondary">Cancelar</a>
-                <button type="submit" class="btn btn-primary">Salvar</button>
+                <div class="row g-3">
+                    {% for field in form %}
+                        <div class="col-md-6">
+                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors|join:", " }}</div>{% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+                <hr class="my-4">
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'core:transaction_list' %}"
+                       class="btn btn-outline-secondary">⬅️ Cancelar</a>
+                    <button type="submit" class="btn btn-primary">💾 Salvar</button>
+                </div>
             </form>
         </div>
     </div>

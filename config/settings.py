@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',
     'core',
 ]
 
@@ -137,3 +138,5 @@ LOGIN_REDIRECT_URL = 'core:home'
 # Qual a URL da página de login (o nome da URL que vamos criar)
 LOGIN_URL = 'core:login'
 
+# Adicione esta linha para ativar o separador de milhar globalmente
+USE_THOUSAND_SEPARATOR = True

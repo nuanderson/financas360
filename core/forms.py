@@ -90,3 +90,6 @@ class CompanyForm(forms.ModelForm):
         model = Company
         # O usuário só precisa informar o nome. A associação com o usuário será automática.
         fields = ['name']
+
+class CSVImportForm(forms.Form):
+    csv_file = forms.FileField(label="Arquivo CSV")

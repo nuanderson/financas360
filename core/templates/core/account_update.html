@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}Editar Conta - {{ account.name }}{% endblock %}
 {% block content %}
-    <nav aria-label="breadcrumb">
+    <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
             <li class="breadcrumb-item">
                 <a href="{% url 'core:company_list' %}">Minhas Empresas</a>
@@ -12,18 +12,28 @@
             <li class="breadcrumb-item active" aria-current="page">Editar Conta</li>
         </ol>
     </nav>
-    <div class="card">
-        <div class="card-header">
-            <h2>Editar Conta: {{ account.name }}</h2>
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <h4 class="mb-0">✏️ Editar Conta</h4>
+            <small class="text-muted">Modificando a conta: <strong>{{ account.name }}</strong></small>
         </div>
         <div class="card-body">
-            <form method="post">
+            <form method="post" novalidate>
                 {% csrf_token %}
-                {{ form.as_p }}
-                <hr>
-                <a href="{% url 'core:chart_of_accounts_list' company.id %}"
-                   class="btn btn-secondary">Cancelar</a>
-                <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                <div class="row g-3">
+                    {% for field in form %}
+                        <div class="col-md-6">
+                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors|join:", " }}</div>{% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-4 d-flex justify-content-between">
+                    <a href="{% url 'core:chart_of_accounts_list' company.id %}"
+                       class="btn btn-outline-secondary">⬅️ Cancelar</a>
+                    <button type="submit" class="btn btn-success">💾 Salvar Alterações</button>
+                </div>
             </form>
         </div>
     </div>

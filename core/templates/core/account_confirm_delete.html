@@ -1,21 +1,27 @@
 {% extends 'base.html' %}
 {% block title %}Confirmar Exclusão{% endblock %}
 {% block content %}
-    <div class="card border-danger">
-        <div class="card-header bg-danger text-white">
-            <h2>Tem certeza?</h2>
+    <div class="card shadow border border-danger">
+        <div class="card-header bg-danger text-white d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <h5 class="mb-0">Atenção: Ação Irreversível</h5>
         </div>
         <div class="card-body">
-            <p>
-                Você está prestes a excluir a conta: <strong>{{ account.code }} - {{ account.name }}</strong>.
+            <p class="fs-5">
+                Você está prestes a excluir a conta:
+                <strong class="text-danger">{{ account.code }} - {{ account.name }}</strong>.
             </p>
-            <p class="text-danger">Esta ação não pode ser desfeita.</p>
-            <hr>
-            <form method="post">
+            <p class="text-danger fw-bold">
+                Esta ação é permanente e <u>não poderá ser desfeita</u>.
+            </p>
+            <div class="alert alert-warning mt-4">Todos os lançamentos associados a esta conta serão também removidos.</div>
+            <hr class="my-4">
+            <form method="post"
+                  class="d-flex justify-content-between align-items-center">
                 {% csrf_token %}
                 <a href="{% url 'core:chart_of_accounts_list' company.id %}"
-                   class="btn btn-secondary">Cancelar</a>
-                <button type="submit" class="btn btn-danger">Sim, quero excluir</button>
+                   class="btn btn-outline-secondary">❌ Cancelar</a>
+                <button type="submit" class="btn btn-danger">🗑️ Sim, excluir conta</button>
             </form>
         </div>
     </div>

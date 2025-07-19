@@ -15,12 +15,15 @@ urlpatterns = [
     path('empresa/<int:company_id>/plano-de-contas/', views.chart_of_accounts_list, name='chart_of_accounts_list'),
     path('empresa/<int:company_id>/plano-de-contas/<int:account_id>/editar/', views.AccountUpdateView.as_view(), name='account_update'),
     path('empresa/<int:company_id>/plano-de-contas/<int:account_id>/excluir/', views.AccountDeleteView.as_view(), name='account_delete'),
+    path('empresa/<int:company_id>/plano-de-contas/importar/', views.import_chart_of_accounts, name='import_chart_of_accounts'),
     path('empresa/<int:company_id>/ativar/', views.set_active_company, name='set_active_company'),
     path('empresa/<int:company_id>/dashboard', views.dashboard, name='dashboard'),
     # Página de Lançamentos
     path('lancamentos/', views.transaction_list, name='transaction_list'),
     path('lancamentos/<int:pk>/editar/', views.TransactionUpdateView.as_view(), name='transaction_update'),
     path('lancamentos/<int:pk>/excluir/', views.TransactionDeleteView.as_view(), name='transaction_delete'),
+    # Página de Relatórios
+    path('relatorios/dre/', views.dre_report, name='dre_report'),
     # Página de Login
     path('login/', auth_views.LoginView.as_view(template_name='core/login.html'), name='login'),
     # Ação de Logout
