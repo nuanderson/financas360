@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 {% load form_filters %}
+{% load l10n humanize %}
 {% block title %}Lançamentos - {{ active_company.name }}{% endblock %}
 {% block content %}
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="mb-0">Lançamentos</h1>
-        <span class="badge bg-info text-dark">{{ active_company.name }}</span>
-    </div>
+    <h1 class="fw-bold text-primary mb-3">
+        Lançamentos <span class="text-muted fs-5">{{ active_company.name }}</span>
+    </h1>
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-light">
             <h5 class="mb-0">Adicionar Novo Lançamento</h5>
@@ -14,22 +14,26 @@
             <form method="post" novalidate>
                 {% csrf_token %}
                 <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.account_type_filter.id_for_label }}" class="form-label">Filtrar Conta por Tipo</label>
+                        {{ form.account_type_filter|add_class:"form-select" }}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.account.id_for_label }}" class="form-label">Conta</label>
+                        {{ form.account }} {# A classe .select2-widget já está no forms.py #}
+                        {% if form.account.errors %}<div class="text-danger small mt-1">{{ form.account.errors|join:", " }}</div>{% endif %}
+                    </div>
                     <div class="col-md-4">
                         <label for="{{ form.date.id_for_label }}" class="form-label">Data</label>
                         {{ form.date|add_class:"form-control" }}
                         {% if form.date.errors %}<div class="text-danger small mt-1">{{ form.date.errors|join:", " }}</div>{% endif %}
                     </div>
                     <div class="col-md-4">
-                        <label for="{{ form.account.id_for_label }}" class="form-label">Conta</label>
-                        {{ form.account|add_class:"form-select" }}
-                        {% if form.account.errors %}<div class="text-danger small mt-1">{{ form.account.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4">
                         <label for="{{ form.amount.id_for_label }}" class="form-label">Valor</label>
                         {{ form.amount|add_class:"form-control" }}
                         {% if form.amount.errors %}<div class="text-danger small mt-1">{{ form.amount.errors|join:", " }}</div>{% endif %}
                     </div>
-                    <div class="col-md-12">
+                    <div class="col-md-4">
                         <label for="{{ form.description.id_for_label }}" class="form-label">Descrição</label>
                         {{ form.description|add_class:"form-control" }}
                         {% if form.description.errors %}
@@ -63,9 +67,9 @@
                             <td>{{ transaction.account.name }}</td>
                             <td>{{ transaction.description|default:"—" }}</td>
                             {% if transaction.account.account_type == 'R' %}
-                                <td class="text-end text-success fw-bold">+ {{ transaction.amount }}</td>
+                                <td class="text-end text-success fw-bold">+ {{ transaction.amount|floatformat:2|intcomma }}</td>
                             {% else %}
-                                <td class="text-end text-danger fw-bold">- {{ transaction.amount }}</td>
+                                <td class="text-end text-danger fw-bold">- {{ transaction.amount|floatformat:2|intcomma }}</td>
                             {% endif %}
                             <td class="text-center">
                                 <a href="{% url 'core:transaction_update' transaction.pk %}"
@@ -85,4 +89,47 @@
             </table>
         </div>
     </div>
+    <script id="accounts-data" type="application/json">{{ all_accounts_list|safe }}</script>
+{% endblock %}
+{% block extra_js %}
+    <script>
+    $(document).ready(function() {
+        // Pega os dados que o Django colocou na tag script
+        const allAccountsData = JSON.parse(document.getElementById('accounts-data').textContent);
+        
+        // Converte os dados para o formato que o Select2 entende
+        const select2Data = allAccountsData.map(account => {
+            return {
+                id: account.pk,
+                text: `${account.code} - ${account.name}`, // Sem 'fields.'
+                type: account.account_type // Sem 'fields.'
+            };
+        });
+
+        const typeFilter = $('#id_account_type_filter');
+        const accountSelect = $('#id_account');
+
+        function updateAccountOptions(selectedType) {
+            const filteredData = select2Data.filter(account => {
+                if (!selectedType) return true;
+                return account.type === selectedType;
+            });
+            
+            accountSelect.empty();
+            accountSelect.select2({
+                theme: "bootstrap-5",
+                data: filteredData
+            });
+            accountSelect.trigger('change');
+        }
+
+        typeFilter.on('change', function() {
+            const selectedType = $(this).val();
+            updateAccountOptions(selectedType);
+        });
+
+        // Chama a função uma vez no início, passando o valor inicial do filtro
+        updateAccountOptions(typeFilter.val());
+    });
+    </script>
 {% endblock %}

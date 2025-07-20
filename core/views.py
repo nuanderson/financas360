@@ -12,10 +12,13 @@ from datetime import datetime, date
 from django.http import JsonResponse, HttpResponse
 from dateutil.relativedelta import relativedelta
 from django.template.loader import render_to_string
+from django.core import serializers
 from weasyprint import HTML
+from decimal import Decimal
 import calendar
 import csv
 import io
+import json
 
 
 class AccountUpdateView(LoginRequiredMixin, UpdateView):
@@ -169,9 +172,17 @@ def transaction_list(request):
     # Busca os lançamentos da empresa ativa para listar
     transactions = Transaction.objects.filter(company=active_company).order_by('-date')
 
+    # 1. Buscamos os dados do banco como uma lista de dicionários
+    all_accounts = ChartOfAccounts.objects.filter(company=active_company).values('pk', 'code', 'name', 'account_type')
+    all_accounts_list = list(all_accounts)
+    
+    # 2. Convertemos a lista Python para uma string no formato JSON VÁLIDO (com aspas duplas)
+    all_accounts_json_str = json.dumps(all_accounts_list)
+
     context = {
         'transactions': transactions,
         'form': form,
+        'all_accounts_json_str': all_accounts_json_str, # Passamos a string JSON para o contexto
     }
     return render(request, 'core/transaction_list.html', context)
 
@@ -541,7 +552,9 @@ def get_account_total(account, transactions):
     Calcula o total de um conta somando seus próprios lançamentos
     e os totais de todas as suas contas-filhas.
     """
-    total = transactions.filter(account=account).aggregate(total=Coalesce(Sum('amount'), Value(0.0), output_field=DecimalField()))['total']
+    total = transactions.filter(account=account).aggregate(
+        total=Coalesce(Sum('amount'), Value(0.0), output_field=DecimalField())
+    )['total']
 
     # Pega todas as subcontas desta conta
     sub_accounts = account.sub_accounts.all()
@@ -690,53 +703,42 @@ def budget_dashboard(request):
         return redirect('core:company_list')
     active_company = get_object_or_404(Company, pk=active_company_id, users=request.user)
 
-    # Por enquanto, vamos fixar no ano atual. Futuramente, podemos adicionar um filtro de ano.
     current_year = datetime.now().year
 
-    # 1. Busca todos os dados necessários
     accounts = ChartOfAccounts.objects.filter(company=active_company).order_by('code')
     budgets = Budget.objects.filter(account__company=active_company, year=current_year)
     transactions = Transaction.objects.filter(company=active_company, date__year=current_year)
 
-    # 2. Pré-calcula os totais mensais para otimização
     monthly_totals = {}
     for month in range(1, 13):
         month_total = transactions.filter(date__month=month).values('account').annotate(total=Sum('amount'))
         for item in month_total:
             monthly_totals[(item['account'], month)] = item['total']
 
-    # 3. Pré-calcula os orçamentos para otimização
     budget_map = {b.account.id: b.annual_amount for b in budgets}
 
-    # 4. Constrói a estrutura de dados final para o template
     report_data = []
     account_map = {acc.id: {'children': [], 'data': {
         'account': acc,
-        'annual_budget': budget_map.get(acc.id, 0),
-        'monthly_actuals': [monthly_totals.get((acc.id, m), 0) for m in range(1, 13)]
+        'annual_budget': budget_map.get(acc.id, Decimal(0)),
+        'monthly_actuals': [monthly_totals.get((acc.id, m), Decimal(0)) for m in range(1, 13)]
     }} for acc in accounts}
 
-    # Constrói a árvore de contas
     for acc in accounts:
-        if acc.parent_account_id:
-            if acc.parent_account_id in account_map:
-                account_map[acc.parent_account_id]['children'].append(account_map[acc.id])
+        if acc.parent_account_id and acc.parent_account_id in account_map:
+            account_map[acc.parent_account_id]['children'].append(account_map[acc.id])
 
-    # Função recursiva para somar os valores de baixo para cima na árvore
     def aggregate_totals(node):
         for child_node in node['children']:
             aggregate_totals(child_node)
             node['data']['annual_budget'] += child_node['data']['annual_budget']
             for i in range(12):
                 node['data']['monthly_actuals'][i] += child_node['data']['monthly_actuals'][i]
-
-    # Inicia a agregação a partir das contas-raiz
+    
     for acc_id, node in account_map.items():
-        acc = node['data']['account']
-        if acc.parent_account_id is None:
+        if node['data']['account'].parent_account_id is None:
             aggregate_totals(node)
 
-    # Função recursiva para montar a lista final ordenada
     def build_report_list(node, level=0):
         node['data']['level'] = level
         report_data.append(node['data'])
@@ -744,31 +746,62 @@ def budget_dashboard(request):
             build_report_list(child_node, level + 1)
 
     for acc_id, node in account_map.items():
-        acc = node['data']['account']
-        if acc.parent_account_id is None:
+        if node['data']['account'].parent_account_id is None:
             build_report_list(node)
 
-    # 5. Calcula as variações e se está acima do orçamento
+    # --- INÍCIO DA NOVA LÓGICA DE CORES ---
     for row in report_data:
-        monthly_budget = row['annual_budget'] / 12 if row['annual_budget'] else 0
-        row['monthly_variations'] = [0] * 12
-        row['is_over_budget'] = [False] * 12
-
+        monthly_budget = row['annual_budget'] / 12 if row['annual_budget'] > 0 else 0
+        row['monthly_data'] = []
+        
         for i in range(12):
             actual = row['monthly_actuals'][i]
-            # Variação vs. mês anterior
+            
+            # --- Lógica de Cores para o 'Realizado' ---
+            realizado_css_class = ""
+            is_over_budget = monthly_budget > 0 and actual > monthly_budget
+            
+            if row['account'].account_type == 'E': # Se for Despesa
+                if is_over_budget:
+                    realizado_css_class = "bg-danger text-white"  # RUIM: Acima do orçamento
+                elif actual > 0:
+                    realizado_css_class = "bg-primary text-white" # BOM: Dentro do orçamento
+            
+            elif row['account'].account_type == 'R': # Se for Receita
+                if is_over_budget:
+                    realizado_css_class = "bg-primary text-white" # BOM: Acima do orçamento
+
+            # --- Lógica de Cores para a 'Variação' ---
+            variation = Decimal(0)
             if i > 0:
                 previous_actual = row['monthly_actuals'][i-1]
-                if previous_actual > 0:
-                    row['monthly_variations'][i] = ((actual - previous_actual) / previous_actual) * 100
-            # Acima do orçamento?
-            if monthly_budget > 0 and actual > monthly_budget:
-                row['is_over_budget'][i] = True
+                if previous_actual != 0:
+                    variation = ((actual - previous_actual) / previous_actual) * 100
+            
+            variacao_css_class = ""
+            if variation == 0:
+                variacao_css_class = "badge bg-warning text-dark" # NEUTRO
+            elif row['account'].account_type == 'E': # Se for Despesa
+                variacao_css_class = "badge bg-danger" if variation > 0 else "badge bg-success" # Aumento é ruim, queda é bom
+            elif row['account'].account_type == 'R': # Se for Receita
+                variacao_css_class = "badge bg-success" if variation > 0 else "badge bg-danger" # Aumento é bom, queda é ruim
+
+            # Adiciona o "pacote" de dados do mês à lista
+            # Em core/views.py, dentro da função budget_dashboard, no final do loop...
+
+            # Adiciona o "pacote" de dados do mês à lista
+            row['monthly_data'].append({
+                'actual': actual,
+                'variation': variation,
+                'is_over_budget': is_over_budget,
+                'realizado_css_class': realizado_css_class,
+                'variacao_css_class': variacao_css_class,
+                'monthly_budget': monthly_budget # <--- ADICIONE ESTA LINHA
+            })
+    # --- FIM DA NOVA LÓGICA DE CORES ---
 
     context = {
-        'company': active_company,
-        'year': current_year,
-        'report_data': report_data,
+        'company': active_company, 'year': current_year, 'report_data': report_data,
         'months': ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
     }
     return render(request, 'core/budget_dashboard.html', context)

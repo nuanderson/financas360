@@ -14,5 +14,9 @@ class ChartOfAccountsAdmin(admin.ModelAdmin):
     search_fields = ('code', 'name')
     ordering = ('code',)
 
+@admin.register(Budget)
+class BudgetAdmin(admin.ModelAdmin):
+    list_display = ('account', 'year', 'annual_amount')
+    list_filter = ('year', 'account__company')
+
 admin.site.register(Transaction)
-admin.site.register(Budget)

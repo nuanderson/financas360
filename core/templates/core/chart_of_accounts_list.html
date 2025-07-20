@@ -2,12 +2,9 @@
 {% block title %}Plano de Contas - {{ company.name }}{% endblock %}
 {% block content %}
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="mb-1">Plano de Contas</h1>
-            <p class="text-muted mb-0">
-                Empresa: <strong>{{ company.name }}</strong>
-            </p>
-        </div>
+        <h1 class="fw-bold text-primary mb-3">
+            Plano de Contas <span class="text-muted fs-5">{{ company.name }}</span>
+        </h1>
         <a href="{% url 'core:import_chart_of_accounts' company.id %}"
            class="btn btn-outline-primary">📥 Importar CSV</a>
     </div>

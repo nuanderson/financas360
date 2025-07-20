@@ -17,8 +17,8 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
-#: .\core\models.py:7 .\core\models.py:30
 
+#: .\core\models.py:7 .\core\models.py:30
 msgid "name"
 msgstr "Nome"
 
@@ -105,3 +105,19 @@ msgstr "Lançamento"
 #: .\core\models.py:56
 msgid "Transactions"
 msgstr "Lançamentos"
+
+#: .\core\models.py:63
+msgid "year"
+msgstr "Ano"
+
+#: .\core\models.py:65
+msgid "annual amount"
+msgstr "Montante Anual"
+
+#: .\core\models.py:71
+msgid "Budget"
+msgstr "Orçamento"
+
+#: .\core\models.py:72
+msgid "Budgets"
+msgstr "Orçamentos"

@@ -61,11 +61,16 @@ class ChartOfAccountsForm(forms.ModelForm):
         return cleaned_data
 
 class TransactionForm(forms.ModelForm):
+    account_type_filter = forms.ChoiceField(
+        choices=(('', '---------'), ('R', 'Receita'), ('E', 'Despesa')),
+        required=False,
+        label="Filtrar por tipo"
+    )
     # Usamos um DateInput para que o navegador mostre um seletor de calendário
     date = forms.DateField(
         widget=forms.DateInput(
             attrs={'type': 'date'},
-            format='%Y-%m-%d'  # <--- Adicione esta linha
+            format='%Y-%m-%d'
         ),
         label="Data"
     )
@@ -73,7 +78,12 @@ class TransactionForm(forms.ModelForm):
     class Meta:
         model = Transaction
         # Campos que o usuário irá preencher
-        fields = ['date', 'account', 'amount', 'description']
+        fields = ['account_type_filter', 'date', 'account', 'amount', 'description']
+
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 1}),
+            'account': forms.Select(attrs={'class': 'select2-widget'}),
+        }
         
     def __init__(self, *args, **kwargs):
         # Pegamos a 'company' que será passada pela view
