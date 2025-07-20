@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Company, ChartOfAccounts, Transaction
+from .models import Company, ChartOfAccounts, Transaction, Budget
 
 @admin.register(Company)
 class CompanyAdmin(admin.ModelAdmin):
@@ -15,3 +15,4 @@ class ChartOfAccountsAdmin(admin.ModelAdmin):
     ordering = ('code',)
 
 admin.site.register(Transaction)
+admin.site.register(Budget)

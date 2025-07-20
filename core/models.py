@@ -56,7 +56,21 @@ class Transaction(models.Model):
         verbose_name_plural = _("Transactions")
 
 
-    
-    
+class Budget(models.Model):
+    # Cada registro de orçamento pertence a uma conta específica
+    account = models.ForeignKey(ChartOfAccounts, on_delete=models.CASCADE, verbose_name=_("account"))
+    # O ano para o qual este orçamento se aplica
+    year = models.PositiveIntegerField(_("year"))
+    # O valor total previsto para a conta no ano inteiro
+    annual_amount = models.DecimalField(_("annual amount"), max_digits=15, decimal_places=2)
+
+    def __str__(self):
+        return f"Orçamento para {self.account.name} em {self.year}"
+
+    class Meta:
+        verbose_name = _("Budget")
+        verbose_name_plural = _("Budgets")
+        # Garante que só exista um orçamento por conta e por ano
+        unique_together = ('account', 'year')    
     
     

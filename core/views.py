@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.generic import UpdateView, DeleteView, CreateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
-from .models import Company, ChartOfAccounts, Transaction
+from .models import Company, ChartOfAccounts, Transaction, Budget
 from .forms import ChartOfAccountsForm, TransactionForm, CompanyForm, CSVImportForm
 from django.contrib import messages
 from django.db.models import Sum, Q, F, Value, DecimalField
@@ -680,3 +680,95 @@ def dre_report_pdf(request):
     response = HttpResponse(pdf, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="DRE_{active_company.name}.pdf"'
     return response
+
+
+@login_required
+def budget_dashboard(request):
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        messages.error(request, "Por favor, selecione uma empresa primeiro.")
+        return redirect('core:company_list')
+    active_company = get_object_or_404(Company, pk=active_company_id, users=request.user)
+
+    # Por enquanto, vamos fixar no ano atual. Futuramente, podemos adicionar um filtro de ano.
+    current_year = datetime.now().year
+
+    # 1. Busca todos os dados necessários
+    accounts = ChartOfAccounts.objects.filter(company=active_company).order_by('code')
+    budgets = Budget.objects.filter(account__company=active_company, year=current_year)
+    transactions = Transaction.objects.filter(company=active_company, date__year=current_year)
+
+    # 2. Pré-calcula os totais mensais para otimização
+    monthly_totals = {}
+    for month in range(1, 13):
+        month_total = transactions.filter(date__month=month).values('account').annotate(total=Sum('amount'))
+        for item in month_total:
+            monthly_totals[(item['account'], month)] = item['total']
+
+    # 3. Pré-calcula os orçamentos para otimização
+    budget_map = {b.account.id: b.annual_amount for b in budgets}
+
+    # 4. Constrói a estrutura de dados final para o template
+    report_data = []
+    account_map = {acc.id: {'children': [], 'data': {
+        'account': acc,
+        'annual_budget': budget_map.get(acc.id, 0),
+        'monthly_actuals': [monthly_totals.get((acc.id, m), 0) for m in range(1, 13)]
+    }} for acc in accounts}
+
+    # Constrói a árvore de contas
+    for acc in accounts:
+        if acc.parent_account_id:
+            if acc.parent_account_id in account_map:
+                account_map[acc.parent_account_id]['children'].append(account_map[acc.id])
+
+    # Função recursiva para somar os valores de baixo para cima na árvore
+    def aggregate_totals(node):
+        for child_node in node['children']:
+            aggregate_totals(child_node)
+            node['data']['annual_budget'] += child_node['data']['annual_budget']
+            for i in range(12):
+                node['data']['monthly_actuals'][i] += child_node['data']['monthly_actuals'][i]
+
+    # Inicia a agregação a partir das contas-raiz
+    for acc_id, node in account_map.items():
+        acc = node['data']['account']
+        if acc.parent_account_id is None:
+            aggregate_totals(node)
+
+    # Função recursiva para montar a lista final ordenada
+    def build_report_list(node, level=0):
+        node['data']['level'] = level
+        report_data.append(node['data'])
+        for child_node in sorted(node['children'], key=lambda x: x['data']['account'].code):
+            build_report_list(child_node, level + 1)
+
+    for acc_id, node in account_map.items():
+        acc = node['data']['account']
+        if acc.parent_account_id is None:
+            build_report_list(node)
+
+    # 5. Calcula as variações e se está acima do orçamento
+    for row in report_data:
+        monthly_budget = row['annual_budget'] / 12 if row['annual_budget'] else 0
+        row['monthly_variations'] = [0] * 12
+        row['is_over_budget'] = [False] * 12
+
+        for i in range(12):
+            actual = row['monthly_actuals'][i]
+            # Variação vs. mês anterior
+            if i > 0:
+                previous_actual = row['monthly_actuals'][i-1]
+                if previous_actual > 0:
+                    row['monthly_variations'][i] = ((actual - previous_actual) / previous_actual) * 100
+            # Acima do orçamento?
+            if monthly_budget > 0 and actual > monthly_budget:
+                row['is_over_budget'][i] = True
+
+    context = {
+        'company': active_company,
+        'year': current_year,
+        'report_data': report_data,
+        'months': ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+    }
+    return render(request, 'core/budget_dashboard.html', context)

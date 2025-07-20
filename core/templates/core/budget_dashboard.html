@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% load l10n humanize %}
+{% block title %}Quadro Orçamentário - {{ company.name }}{% endblock %}
+{% block content %}
+    <h1>
+        Quadro Orçamentário <span class="text-muted fs-4">{{ year }}</span>
+    </h1>
+    <hr>
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover" style="font-size: 0.9em;">
+            <thead class="table-light">
+                <tr>
+                    <th rowspan="2" class="align-middle">Conta</th>
+                    <th rowspan="2" class="align-middle text-end">Orçamento Anual</th>
+                    {% for month in months %}<th colspan="2" class="text-center">{{ month }}</th>{% endfor %}
+                </tr>
+                <tr>
+                    {% for month in months %}
+                        <th class="text-end">Realizado</th>
+                        <th class="text-center">Var(%)</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in report_data %}
+                    <tr class="{% if row.level == 0 %}table-group-divider fw-bold{% endif %}">
+                        <td style="padding-left: {{ row.level|add:1 }}rem;">{{ row.account.code }} - {{ row.account.name }}</td>
+                        <td class="text-end">R$ {{ row.annual_budget|floatformat:2|intcomma }}</td>
+                        {% for i in row.monthly_actuals %}
+                            {% with forloop.counter0 as index %}
+                                {% with is_over=row.is_over_budget|slice:":1"|join:"" over_budget_flag=row.is_over_budget|slice:index|first %}
+                                    <td class="text-end {% if over_budget_flag and row.account.account_type == 'E' %}bg-danger text-white{% endif %}">
+                                        R$ {{ i|floatformat:2|intcomma }}
+                                    </td>
+                                {% endwith %}
+                                {% with variation=row.monthly_variations|slice:index|first %}
+                                    <td class="text-center">
+                                        {% if index > 0 %}
+                                            {% if variation > 0 %}
+                                                <span class="badge {% if row.account.account_type == 'R' %}bg-success{% else %}bg-danger{% endif %}">
+                                                    ▲ {{ variation|floatformat:0 }}%
+                                                </span>
+                                            {% elif variation < 0 %}
+                                                <span class="badge {% if row.account.account_type == 'R' %}bg-danger{% else %}bg-success{% endif %}">
+                                                    ▼ {{ variation|floatformat:0 }}%
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">0%</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                {% endwith %}
+                            {% endwith %}
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

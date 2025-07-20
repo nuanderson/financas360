@@ -25,7 +25,8 @@ urlpatterns = [
     # Página de Relatórios
     path('relatorios/dre/', views.dre_report, name='dre_report'),
     path('relatorios/dre/pdf/', views.dre_report_pdf, name='dre_report_pdf'),
-
+    # Página do Quadro Orçamentário
+    path('quadro-orcamentario/', views.budget_dashboard, name='budget_dashboard'),
     # Página de Login
     path('login/', auth_views.LoginView.as_view(template_name='core/login.html'), name='login'),
     # Ação de Logout
