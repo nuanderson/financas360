@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+    <head>
+        <meta charset="UTF-8">
+        <title>DRE - {{ company.name }}</title>
+        {% load humanize %}
+        <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        body {
+            font-family: 'Segoe UI', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
+            font-size: 12px;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            font-size: 20px;
+            color: #1F4E79;
+            margin-bottom: 2px;
+        }
+        h2 {
+            text-align: center;
+            font-size: 16px;
+            color: #444;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        .report-period {
+            text-align: center;
+            font-style: italic;
+            color: #777;
+            margin-bottom: 30px;
+            font-size: 12px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        th {
+            background-color: #f0f4f8;
+            font-weight: bold;
+            padding: 8px;
+            border-bottom: 2px solid #ccc;
+        }
+        td {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:nth-child(even) td {
+            background-color: #fafafa;
+        }
+        .total-row td {
+            font-weight: bold;
+            border-top: 2px solid #bbb;
+            border-bottom: 2px solid #bbb;
+            background-color: #f8f8f8;
+        }
+        .net-result-row td {
+            font-size: 13px;
+            font-weight: bold;
+            color: #fff;
+            background-color: #36D1DC; /* Gradiente substituído por cor sólida no PDF */
+        }
+        .text-end {
+            text-align: right;
+        }
+        .level-0 { font-weight: bold; }
+        .level-1 td:first-child { padding-left: 1.5rem; }
+        .level-2 td:first-child { padding-left: 2.5rem; }
+        .level-3 td:first-child { padding-left: 3.5rem; }
+        </style>
+    </head>
+    <body>
+        <h1>Demonstração do Resultado do Exercício (DRE)</h1>
+        <h2>{{ company.name }}</h2>
+        <p class="report-period">Período de {{ start_date_str }} a {{ end_date_str }}</p>
+        <table>
+            {% for line in dre_data.revenue_lines %}
+                <tr class="level-{{ line.level }}">
+                    <td>{{ line.account.code }} - {{ line.account.name }}</td>
+                    <td class="text-end">R$ {{ line.total|floatformat:2|intcomma }}</td>
+                </tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td class="text-end">TOTAL DE RECEITAS</td>
+                <td class="text-end">R$ {{ total_revenue|floatformat:2|intcomma }}</td>
+            </tr>
+            {% for line in dre_data.expense_lines %}
+                <tr class="level-{{ line.level }}">
+                    <td>{{ line.account.code }} - {{ line.account.name }}</td>
+                    <td class="text-end">R$ {{ line.total|floatformat:2|intcomma }}</td>
+                </tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td class="text-end">TOTAL DE DESPESAS E CUSTOS</td>
+                <td class="text-end">R$ {{ total_expense|floatformat:2|intcomma }}</td>
+            </tr>
+            <tr class="net-result-row">
+                <td class="text-end">RESULTADO LÍQUIDO</td>
+                <td class="text-end">R$ {{ net_result|floatformat:2|intcomma }}</td>
+            </tr>
+        </table>
+    </body>
+</html>

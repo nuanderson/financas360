@@ -3,13 +3,14 @@
 {% load humanize %}
 {% block title %}DRE - {{ company.name }}{% endblock %}
 {% block content %}
-    <h1>
-        DRE Gerencial <span class="text-muted fs-4">{{ company.name }}</span>
+    <h1 class="mb-4 fw-bold" style="font-size: 2.25rem;">
+        <span class="text-primary">DRE Gerencial</span>
+        <span class="text-muted fs-4">{{ company.name }}</span>
     </h1>
-    <div class="card mb-4">
+    <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
-            <form method="GET" action="" class="row g-3 align-items-center">
-                <div class="col-auto">
+            <form method="GET" action="" class="row g-3 align-items-end">
+                <div class="col-md-3">
                     <label for="start_date" class="form-label">Data Início</label>
                     <input type="date"
                            class="form-control"
@@ -17,7 +18,7 @@
                            name="start_date"
                            value="{{ start_date_str }}">
                 </div>
-                <div class="col-auto">
+                <div class="col-md-3">
                     <label for="end_date" class="form-label">Data Fim</label>
                     <input type="date"
                            class="form-control"
@@ -25,15 +26,26 @@
                            name="end_date"
                            value="{{ end_date_str }}">
                 </div>
-                <div class="col-auto mt-auto">
-                    <button type="submit" class="btn btn-primary">Filtrar</button>
+                <div class="col-md-auto mt-md-4">
+                    <button type="submit"
+                            class="btn text-white fw-semibold px-4"
+                            style="background: linear-gradient(to right, #5B86E5, #36D1DC)">
+                        <i class="bi bi-search me-1"></i> Filtrar
+                    </button>
+                </div>
+                <div class="col-md-auto mt-md-4">
+                    <a href="{% url 'core:dre_report_pdf' %}?start_date={{ start_date_str }}&end_date={{ end_date_str }}"
+                       class="btn text-white fw-semibold px-4"
+                       style="background: linear-gradient(to right, #FF416C, #FF4B2B)">
+                        <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
+                    </a>
                 </div>
             </form>
         </div>
     </div>
-    <div class="card">
+    <div class="card shadow-sm border-0">
         <div class="card-body">
-            <table class="table table-hover">
+            <table class="table table-hover align-middle">
                 <tbody>
                     {% for line in dre_data.revenue_lines %}
                         <tr class="{% if line.level == 0 %}table-light fw-bold{% endif %}">
@@ -55,7 +67,7 @@
                         <td class="text-end">TOTAL DE DESPESAS E CUSTOS</td>
                         <td class="text-end">R$ {{ total_expense|floatformat:2|intcomma }}</td>
                     </tr>
-                    <tr class="{% if net_result >= 0 %}table-primary{% else %}table-dark{% endif %} fw-bolder fs-5">
+                    <tr class="{% if net_result >= 0 %}table-primary{% else %}table-dark text-white{% endif %} fw-bolder fs-5">
                         <td class="text-end">RESULTADO LÍQUIDO</td>
                         <td class="text-end">R$ {{ net_result|floatformat:2|intcomma }}</td>
                     </tr>

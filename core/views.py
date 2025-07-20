@@ -9,8 +9,10 @@ from django.contrib import messages
 from django.db.models import Sum, Q, F, Value, DecimalField
 from django.db.models.functions import Coalesce 
 from datetime import datetime, date
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from dateutil.relativedelta import relativedelta
+from django.template.loader import render_to_string
+from weasyprint import HTML
 import calendar
 import csv
 import io
@@ -366,30 +368,35 @@ def expense_chart_data(request):
 
     return JsonResponse({'labels': labels, 'data': data})
 
+
 @login_required
 def revenue_expense_summary_data(request):
-    # Pega a empresa ativa da sessão
     active_company_id = request.session.get('active_company_id')
     if not active_company_id:
         return JsonResponse({'error': 'Nenhuma empresa ativa'}, status=404)
 
     company = get_object_or_404(Company, pk=active_company_id, users=request.user)
 
-    # Listas para guardar os dados dos últimos 6 meses
+    # --- INÍCIO DA LÓGICA DE FILTRO DE DATA ---
+    today = date.today()
+    start_date_str = request.GET.get('start_date', today.replace(day=1).strftime('%Y-%m-%d'))
+    end_date_str = request.GET.get('end_date', (today.replace(day=calendar.monthrange(today.year, today.month)[1])).strftime('%Y-%m-%d'))
+
+    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    # --- FIM DA LÓGICA DE FILTRO DE DATA ---
+
     labels = []
     revenue_data = []
     expense_data = []
 
-    # Itera pelos últimos 6 meses, começando pelo atual
-    for i in range(6):
-        # Calcula o mês e ano para a iteração atual
-        # relativedelta(months=i) subtrai 'i' meses da data atual
-        target_date = datetime.now() - relativedelta(months=i)
-        target_month = target_date.month
-        target_year = target_date.year
+    # Itera mês a mês dentro do período selecionado pelo usuário
+    current_date = start_date
+    while current_date <= end_date:
+        target_month = current_date.month
+        target_year = current_date.year
 
-        # Adiciona o rótulo do mês/ano à nossa lista de labels (ex: "Jul/2025")
-        labels.append(target_date.strftime("%b/%Y"))
+        labels.append(current_date.strftime("%b/%Y"))
 
         # Filtra os lançamentos para o mês e ano da iteração
         transactions = Transaction.objects.filter(
@@ -398,33 +405,20 @@ def revenue_expense_summary_data(request):
             date__month=target_month
         )
 
-       # Calcula o total de receitas para o mês atual do loop
+        # Calcula os totais para aquele mês
         revenue = transactions.filter(account__account_type='R').aggregate(
-            total=Coalesce(
-                Sum('amount'),              # Tenta somar os valores do campo 'amount'
-                Value(0.0),                 # Se a soma resultar em 'None' (nenhuma receita), usa 0.0 como padrão
-                output_field=DecimalField() # **A CORREÇÃO:** Especifica que o resultado final da operação (seja a soma ou o padrão) deve ser do tipo DecimalField, evitando o conflito de tipos.
-            )
-        )['total']
-        
-        # Calcula o total de despesas para o mês atual do loop
-        expense = transactions.filter(account__account_type='E').aggregate(
-            total=Coalesce(
-                Sum('amount'), 
-                Value(0.0), 
-                output_field=DecimalField() # **A MESMA CORREÇÃO:** Garante a consistência do tipo de dado também para as despesas.
-            )
+            total=Coalesce(Sum('amount'), Value(0.0), output_field=DecimalField())
         )['total']
 
-        # Adiciona os totais às nossas listas de dados
+        expense = transactions.filter(account__account_type='E').aggregate(
+            total=Coalesce(Sum('amount'), Value(0.0), output_field=DecimalField())
+        )['total']
+
         revenue_data.append(float(revenue))
         expense_data.append(float(expense))
 
-    # O Chart.js mostra os dados da esquerda para a direita, então precisamos inverter
-    # nossas listas para que o mês mais antigo apareça primeiro.
-    labels.reverse()
-    revenue_data.reverse()
-    expense_data.reverse()
+        # Avança para o primeiro dia do próximo mês
+        current_date = (current_date.replace(day=1) + relativedelta(months=1))
 
     return JsonResponse({
         'labels': labels,
@@ -620,3 +614,69 @@ def dre_report(request):
         'net_result': net_result,
     }
     return render(request, 'core/dre_report.html', context)
+
+
+@login_required
+def dre_report_pdf(request):
+    # Esta view usa EXATAMENTE a mesma lógica de cálculo da dre_report
+
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        messages.error(request, "Nenhuma empresa ativa.")
+        return redirect('core:company_list')
+
+    active_company = get_object_or_404(Company, pk=active_company_id, users=request.user)
+
+    today = date.today()
+    start_date_str = request.GET.get('start_date', today.replace(day=1).strftime('%Y-%m-%d'))
+    end_date_str = request.GET.get('end_date', (today.replace(day=calendar.monthrange(today.year, today.month)[1])).strftime('%Y-%m-%d'))
+    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+
+    transactions = Transaction.objects.filter(company=active_company, date__range=[start_date, end_date])
+
+    try:
+        root_revenue_account = ChartOfAccounts.objects.get(company=active_company, code='1')
+        root_expense_account = ChartOfAccounts.objects.get(company=active_company, code='2')
+    except ChartOfAccounts.DoesNotExist:
+        messages.error(request, "Plano de contas base não encontrado.")
+        return redirect('core:chart_of_accounts_list', company_id=active_company.id)
+
+    total_revenue = get_account_total(root_revenue_account, transactions)
+    total_expense = get_account_total(root_expense_account, transactions)
+    net_result = total_revenue - total_expense
+    dre_data = {'revenue_lines': [], 'expense_lines': []}
+
+    def build_structure(account, level=0):
+        total = get_account_total(account, transactions)
+        line_data = {'account': account, 'total': total, 'level': level}
+        if account.account_type == 'R': dre_data['revenue_lines'].append(line_data)
+        else: dre_data['expense_lines'].append(line_data)
+        for sub_account in account.sub_accounts.all().order_by('code'): build_structure(sub_account, level + 1)
+
+    build_structure(root_revenue_account)
+    build_structure(root_expense_account)
+
+    context = {
+        'company': active_company,
+        'start_date_str': start_date.strftime('%d/%m/%Y'),
+        'end_date_str': end_date.strftime('%d/%m/%Y'),
+        'dre_data': dre_data,
+        'total_revenue': total_revenue,
+        'total_expense': total_expense,
+        'net_result': net_result,
+    }
+
+    # 1. Renderiza nosso template PDF para uma string HTML
+    html_string = render_to_string('core/dre_report_pdf.html', context)
+
+    # 2. Cria o objeto WeasyPrint a partir do HTML
+    html = HTML(string=html_string)
+
+    # 3. Gera o PDF em memória
+    pdf = html.write_pdf()
+
+    # 4. Retorna o PDF como um arquivo para download
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="DRE_{active_company.name}.pdf"'
+    return response
