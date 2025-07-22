@@ -5,13 +5,28 @@
     <h1 class="fw-bold text-primary mb-3">
         Quadro Orçamentário <span class="text-muted fs-5">{{ company.name }}</span>
     </h1>
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-gradient bg-light text-muted d-flex justify-content-between align-items-center">
-            <span class="fs-4 fst-italic ">Ano: {{ year }}</span>
+    <!-- Card com o ano e o novo filtro de contas -->
+    <div class="card shadow-sm border-0 mb-3">
+        <div class="card-body d-flex justify-content-between align-items-center">
+            <span class="fs-6 fst-italic text-muted">Ano: {{ year }}</span>
         </div>
-        <div class="card-body">
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text">🔍 Filtre a Conta</span>
+                <input type="text"
+                       id="accountFilter"
+                       class="form-control"
+                       placeholder="Filtrar por nome ou código da conta...">
+            </div>
+        </div>
+    </div>
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-bordered table-hover align-middle text-sm">
+                <!-- Tabela mais compacta com 'table-sm' e fonte menor -->
+                <table id="budgetTable"
+                       class="table table-sm table-bordered table-hover align-middle mb-0"
+                       style="font-size: 0.85em">
                     <thead class="table-light sticky-top" style="top: 0;">
                         <tr>
                             <th rowspan="2" class="align-middle">Conta</th>
@@ -27,30 +42,26 @@
                     </thead>
                     <tbody>
                         {% for row in report_data %}
-                            <tr class="{% if row.level == 0 %}table-group-divider fw-bold bg-light{% endif %}">
+                            <tr class="{% if row.level == 0 %}table-group-divider fw-bold{% endif %}">
                                 <td style="padding-left: {{ row.level|add:1 }}rem;">{{ row.account.code }} - {{ row.account.name }}</td>
                                 <td class="text-end">
-                                    {% if row.annual_budget > 0 %}R$ {{ row.annual_budget|floatformat:2|intcomma }}{% endif %}
+                                    {% if row.annual_budget > 0 %}{{ row.annual_budget|floatformat:2|intcomma }}{% endif %}
                                 </td>
                                 {% for month_data in row.monthly_data %}
-                                    <td class="text-end {{ month_data.realizado_css_class }}">
-                                        <span>R$ {{ month_data.actual|floatformat:2|intcomma }}</span>
-                                        <br>
-                                        <small class="text-muted fst-italic">Orçado: R$ {{ month_data.monthly_budget|floatformat:2|intcomma }}</small>
-                                    </td>
+                                    <td class="text-end {{ month_data.realizado_css_class }}">{{ month_data.actual|floatformat:2|intcomma }}</td>
                                     <td class="text-center">
                                         {% if forloop.counter0 > 0 %}
                                             {% with variation=month_data.variation %}
-                                                {% if variation == 0 and row.monthly_actuals|slice:forloop.counter0|first != row.monthly_actuals|slice:forloop.parentloop.counter0|first %}
+                                                {% if variation == 0 %}
                                                     <span class="badge bg-secondary" title="Sem variação">0%</span>
-                                                {% elif variation != 0 %}
-                                                    <span class="{{ month_data.variacao_css_class }}">
+                                                {% else %}
+                                                    <span class="badge {% if row.account.account_type == 'R' and variation > 0 %}bg-success{% endif %} {% if row.account.account_type == 'R' and variation < 0 %}bg-danger{% endif %} {% if row.account.account_type == 'E' and variation > 0 %}bg-danger{% endif %} {% if row.account.account_type == 'E' and variation < 0 %}bg-success{% endif %} ">
                                                         {% if variation > 0 %}
                                                             ▲
                                                         {% else %}
                                                             ▼
                                                         {% endif %}
-                                                        {{ variation|floatformat:1|intcomma|slice:"1:" }}%
+                                                        {{ variation|floatformat:"1g"|intcomma }}%
                                                     </span>
                                                 {% endif %}
                                             {% endwith %}
@@ -59,9 +70,46 @@
                                 {% endfor %}
                             </tr>
                         {% endfor %}
+                        {% for row in report_data %}
+                            <tr class="budget-row {% if row.level == 0 %}table-group-divider fw-bold bg-light{% endif %}"
+                                data-code="{{ row.account.code }}"></tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
+{% endblock %}
+{% block extra_js %}
+    <script>
+document.addEventListener('DOMContentLoaded', function () {
+    const filterInput = document.getElementById('accountFilter');
+    // A seleção da tabela e das linhas continua a mesma
+    const table = document.getElementById('budgetTable');
+    const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+
+    filterInput.addEventListener('keyup', function () {
+        const filterText = filterInput.value.toLowerCase();
+
+        // Itera sobre todas as linhas da tabela
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const accountCell = row.getElementsByTagName('td')[0]; // Pega a primeira célula
+
+            // --- AQUI ESTÁ A CORREÇÃO ---
+            // Se a célula existir (não for uma linha vazia ou mal formatada)
+            if (accountCell) {
+                const cellText = accountCell.textContent || accountCell.innerText;
+                
+                // A lógica de mostrar/esconder continua a mesma
+                if (cellText.toLowerCase().indexOf(filterText) > -1) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            }
+        }
+    });
+});
+    </script>
 {% endblock %}

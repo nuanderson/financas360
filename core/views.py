@@ -749,56 +749,53 @@ def budget_dashboard(request):
         if node['data']['account'].parent_account_id is None:
             build_report_list(node)
 
-    # --- INÍCIO DA NOVA LÓGICA DE CORES ---
     for row in report_data:
-        monthly_budget = row['annual_budget'] / 12 if row['annual_budget'] > 0 else 0
+        # Cria a estrutura de dados mensal para a linha atual
         row['monthly_data'] = []
         
+        # Itera pelos 12 meses para calcular variações e alertas
         for i in range(12):
             actual = row['monthly_actuals'][i]
+            monthly_budget = row['annual_budget'] / Decimal(12) if row['annual_budget'] > 0 else Decimal(0)
             
-            # --- Lógica de Cores para o 'Realizado' ---
-            realizado_css_class = ""
-            is_over_budget = monthly_budget > 0 and actual > monthly_budget
-            
-            if row['account'].account_type == 'E': # Se for Despesa
-                if is_over_budget:
-                    realizado_css_class = "bg-danger text-white"  # RUIM: Acima do orçamento
-                elif actual > 0:
-                    realizado_css_class = "bg-primary text-white" # BOM: Dentro do orçamento
-            
-            elif row['account'].account_type == 'R': # Se for Receita
-                if is_over_budget:
-                    realizado_css_class = "bg-primary text-white" # BOM: Acima do orçamento
-
-            # --- Lógica de Cores para a 'Variação' ---
+            # --- LÓGICA DA VARIAÇÃO CORRIGIDA ---
             variation = Decimal(0)
             if i > 0:
                 previous_actual = row['monthly_actuals'][i-1]
                 if previous_actual != 0:
-                    variation = ((actual - previous_actual) / previous_actual) * 100
+                    # Garante que todos os números na fórmula sejam Decimal para precisão máxima
+                    variation = ((Decimal(actual) - Decimal(previous_actual)) / Decimal(previous_actual)) * Decimal(100)
             
+            # --- Lógica de "Acima do Orçamento" ---
+            is_over_budget = monthly_budget > 0 and actual > monthly_budget
+            
+            # --- Lógica de Cores do Realizado ---
+            realizado_css_class = ""
+            if row['account'].account_type == 'E': # Despesa
+                if is_over_budget: realizado_css_class = "bg-danger text-white"
+                elif actual > 0: realizado_css_class = "bg-primary text-white"
+            elif row['account'].account_type == 'R': # Receita
+                if is_over_budget: realizado_css_class = "bg-primary text-white"
+                
+            # --- Lógica de Cores da Variação ---
             variacao_css_class = ""
             if variation == 0:
-                variacao_css_class = "badge bg-warning text-dark" # NEUTRO
-            elif row['account'].account_type == 'E': # Se for Despesa
-                variacao_css_class = "badge bg-danger" if variation > 0 else "badge bg-success" # Aumento é ruim, queda é bom
-            elif row['account'].account_type == 'R': # Se for Receita
-                variacao_css_class = "badge bg-success" if variation > 0 else "badge bg-danger" # Aumento é bom, queda é ruim
-
-            # Adiciona o "pacote" de dados do mês à lista
-            # Em core/views.py, dentro da função budget_dashboard, no final do loop...
-
-            # Adiciona o "pacote" de dados do mês à lista
+                variacao_css_class = "badge bg-secondary"
+            elif row['account'].account_type == 'E': # Despesa
+                variacao_css_class = "badge bg-danger" if variation > 0 else "badge bg-success"
+            elif row['account'].account_type == 'R': # Receita
+                variacao_css_class = "badge bg-success" if variation > 0 else "badge bg-danger"
+                
+            # Adiciona o "pacote" de dados completo
             row['monthly_data'].append({
                 'actual': actual,
                 'variation': variation,
                 'is_over_budget': is_over_budget,
                 'realizado_css_class': realizado_css_class,
                 'variacao_css_class': variacao_css_class,
-                'monthly_budget': monthly_budget # <--- ADICIONE ESTA LINHA
+                'monthly_budget': monthly_budget
             })
-    # --- FIM DA NOVA LÓGICA DE CORES ---
+
 
     context = {
         'company': active_company, 'year': current_year, 'report_data': report_data,
