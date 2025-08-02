@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.humanize',
     'core',
+    'plantoes',
 ]
 
 MIDDLEWARE = [
@@ -140,3 +141,12 @@ LOGIN_URL = 'core:login'
 
 # Adicione esta linha para ativar o separador de milhar globalmente
 USE_THOUSAND_SEPARATOR = True
+
+# --- CONFIGURAÇÃO DE E-MAIL PARA PRODUÇÃO (usando Gmail) ---
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com' # Servidor SMTP do Gmail
+EMAIL_PORT = 587 # Porta padrão para TLS
+EMAIL_USE_TLS = True # Habilita a criptografia TLS
+EMAIL_HOST_USER = config('EMAIL_HOST_USER') # Lê o e-mail do arquivo .env
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD') # Lê a Senha de App do .env
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER # O e-mail do remetente será o seu e-mail

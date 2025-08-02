@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load l10n humanize %}
+{% block title %}Quadro Orçamentário de Plantões{% endblock %}
+
+{% block content %}
+<h1>Quadro Orçamentário de Plantões <span class="text-muted fs-4">{{ selected_year }}</span></h1>
+<hr>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="GET" action="" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label for="year" class="form-label">Ano</label>
+                <select name="year" id="year" class="form-select">
+                    {% for y in years %}
+                    <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-auto">
+                <button type="submit" class="btn btn-primary">Filtrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-sm table-bordered table-hover" style="font-size: 0.85em;">
+        <thead class="table-light" style="position: sticky; top:0;">
+            <tr>
+                <th rowspan="2" class="align-middle">Plantão</th>
+                <th rowspan="2" class="align-middle text-end">Orçamento Mensal</th>
+                {% for month in months %}
+                    <th colspan="2" class="text-center">{{ month }}</th>
+                {% endfor %}
+            </tr>
+            <tr>
+                {% for month in months %}
+                    <th class="text-end">Realizado</th>
+                    <th class="text-center">Var(%)</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in report_data %}
+            <tr>
+                <td>
+                    <strong>{{ row.orcamento.especialidade.name }}</strong> ({{ row.orcamento.get_tipo_plantao_display }})
+                    <br>
+                    <small class="text-muted">{{ row.orcamento.unidade_assistencia.name }} - {{ row.orcamento.turno.name }}</small>
+                </td>
+                <td class="text-end fw-bold">{{ row.monthly_budget|floatformat:2|intcomma }}</td>
+
+                {% for month_data in row.monthly_data %}
+                    <td class="text-end {% if month_data.is_over_budget %}bg-danger text-white{% endif %}">
+                        {{ month_data.actual|floatformat:2|intcomma }}
+                    </td>
+                    <td class="text-center">
+                        {% if forloop.counter0 > 0 %}
+                            {% with variation=month_data.variation %}
+                                {% if variation == 0 %}
+                                    <span class="badge bg-secondary">0%</span>
+                                {% else %}
+                                    <span class="badge {% if variation > 0 %}bg-danger{% else %}bg-success{% endif %}">
+                                        {% if variation > 0 %}▲{% else %}▼{% endif %}
+                                        {{ variation|floatformat:1|intcomma|slice:"1:" }}%
+                                    </span>
+                                {% endif %}
+                            {% endwith %}
+                        {% endif %}
+                    </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

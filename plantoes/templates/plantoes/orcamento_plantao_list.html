@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load l10n humanize %}
+{% block title %}Orçamento de Plantões{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">Orçamento de Plantões</h1>
+    <a href="{% url 'plantoes:orcamento_create' %}" class="btn btn-primary">Adicionar Orçamento</a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-striped table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Especialidade</th>
+                    <th>Unidade</th>
+                    <th>Turno</th>
+                    <th class="text-center">Qtd.</th>
+                    <th class="text-center">Tipo</th>
+                    <th class="text-end">Valor Unit.</th>
+                    <th class="text-center">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for orcamento in orcamentos %}
+                    <tr>
+                        <td>{{ orcamento.especialidade.name }}</td>
+                        <td>{{ orcamento.unidade_assistencia.name }}</td>
+                        <td>{{ orcamento.turno.name }}</td>
+                        <td class="text-center">{{ orcamento.quantidade }}</td>
+                        <td class="text-center">{{ orcamento.get_tipo_plantao_display }}</td>
+                        <td class="text-end">{{ orcamento.valor_plantao|intcomma }}</td>
+                        <td class="text-center">
+                            <a href="{% url 'plantoes:orcamento_update' orcamento.pk %}" class="btn btn-sm btn-outline-primary me-1" title="Editar">✏️</a>
+                            <a href="{% url 'plantoes:orcamento_delete' orcamento.pk %}" class="btn btn-sm btn-outline-danger" title="Excluir">🗑️</a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-3">Nenhum orçamento de plantão cadastrado.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

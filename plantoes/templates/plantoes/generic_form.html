@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% load form_filters %}
+{% block title %}{% if object %}Editar Item{% else %}Adicionar Item{% endif %}{% endblock %}
+
+{% block content %}
+<h1>{% if object %}Editar Item{% else %}Adicionar Item{% endif %}</h1>
+<hr>
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <hr>
+            <a href="{% url 'plantoes:plantoes_settings' %}" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Salvar</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
