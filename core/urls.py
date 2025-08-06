@@ -17,11 +17,13 @@ urlpatterns = [
     path('empresa/<int:company_id>/plano-de-contas/<int:account_id>/excluir/', views.AccountDeleteView.as_view(), name='account_delete'),
     path('empresa/<int:company_id>/plano-de-contas/importar/', views.import_chart_of_accounts, name='import_chart_of_accounts'),
     path('empresa/<int:company_id>/ativar/', views.set_active_company, name='set_active_company'),
-    path('empresa/<int:company_id>/dashboard', views.dashboard, name='dashboard'),
+    path('empresa/<int:company_id>/dashboard', views.dashboard_dispatcher, name='dashboard'),
     # Página de Lançamentos
     path('lancamentos/', views.transaction_list, name='transaction_list'),
     path('lancamentos/<int:pk>/editar/', views.TransactionUpdateView.as_view(), name='transaction_update'),
     path('lancamentos/<int:pk>/excluir/', views.TransactionDeleteView.as_view(), name='transaction_delete'),
+    # Página de Lançamentos de Orçamentos
+    path('orcamento/', views.budget_edit_view, name='budget_edit'),
     # Página de Relatórios
     path('relatorios/dre/', views.dre_report, name='dre_report'),
     path('relatorios/dre/pdf/', views.dre_report_pdf, name='dre_report_pdf'),
@@ -33,5 +35,7 @@ urlpatterns = [
     path('logout/', auth_views.LogoutView.as_view(next_page='core:login'), name='logout'),
     # API do Gráfico
     path('api/dados-grafico-despesas', views.expense_chart_data, name='expense_chart_data'),
-     path('api/resumo-receita-despesa/', views.revenue_expense_summary_data, name='revenue_expense_summary_data'),
+    path('api/resumo-receita-despesa/', views.revenue_expense_summary_data, name='revenue_expense_summary_data'),
+    path('api/budget-deviations-chart/', views.budget_deviations_chart_data, name='budget_deviations_chart_data'),
+    path('api/budget-vs-actual-timeline/', views.budget_vs_actual_timeline_data, name='budget_vs_actual_timeline_data'),
 ]

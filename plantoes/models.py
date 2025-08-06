@@ -38,18 +38,18 @@ class UnidadeAssistencia(models.Model):
     def __str__(self):
         return self.name
 
+
+# Em plantoes/models.py
 class OrcamentoPlantao(models.Model):
-    TIPO_PLANTAO_CHOICES = (
-        (12, '12 horas'),
-        (24, '24 horas'),
-    )
+    TIPO_PLANTAO_CHOICES = ((12, '12 horas'), (24, '24 horas'))
+
     company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("empresa"))
     especialidade = models.ForeignKey(Especialidade, on_delete=models.PROTECT, verbose_name=_("especialidade"))
     turno = models.ForeignKey(Turno, on_delete=models.PROTECT, verbose_name=_("turno"))
     unidade_assistencia = models.ForeignKey(UnidadeAssistencia, on_delete=models.PROTECT, verbose_name=_("unidade de assistência"))
     quantidade = models.PositiveIntegerField(_("quantidade de plantonistas"))
     tipo_plantao = models.PositiveIntegerField(_("tipo de plantão"), choices=TIPO_PLANTAO_CHOICES)
-    valor_plantao = models.DecimalField(_("valor do plantão"), max_digits=10, decimal_places=2)
+    valor_plantao = models.DecimalField(_("valor do plantão"), max_digits=10, decimal_places=2, default=0)
 
     class Meta:
         verbose_name = _("Orçamento de Plantão")

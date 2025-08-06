@@ -46,16 +46,26 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for form in formset %}
+                    {% for form, orcamento in forms_with_orcamentos %}
                         <tr>
                             <td>
                                 {{ form.id }}
-                                <strong>{{ form.instance.orcamento.especialidade.name }}</strong> ({{ form.instance.orcamento.get_tipo_plantao_display }})
+
+                                <strong>{{ orcamento.especialidade.name }}</strong> ({{ orcamento.get_tipo_plantao_display }})
                                 <br>
-                                <small class="text-muted">{{ form.instance.orcamento.unidade_assistencia.name }} - {{ form.instance.orcamento.turno.name }}</small>
+                                <small class="text-muted">{{ orcamento.unidade_assistencia.name }} - {{ orcamento.turno.name }}</small>
                             </td>
-                            <td>{{ form.valor_realizado }}</td>
-                            <td>{{ form.observacoes }}</td>
+
+                            <td class="text-end">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">R$</span>
+                                    {{ form.valor_realizado }}
+                                </div>
+                            </td>
+
+                            <td>
+                                {{ form.observacoes }}
+                            </td>
                         </tr>
                     {% endfor %}
                 </tbody>

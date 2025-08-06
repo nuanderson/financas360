@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load l10n humanize %}
+{% block title %}Definir Orçamento Anual{% endblock %}
+{% block content %}
+    <h1>
+        Definir Orçamento Anual <span class="text-muted fs-4">{{ year }}</span>
+    </h1>
+    <p class="lead">
+        Insira o valor orçado para o ano inteiro em cada conta. Este valor será usado como base para o Quadro Orçamentário.
+    </p>
+    <hr>
+    <form method="POST">
+        {% csrf_token %}
+        {{ formset.management_form }}
+        {% if formset.non_form_errors %}
+            <div class="alert alert-danger">
+                <strong>Ocorreram erros:</strong>
+                {{ formset.non_form_errors }}
+            </div>
+        {% endif %}
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Conta</th>
+                            <th class="text-end" style="width: 20%;">Orçamento Anual</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for form in formset %}
+                            <tr class="{% if form.instance.account.sub_accounts.count == 0 %}table-borderless{% endif %}">
+                                <td style="padding-left: {{ form.instance.account.get_level|add:1 }}rem;">
+                                    {{ form.id }}
+                                    {{ form.instance.account.code }} - {{ form.instance.account.name }}
+                                </td>
+                                <td>
+                                    {% if form.instance.account.sub_accounts.count == 0 %}
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">R$</span>
+                                            {{ form.annual_amount }}
+                                        </div>
+                                        {% for error in form.annual_amount.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer text-end">
+                <button type="submit" class="btn btn-success">💾 Salvar Orçamento</button>
+            </div>
+        </div>
+    </form>
+{% endblock %}

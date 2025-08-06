@@ -131,13 +131,20 @@
                     </li>
                     {% if active_company %}
                         <li class="nav-item">
-                            <a class="nav-link text-white" href="{% url 'core:dashboard' active_company.id %}">
+                            <a class="nav-link text-white"
+                               href="{% url 'core:dashboard' active_company.id %}">
                                 <i class="bi bi-graph-up"></i> Dashboard
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-white" href="{% url 'core:chart_of_accounts_list' active_company.id %}">
+                            <a class="nav-link text-white"
+                               href="{% url 'core:chart_of_accounts_list' active_company.id %}">
                                 <i class="bi bi-journal-text"></i> Plano de Contas
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="{% url 'core:budget_edit' %}">
+                                <i class="bi bi-bullseye"></i> Definir Orçamento
                             </a>
                         </li>
                         <li class="nav-item">
@@ -157,32 +164,34 @@
                         </li>
                     {% endif %}
                 </ul>
-
                 <hr style="border-color: rgba(255,255,255,0.3);">
                 <small class="text-white-50 ps-3">MÓDULO PLANTÕES</small>
-
                 <ul class="nav flex-column">
                     {% if active_company %}
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="{% url 'plantoes:orcamento_list' %}">
-                            <i class="bi bi-clipboard-data"></i> Orçamento Plantões
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="{% url 'plantoes:lancamento_create' %}">
-                            <i class="bi bi-card-checklist"></i> Lançar Plantões
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="{% url 'plantoes:plantoes_dashboard' %}">
-                            <i class="bi bi-calendar3-week"></i> Quadro de Plantões
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="{% url 'plantoes:plantoes_settings' %}">
-                            <i class="bi bi-gear"></i> Configurações
-                        </a>
-                    </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white"
+                               href="{% url 'plantoes:orcamento_list' %}">
+                                <i class="bi bi-clipboard-data"></i> Orçamento Plantões
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white"
+                               href="{% url 'plantoes:lancamento_create' %}">
+                                <i class="bi bi-card-checklist"></i> Lançar Plantões
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white"
+                               href="{% url 'plantoes:plantoes_dashboard' %}">
+                                <i class="bi bi-calendar3-week"></i> Quadro de Plantões
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white"
+                               href="{% url 'plantoes:plantoes_settings' %}">
+                                <i class="bi bi-gear"></i> Configurações
+                            </a>
+                        </li>
                     {% endif %}
                 </ul>
             </div>

@@ -1,10 +1,11 @@
+from django.forms import modelformset_factory
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.generic import UpdateView, DeleteView, CreateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from .models import Company, ChartOfAccounts, Transaction, Budget
-from .forms import ChartOfAccountsForm, TransactionForm, CompanyForm, CSVImportForm
+from .forms import ChartOfAccountsForm, TransactionForm, CompanyForm, CSVImportForm, BudgetForm
 from django.contrib import messages
 from django.db.models import Sum, Q, F, Value, DecimalField
 from django.db.models.functions import Coalesce 
@@ -311,27 +312,41 @@ def home_redirect(request):
         # Se não houver, redireciona para a lista de empresas para o usuário escolher uma
         return redirect('core:company_list')
 
+
 @login_required
-def dashboard(request, company_id):
-    # Checagem de segurança padrão
+def dashboard_dispatcher(request, company_id):
+    """
+    Esta view atua como um "roteador". Ela busca a empresa,
+    verifica seu tipo de gestão e chama a view de dashboard apropriada.
+    """
     company = get_object_or_404(Company, pk=company_id, users=request.user)
 
-    today = date.today()
-    # Pega as datas do GET ou define o mês atual como padrão
-    start_date_str = request.GET.get('start_date', today.replace(day=1).strftime('%Y-%m-%d'))
-    end_date_str = request.GET.get('end_date', (today.replace(day=calendar.monthrange(today.year, today.month)[1])).strftime('%Y-%m-%d'))
+    if company.management_type == 'publica':
+        # Chama a view focada em orçamento
+        return dashboard_orcamento(request, company)
+    else:  # 'particular'
+        # Chama a view focada em lucratividade
+        return dashboard_lucratividade(request, company)
 
-    # Converte as strings de data para objetos date
+
+@login_required
+def dashboard_lucratividade(request, company):  # Esta é a sua view 'dashboard' antiga, agora renomeada
+    """
+    Dashboard focado em Gestão Particular (Lucratividade).
+    """
+    today = date.today()
+    start_date_str = request.GET.get('start_date', today.replace(day=1).strftime('%Y-%m-%d'))
+    end_date_str = request.GET.get('end_date',
+                                   (today.replace(day=calendar.monthrange(today.year, today.month)[1])).strftime(
+                                       '%Y-%m-%d'))
     start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
     end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
 
-    # Filtra os lançamentos da empresa para o PERÍODO SELECIONADO
     transactions = Transaction.objects.filter(
         company=company,
         date__range=[start_date, end_date]
     )
 
-    # Os cálculos agora usam a base de transações já filtrada
     total_revenue = transactions.filter(account__account_type='R').aggregate(Sum('amount'))['amount__sum'] or 0
     total_expenses = transactions.filter(account__account_type='E').aggregate(Sum('amount'))['amount__sum'] or 0
     net_result = total_revenue - total_expenses
@@ -341,11 +356,67 @@ def dashboard(request, company_id):
         'total_revenue': total_revenue,
         'total_expenses': total_expenses,
         'net_result': net_result,
-        # Passa as datas para o template para preencher o formulário
         'start_date_str': start_date_str,
         'end_date_str': end_date_str,
     }
-    return render(request, 'core/dashboard.html', context)
+    # Renderiza o template específico de lucratividade
+    return render(request, 'core/dashboard_lucratividade.html', context)
+
+
+@login_required
+def dashboard_orcamento(request, company):
+    """
+    Dashboard focado em Gestão Pública (Orçamento vs. Realizado).
+    """
+    # --- Lógica do Filtro de Data ---
+    today = date.today()
+    start_date_str = request.GET.get('start_date', today.replace(day=1).strftime('%Y-%m-%d'))
+    end_date_str = request.GET.get('end_date', (today.replace(day=calendar.monthrange(today.year, today.month)[1])).strftime('%Y-%m-%d'))
+    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+
+    # --- Cálculos para o Dashboard ---
+
+    # 1. Total Realizado (Gastos) no período
+    transactions = Transaction.objects.filter(company=company, date__range=[start_date, end_date], account__account_type='E')
+    total_realizado = transactions.aggregate(total=Coalesce(Sum('amount'), Value(Decimal(0))))['total']
+
+    # 2. Total Orçado para o período
+    # Pega o orçamento anual total de todas as contas de despesa
+    orcamento_anual_total = Budget.objects.filter(
+        account__company=company,
+        year=start_date.year,
+        account__account_type='E'
+    ).aggregate(total=Coalesce(Sum('annual_amount'), Value(Decimal(0))))['total']
+
+    # Calcula a proporção do orçamento para o período selecionado
+    dias_no_ano = Decimal(366 if calendar.isleap(start_date.year) else 365)
+    dias_no_periodo = Decimal((end_date - start_date).days + 1)
+
+    total_orcado_periodo = (orcamento_anual_total / dias_no_ano) * dias_no_periodo
+
+    # 3. Percentual de Execução
+    percentual_executado = 0
+    if total_orcado_periodo > 0:
+        percentual_executado = (total_realizado / total_orcado_periodo) * 100
+
+    # Define a cor da barra de progresso
+    progress_color = 'success'
+    if percentual_executado > 95:
+        progress_color = 'danger'
+    elif percentual_executado > 80:
+        progress_color = 'warning'
+
+    context = {
+        'company': company,
+        'start_date_str': start_date_str,
+        'end_date_str': end_date_str,
+        'total_orcado_periodo': total_orcado_periodo,
+        'total_realizado': total_realizado,
+        'percentual_executado': percentual_executado,
+        'progress_color': progress_color,
+    }
+    return render(request, 'core/dashboard_orcamento.html', context)
 
 @login_required
 def expense_chart_data(request):
@@ -802,3 +873,143 @@ def budget_dashboard(request):
         'months': ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
     }
     return render(request, 'core/budget_dashboard.html', context)
+
+
+@login_required
+def budget_deviations_chart_data(request):
+    """ API de dados para o gráfico de Maiores Desvios Orçamentários. """
+    active_company_id = request.session.get('active_company_id')
+    company = get_object_or_404(Company, pk=active_company_id, users=request.user)
+
+    today = date.today()
+    start_date_str = request.GET.get('start_date', today.replace(day=1).strftime('%Y-%m-%d'))
+    end_date_str = request.GET.get('end_date', (today.replace(day=calendar.monthrange(today.year, today.month)[1])).strftime('%Y-%m-%d'))
+    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+
+    # Pega todas as contas de despesa "folha" (que não têm filhas)
+    leaf_expense_accounts = ChartOfAccounts.objects.filter(company=company, account_type='E', sub_accounts__isnull=True)
+
+    deviations = []
+    dias_no_ano = Decimal(366 if calendar.isleap(start_date.year) else 365)
+    dias_no_periodo = Decimal((end_date - start_date).days + 1)
+
+    for account in leaf_expense_accounts:
+        try:
+            budget = Budget.objects.get(account=account, year=start_date.year)
+            orcado_periodo = (budget.annual_amount / dias_no_ano) * dias_no_periodo
+        except Budget.DoesNotExist:
+            orcado_periodo = Decimal(0)
+
+        realizado = Transaction.objects.filter(
+            account=account, date__range=[start_date, end_date]
+        ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal(0))))['total']
+
+        if orcado_periodo > 0 or realizado > 0:
+            desvio = realizado - orcado_periodo
+            deviations.append({'name': account.name, 'desvio': float(desvio)})
+
+    # Ordena pelos maiores desvios (positivos ou negativos)
+    deviations.sort(key=lambda x: abs(x['desvio']), reverse=True)
+
+    # Pega os top 10 maiores desvios
+    top_deviations = deviations[:10]
+
+    labels = [item['name'] for item in top_deviations]
+    data = [item['desvio'] for item in top_deviations]
+    colors = ['#dc3545' if v > 0 else '#198754' for v in data] # Vermelho para estouro, Verde para economia
+
+    return JsonResponse({'labels': labels, 'data': data, 'colors': colors})
+
+
+@login_required
+def budget_vs_actual_timeline_data(request):
+    """ API de dados para o gráfico de Linha Dupla (Orçado vs. Realizado). """
+    active_company_id = request.session.get('active_company_id')
+    company = get_object_or_404(Company, pk=active_company_id, users=request.user)
+
+    # Calcula o orçamento total anual para despesas
+    orcamento_anual_total = Budget.objects.filter(
+        account__company=company, year=datetime.now().year, account__account_type='E'
+    ).aggregate(total=Coalesce(Sum('annual_amount'), Value(Decimal(0))))['total']
+
+    orcado_mensal = orcamento_anual_total / 12
+
+    labels = []
+    budget_data = []
+    actual_data = []
+
+    # Itera pelos últimos 12 meses
+    for i in range(12):
+        target_date = datetime.now() - relativedelta(months=i)
+        labels.append(target_date.strftime("%b/%Y"))
+        budget_data.append(float(orcado_mensal))
+
+        realizado_mes = Transaction.objects.filter(
+            company=company, account__account_type='E', 
+            date__year=target_date.year, date__month=target_date.month
+        ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal(0))))['total']
+        actual_data.append(float(realizado_mes))
+
+    labels.reverse()
+    budget_data.reverse()
+    actual_data.reverse()
+
+    return JsonResponse({'labels': labels, 'budget_data': budget_data, 'actual_data': actual_data})
+
+
+@login_required
+def budget_edit_view(request):
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        messages.error(request, "Por favor, selecione uma empresa primeiro.")
+        return redirect('core:company_list')
+    active_company = get_object_or_404(Company, pk=active_company_id, users=request.user)
+
+    current_year = datetime.now().year
+
+    # Garante que todos os objetos Budget existem
+    accounts_qs = ChartOfAccounts.objects.filter(company=active_company)
+    for acc in accounts_qs:
+        Budget.objects.get_or_create(
+            company=active_company,
+            account=acc,
+            year=current_year,
+            defaults={'annual_amount': 0}
+        )
+    
+    # Prepara o Formset
+    BudgetFormSet = modelformset_factory(Budget, form=BudgetForm, extra=0)
+
+    # O queryset para o formset precisa ter a mesma ordem sempre
+    queryset = Budget.objects.filter(
+        company=active_company,
+        year=current_year
+    ).order_by('account__code')
+
+    if request.method == 'POST':
+        # Ao receber o POST, usamos o mesmo queryset ordenado
+        formset = BudgetFormSet(request.POST, queryset=queryset)
+        if formset.is_valid():
+            formset.save()
+            messages.success(request, "Orçamento salvo com sucesso!")
+            return redirect('core:budget_edit')
+        # Se não for válido, os erros serão exibidos (código do template já está pronto para isso)
+    else:
+        formset = BudgetFormSet(queryset=queryset)
+
+     # A lógica para ordenar os formulários para exibição hierárquica
+    form_dict = {form.instance.account_id: form for form in formset}
+    structured_forms = []
+    all_accounts_ordered = ChartOfAccounts.objects.filter(company=active_company).order_by('code')
+    
+    for account in all_accounts_ordered:
+        if account.id in form_dict:
+            structured_forms.append(form_dict[account.id])
+
+    context = {
+        'formset': formset,
+        'structured_forms': structured_forms,
+        'year': current_year,
+    }
+    return render(request, 'core/budget_edit.html', context)

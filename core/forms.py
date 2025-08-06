@@ -1,5 +1,5 @@
 from django import forms
-from .models import ChartOfAccounts, Transaction, Company
+from .models import ChartOfAccounts, Transaction, Company, Budget
 
 class ChartOfAccountsForm(forms.ModelForm):
     class Meta:
@@ -103,3 +103,12 @@ class CompanyForm(forms.ModelForm):
 
 class CSVImportForm(forms.Form):
     csv_file = forms.FileField(label="Arquivo CSV")
+
+
+class BudgetForm(forms.ModelForm):
+    class Meta:
+        model = Budget
+        fields = ['annual_amount']
+        widgets = {
+            'annual_amount': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end'}),
+        }

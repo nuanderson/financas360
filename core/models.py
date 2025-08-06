@@ -4,11 +4,22 @@ from django.utils.translation import gettext_lazy as _
 
 # Modelo para guardar as empresas dos clientes
 class Company(models.Model):
+    MANAGEMENT_CHOICES = (
+        ('publica', 'Gestão Pública (Foco em Orçamento)'),
+        ('particular', 'Gestão Particular (Foco em Lucratividade)'),
+    )
     name = models.CharField(_("name"),max_length=100, unique=True, help_text=_("Client company name"))
     # Relação Muitos-para-Muitos.
     # Um usuário pode gerenciar várias empresas.
     # Uma empresa pode ser gerenciada por vários usuários (equipe).
     users = models.ManyToManyField(User, related_name='companies', verbose_name=_("users"),help_text=_("Users who can manage this company"))
+
+    management_type = models.CharField(
+        _("tipo de gestão"),
+        max_length=15,
+        choices=MANAGEMENT_CHOICES,
+        default='particular'
+    )
 
     def __str__(self):
         # Retorna o nome da empresa como sua representação em texto
@@ -39,6 +50,14 @@ class ChartOfAccounts(models.Model):
         verbose_name = _("Chart of Account")
         verbose_name_plural = _("Chart of Accounts")
 
+    def get_level(self):
+        level = 0
+        p = self.parent_account
+        while p:
+            level += 1
+            p = p.parent_account
+        return level
+
 # Modelo para cada transação (entrada ou saída)
 class Transaction(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("company"))
@@ -57,6 +76,7 @@ class Transaction(models.Model):
 
 
 class Budget(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("empresa"))
     # Cada registro de orçamento pertence a uma conta específica
     account = models.ForeignKey(ChartOfAccounts, on_delete=models.CASCADE, verbose_name=_("account"))
     # O ano para o qual este orçamento se aplica
@@ -71,6 +91,6 @@ class Budget(models.Model):
         verbose_name = _("Budget")
         verbose_name_plural = _("Budgets")
         # Garante que só exista um orçamento por conta e por ano
-        unique_together = ('account', 'year')    
+        unique_together = ('company', 'account', 'year')    
     
     
