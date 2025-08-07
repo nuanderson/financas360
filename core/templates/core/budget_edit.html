@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load l10n humanize %}
+{% load l10n humanize form_filters %}
 {% block title %}Definir Orçamento Anual{% endblock %}
 {% block content %}
     <h1>
@@ -14,8 +14,7 @@
         {{ formset.management_form }}
         {% if formset.non_form_errors %}
             <div class="alert alert-danger">
-                <strong>Ocorreram erros:</strong>
-                {{ formset.non_form_errors }}
+                <strong>Ocorreram erros:</strong> {{ formset.non_form_errors }}
             </div>
         {% endif %}
         <div class="card shadow-sm">
@@ -29,13 +28,13 @@
                     </thead>
                     <tbody>
                         {% for form in formset %}
-                            <tr class="{% if form.instance.account.sub_accounts.count == 0 %}table-borderless{% endif %}">
+                            <tr class="{% if not form.instance.account.sub_accounts.exists %}table-borderless{% endif %}">
                                 <td style="padding-left: {{ form.instance.account.get_level|add:1 }}rem;">
                                     {{ form.id }}
                                     {{ form.instance.account.code }} - {{ form.instance.account.name }}
                                 </td>
                                 <td>
-                                    {% if form.instance.account.sub_accounts.count == 0 %}
+                                    {% if not form.instance.account.sub_accounts.exists %}
                                         <div class="input-group input-group-sm">
                                             <span class="input-group-text">R$</span>
                                             {{ form.annual_amount }}

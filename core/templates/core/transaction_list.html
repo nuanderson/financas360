@@ -11,16 +11,12 @@
             <h5 class="mb-0">Adicionar Novo Lançamento</h5>
         </div>
         <div class="card-body">
-            <form method="post" novalidate>
+            <form method="post" action="{% url 'core:transaction_list' %}" novalidate>
                 {% csrf_token %}
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label for="{{ form.account_type_filter.id_for_label }}" class="form-label">Filtrar Conta por Tipo</label>
-                        {{ form.account_type_filter|add_class:"form-select" }}
-                    </div>
-                    <div class="col-md-6">
                         <label for="{{ form.account.id_for_label }}" class="form-label">Conta</label>
-                        {{ form.account }} {# A classe .select2-widget já está no forms.py #}
+                        {{ form.account }}
                         {% if form.account.errors %}<div class="text-danger small mt-1">{{ form.account.errors|join:", " }}</div>{% endif %}
                     </div>
                     <div class="col-md-4">
@@ -42,6 +38,33 @@
                     </div>
                 </div>
                 <button type="submit" class="btn btn-success mt-4">💾 Salvar Lançamento</button>
+            </form>
+        </div>
+    </div>
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">🔍 Filtrar Extrato</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" action="">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label for="{{ filter_form.start_date.id_for_label }}" class="form-label">Data Início</label>
+                        {{ filter_form.start_date|add_class:"form-control" }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ filter_form.end_date.id_for_label }}" class="form-label">Data Fim</label>
+                        {{ filter_form.end_date|add_class:"form-control" }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ filter_form.account.id_for_label }}" class="form-label">Conta Específica</label>
+                        {{ filter_form.account|add_class:"form-select" }}
+                    </div>
+                    <div class="col-md-12 text-end mt-3">
+                        <a href="{% url 'core:transaction_list' %}" class="btn btn-secondary">Limpar Filtros</a>
+                        <button type="submit" class="btn btn-primary">Aplicar Filtros</button>
+                    </div>
+                </div>
             </form>
         </div>
     </div>
@@ -88,48 +111,37 @@
                 </tbody>
             </table>
         </div>
+        {% if transactions.has_other_pages %}
+            <div class="card-footer">
+                <nav aria-label="Navegação do extrato">
+                    <ul class="pagination justify-content-center mb-0">
+                        {% if transactions.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1&{{ request.GET.urlencode }}">&laquo; Primeira</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link"
+                                   href="?page={{ transactions.previous_page_number }}&{{ request.GET.urlencode }}">Anterior</a>
+                            </li>
+                        {% endif %}
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#">Página {{ transactions.number }} de {{ transactions.paginator.num_pages }}.</a>
+                        </li>
+                        {% if transactions.has_next %}
+                            <li class="page-item">
+                                <a class="page-link"
+                                   href="?page={{ transactions.next_page_number }}&{{ request.GET.urlencode }}">Próxima</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link"
+                                   href="?page={{ transactions.paginator.num_pages }}&{{ request.GET.urlencode }}">Última &raquo;</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        {% endif %}
     </div>
-    <script id="accounts-data" type="application/json">{{ all_accounts_list|safe }}</script>
+    {{ all_accounts_json_str|json_script:"accounts-data" }}
 {% endblock %}
-{% block extra_js %}
-    <script>
-    $(document).ready(function() {
-        // Pega os dados que o Django colocou na tag script
-        const allAccountsData = JSON.parse(document.getElementById('accounts-data').textContent);
-        
-        // Converte os dados para o formato que o Select2 entende
-        const select2Data = allAccountsData.map(account => {
-            return {
-                id: account.pk,
-                text: `${account.code} - ${account.name}`, // Sem 'fields.'
-                type: account.account_type // Sem 'fields.'
-            };
-        });
-
-        const typeFilter = $('#id_account_type_filter');
-        const accountSelect = $('#id_account');
-
-        function updateAccountOptions(selectedType) {
-            const filteredData = select2Data.filter(account => {
-                if (!selectedType) return true;
-                return account.type === selectedType;
-            });
-            
-            accountSelect.empty();
-            accountSelect.select2({
-                theme: "bootstrap-5",
-                data: filteredData
-            });
-            accountSelect.trigger('change');
-        }
-
-        typeFilter.on('change', function() {
-            const selectedType = $(this).val();
-            updateAccountOptions(selectedType);
-        });
-
-        // Chama a função uma vez no início, passando o valor inicial do filtro
-        updateAccountOptions(typeFilter.val());
-    });
-    </script>
-{% endblock %}
+{% block extra_js %}{% endblock %}

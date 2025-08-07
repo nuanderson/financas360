@@ -22,4 +22,12 @@ class BudgetAdmin(admin.ModelAdmin):
     list_filter = ('year', 'company') # Filtro direto e eficiente
     search_fields = ('account__name', 'account__code')
 
-admin.site.register(Transaction)
+
+@admin.register(Transaction)
+class TransactionAdmin(admin.ModelAdmin):
+    list_display = ('account', 'date', 'amount', 'company')
+    list_filter = ('date', 'account__company', 'account__account_type')
+    search_fields = ('description', 'account__name')
+    ordering = ('-date',)
+
+

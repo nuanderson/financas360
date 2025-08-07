@@ -112,3 +112,19 @@ class BudgetForm(forms.ModelForm):
         widgets = {
             'annual_amount': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end'}),
         }
+
+
+class TransactionFilterForm(forms.Form):
+    start_date = forms.DateField(label="Data Início", required=False, widget=forms.DateInput(attrs={'type': 'date'}))
+    end_date = forms.DateField(label="Data Fim", required=False, widget=forms.DateInput(attrs={'type': 'date'}))
+    account = forms.ModelChoiceField(
+        label="Filtrar por Conta",
+        queryset=ChartOfAccounts.objects.none(), # O queryset será definido na view
+        required=False
+    )
+
+    def __init__(self, *args, **kwargs):
+        company = kwargs.pop('company', None)
+        super().__init__(*args, **kwargs)
+        if company:
+            self.fields['account'].queryset = ChartOfAccounts.objects.filter(company=company)

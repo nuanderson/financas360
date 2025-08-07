@@ -5,7 +5,7 @@ from django.views.generic import UpdateView, DeleteView, CreateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from .models import Company, ChartOfAccounts, Transaction, Budget
-from .forms import ChartOfAccountsForm, TransactionForm, CompanyForm, CSVImportForm, BudgetForm
+from .forms import ChartOfAccountsForm, TransactionForm, CompanyForm, CSVImportForm, BudgetForm, TransactionFilterForm
 from django.contrib import messages
 from django.db.models import Sum, Q, F, Value, DecimalField
 from django.db.models.functions import Coalesce 
@@ -14,6 +14,7 @@ from django.http import JsonResponse, HttpResponse
 from dateutil.relativedelta import relativedelta
 from django.template.loader import render_to_string
 from django.core import serializers
+from django.core.paginator import Paginator
 from weasyprint import HTML
 from decimal import Decimal
 import calendar
@@ -144,21 +145,19 @@ def set_active_company(request, company_id):
     # Redirecionamos o usuário para a página do plano de contas da empresa recém-ativada
     return redirect('core:chart_of_accounts_list', company_id=company.id)
 
+
+
 @login_required
 def transaction_list(request):
-    # Buscamos o ID da empresa ativa diretamente da sessão
+    # Busca a empresa ativa diretamente da sessão
     active_company_id = request.session.get('active_company_id')
-    
-    # Se não houver empresa na sessão, redirecionamos para a seleção
     if not active_company_id:
         messages.error(request, "Por favor, selecione uma empresa primeiro.")
         return redirect('core:company_list')
-
-    # Com o ID em mãos, buscamos o objeto da empresa no banco
-    # A checagem de segurança continua aqui para garantir que o usuário ainda tem acesso
+    
     active_company = get_object_or_404(Company, pk=active_company_id, users=request.user)
 
-    # Lógica para o formulário de adição
+    # Formulário de Adição (POST)
     if request.method == 'POST':
         form = TransactionForm(request.POST, company=active_company)
         if form.is_valid():
@@ -170,20 +169,36 @@ def transaction_list(request):
     else:
         form = TransactionForm(company=active_company)
 
-    # Busca os lançamentos da empresa ativa para listar
-    transactions = Transaction.objects.filter(company=active_company).order_by('-date')
+    # Lógica de Filtro (GET)
+    transactions_list = Transaction.objects.filter(company=active_company).order_by('-date', '-pk')
+    filter_form = TransactionFilterForm(request.GET, company=active_company)
 
-    # 1. Buscamos os dados do banco como uma lista de dicionários
+    if filter_form.is_valid():
+        start_date = filter_form.cleaned_data.get('start_date')
+        end_date = filter_form.cleaned_data.get('end_date')
+        account = filter_form.cleaned_data.get('account')
+
+        if start_date:
+            transactions_list = transactions_list.filter(date__gte=start_date)
+        if end_date:
+            transactions_list = transactions_list.filter(date__lte=end_date)
+        if account:
+            transactions_list = transactions_list.filter(account=account)
+
+    # Lógica de Paginação
+    paginator = Paginator(transactions_list, 15) # Mostra 15 lançamentos por página
+    page_number = request.GET.get('page')
+    transactions = paginator.get_page(page_number)
+
+    # Dados para o filtro de conta do formulário de adição
     all_accounts = ChartOfAccounts.objects.filter(company=active_company).values('pk', 'code', 'name', 'account_type')
-    all_accounts_list = list(all_accounts)
-    
-    # 2. Convertemos a lista Python para uma string no formato JSON VÁLIDO (com aspas duplas)
-    all_accounts_json_str = json.dumps(all_accounts_list)
+    all_accounts_json_str = json.dumps(list(all_accounts))
 
     context = {
         'transactions': transactions,
         'form': form,
-        'all_accounts_json_str': all_accounts_json_str, # Passamos a string JSON para o contexto
+        'filter_form': filter_form,
+        'all_accounts_json_str': all_accounts_json_str,
     }
     return render(request, 'core/transaction_list.html', context)
 
@@ -368,39 +383,42 @@ def dashboard_orcamento(request, company):
     """
     Dashboard focado em Gestão Pública (Orçamento vs. Realizado).
     """
-    # --- Lógica do Filtro de Data ---
+    # --- Lógica do Filtro de Data (continua igual) ---
     today = date.today()
     start_date_str = request.GET.get('start_date', today.replace(day=1).strftime('%Y-%m-%d'))
     end_date_str = request.GET.get('end_date', (today.replace(day=calendar.monthrange(today.year, today.month)[1])).strftime('%Y-%m-%d'))
     start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
     end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
 
-    # --- Cálculos para o Dashboard ---
-
-    # 1. Total Realizado (Gastos) no período
-    transactions = Transaction.objects.filter(company=company, date__range=[start_date, end_date], account__account_type='E')
-    total_realizado = transactions.aggregate(total=Coalesce(Sum('amount'), Value(Decimal(0))))['total']
-
-    # 2. Total Orçado para o período
-    # Pega o orçamento anual total de todas as contas de despesa
-    orcamento_anual_total = Budget.objects.filter(
+    # 1. Total Realizado (Gastos): Busca APENAS as despesas no período
+    expense_transactions = Transaction.objects.filter(
+        company=company, 
+        date__range=[start_date, end_date], 
+        account__account_type='E' # Filtra apenas Despesas ('E')
+    )
+    total_realizado = expense_transactions.aggregate(
+        total=Coalesce(Sum('amount'), Value(Decimal(0)))
+    )['total']
+    total_expenses = transactions.filter(account__account_type='E').aggregate(Sum('amount'))['amount__sum'] or 0
+    # 2. Total Orçado: Soma das RECEITAS orçadas, proporcional ao período
+    orcamento_anual_receitas = Budget.objects.filter(
         account__company=company,
         year=start_date.year,
-        account__account_type='E'
+        account__account_type='R' 
     ).aggregate(total=Coalesce(Sum('annual_amount'), Value(Decimal(0))))['total']
 
-    # Calcula a proporção do orçamento para o período selecionado
+    # Calcula a proporção do orçamento de receita para o período selecionado
     dias_no_ano = Decimal(366 if calendar.isleap(start_date.year) else 365)
     dias_no_periodo = Decimal((end_date - start_date).days + 1)
-
-    total_orcado_periodo = (orcamento_anual_total / dias_no_ano) * dias_no_periodo
-
-    # 3. Percentual de Execução
+    
+    total_orcado_periodo = ((orcamento_anual_receitas * 12) / dias_no_ano) * dias_no_periodo
+    
+    # 3. Percentual de Execução (Gasto Realizado vs. Orçamento de Receita)
     percentual_executado = 0
     if total_orcado_periodo > 0:
         percentual_executado = (total_realizado / total_orcado_periodo) * 100
-
-    # Define a cor da barra de progresso
+    
+    # Lógica de cor da barra de progresso (continua igual)
     progress_color = 'success'
     if percentual_executado > 95:
         progress_color = 'danger'
@@ -968,48 +986,37 @@ def budget_edit_view(request):
 
     current_year = datetime.now().year
 
-    # Garante que todos os objetos Budget existem
+    # Garante que existe um objeto de orçamento para cada conta da empresa no ano atual
     accounts_qs = ChartOfAccounts.objects.filter(company=active_company)
     for acc in accounts_qs:
         Budget.objects.get_or_create(
             company=active_company,
-            account=acc,
+            account=acc, 
             year=current_year,
             defaults={'annual_amount': 0}
         )
-    
-    # Prepara o Formset
-    BudgetFormSet = modelformset_factory(Budget, form=BudgetForm, extra=0)
 
-    # O queryset para o formset precisa ter a mesma ordem sempre
+    # O queryset para o formset, filtrado e ordenado
     queryset = Budget.objects.filter(
-        company=active_company,
+        company=active_company, 
         year=current_year
     ).order_by('account__code')
 
+    BudgetFormSet = modelformset_factory(Budget, form=BudgetForm, extra=0)
+
     if request.method == 'POST':
-        # Ao receber o POST, usamos o mesmo queryset ordenado
         formset = BudgetFormSet(request.POST, queryset=queryset)
         if formset.is_valid():
             formset.save()
             messages.success(request, "Orçamento salvo com sucesso!")
             return redirect('core:budget_edit')
-        # Se não for válido, os erros serão exibidos (código do template já está pronto para isso)
     else:
         formset = BudgetFormSet(queryset=queryset)
 
-     # A lógica para ordenar os formulários para exibição hierárquica
-    form_dict = {form.instance.account_id: form for form in formset}
-    structured_forms = []
-    all_accounts_ordered = ChartOfAccounts.objects.filter(company=active_company).order_by('code')
-    
-    for account in all_accounts_ordered:
-        if account.id in form_dict:
-            structured_forms.append(form_dict[account.id])
-
+    # Para exibir no template, precisamos dos objetos de conta na ordem correta
+    # para mostrar a hierarquia. O formset já está ordenado, então podemos iterar sobre ele.
     context = {
         'formset': formset,
-        'structured_forms': structured_forms,
         'year': current_year,
     }
     return render(request, 'core/budget_edit.html', context)

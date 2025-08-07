@@ -45,7 +45,7 @@
                             <tr class="{% if row.level == 0 %}table-group-divider fw-bold{% endif %}">
                                 <td style="padding-left: {{ row.level|add:1 }}rem;">{{ row.account.code }} - {{ row.account.name }}</td>
                                 <td class="text-end">
-                                    {% if row.annual_budget > 0 %}{{ row.annual_budget|floatformat:2|intcomma }}{% endif %}
+                                    {% if row.annual_budget is not None %}{{ row.annual_budget|floatformat:2|intcomma }}{% endif %}
                                 </td>
                                 {% for month_data in row.monthly_data %}
                                     <td class="text-end {{ month_data.realizado_css_class }}">{{ month_data.actual|floatformat:2|intcomma }}</td>
