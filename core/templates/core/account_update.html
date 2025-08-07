@@ -1,17 +1,18 @@
 {% extends 'base.html' %}
+{% load form_filters %}
+{% load l10n humanize %}
+
 {% block title %}Editar Conta - {{ account.name }}{% endblock %}
+
 {% block content %}
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item">
-                <a href="{% url 'core:company_list' %}">Minhas Empresas</a>
-            </li>
-            <li class="breadcrumb-item">
-                <a href="{% url 'core:chart_of_accounts_list' company.id %}">Plano de Contas</a>
-            </li>
+            <li class="breadcrumb-item"><a href="{% url 'core:company_list' %}">Minhas Empresas</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'core:chart_of_accounts_list' company.id %}">Plano de Contas</a></li>
             <li class="breadcrumb-item active" aria-current="page">Editar Conta</li>
         </ol>
     </nav>
+
     <div class="card shadow-sm">
         <div class="card-header bg-light">
             <h4 class="mb-0">✏️ Editar Conta</h4>
@@ -21,17 +22,29 @@
             <form method="post" novalidate>
                 {% csrf_token %}
                 <div class="row g-3">
-                    {% for field in form %}
-                        <div class="col-md-6">
-                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                            {{ field }}
-                            {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors|join:", " }}</div>{% endif %}
-                        </div>
-                    {% endfor %}
+                    <div class="col-md-6">
+                        <label for="{{ form.code.id_for_label }}" class="form-label">{{ form.code.label }}</label>
+                        {{ form.code|add_class:"form-control" }}
+                        {% for error in form.code.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
+                        {{ form.name|add_class:"form-control" }}
+                        {% for error in form.name.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.account_type.id_for_label }}" class="form-label">{{ form.account_type.label }}</label>
+                        {{ form.account_type|add_class:"form-select" }}
+                        {% for error in form.account_type.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.parent_account.id_for_label }}" class="form-label">{{ form.parent_account.label }}</label>
+                        {{ form.parent_account|add_class:"form-select select2-widget" }} {# Adicionamos a classe do Select2 aqui #}
+                        {% for error in form.parent_account.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
                 </div>
                 <div class="mt-4 d-flex justify-content-between">
-                    <a href="{% url 'core:chart_of_accounts_list' company.id %}"
-                       class="btn btn-outline-secondary">⬅️ Cancelar</a>
+                    <a href="{% url 'core:chart_of_accounts_list' company.id %}" class="btn btn-outline-secondary">⬅️ Cancelar</a>
                     <button type="submit" class="btn btn-success">💾 Salvar Alterações</button>
                 </div>
             </form>

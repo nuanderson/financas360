@@ -30,7 +30,7 @@
                     <thead class="table-light sticky-top" style="top: 0;">
                         <tr>
                             <th rowspan="2" class="align-middle">Conta</th>
-                            <th rowspan="2" class="align-middle text-end">Orçamento Anual</th>
+                            <th rowspan="2" class="align-middle text-center">Orçamento Anual</th>
                             {% for month in months %}<th colspan="2" class="text-center">{{ month }}</th>{% endfor %}
                         </tr>
                         <tr>
@@ -41,40 +41,40 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for row in report_data %}
-                            <tr class="{% if row.level == 0 %}table-group-divider fw-bold{% endif %}">
-                                <td style="padding-left: {{ row.level|add:1 }}rem;">{{ row.account.code }} - {{ row.account.name }}</td>
-                                <td class="text-end">
-                                    {% if row.annual_budget is not None %}{{ row.annual_budget|floatformat:2|intcomma }}{% endif %}
-                                </td>
-                                {% for month_data in row.monthly_data %}
-                                    <td class="text-end {{ month_data.realizado_css_class }}">{{ month_data.actual|floatformat:2|intcomma }}</td>
-                                    <td class="text-center">
-                                        {% if forloop.counter0 > 0 %}
-                                            {% with variation=month_data.variation %}
-                                                {% if variation == 0 %}
-                                                    <span class="badge bg-secondary" title="Sem variação">0%</span>
-                                                {% else %}
-                                                    <span class="badge {% if row.account.account_type == 'R' and variation > 0 %}bg-success{% endif %} {% if row.account.account_type == 'R' and variation < 0 %}bg-danger{% endif %} {% if row.account.account_type == 'E' and variation > 0 %}bg-danger{% endif %} {% if row.account.account_type == 'E' and variation < 0 %}bg-success{% endif %} ">
-                                                        {% if variation > 0 %}
-                                                            ▲
-                                                        {% else %}
-                                                            ▼
-                                                        {% endif %}
-                                                        {{ variation|floatformat:"1g"|intcomma }}%
-                                                    </span>
-                                                {% endif %}
-                                            {% endwith %}
-                                        {% endif %}
-                                    </td>
-                                {% endfor %}
-                            </tr>
+                    {% for row in report_data %}
+                    <tr class="budget-row {% if row.level == 0 %}table-group-divider fw-bold {% endif %}">
+                        <td style="padding-left: {{ row.level|add:1 }}rem;">{{ row.account.code }} - {{ row.account.name }}</td>
+                        <td class="bg-warning fw-bold text-center">
+                            {% if row.annual_budget != 0 %}
+                                {{ row.annual_budget|floatformat:2|intcomma }}
+                            {% endif %}
+                        </td>
+                        
+                        {% for month_data in row.monthly_data %}
+                            <td class="text-center {% if month_data.actual != 0 %}{{ month_data.realizado_css_class }}{% endif %}">
+                                {{ month_data.actual|floatformat:2|intcomma }}
+                            </td>
+
+                            <td class="text-center">
+                                {% if forloop.counter0 > 0 %}
+                                    {% with variation=month_data.variation %}
+                                        {% with variation_float=variation|floatformat:1 %}
+                                            {% if variation_float == "0.0" %}
+                                                <span class="badge bg-secondary">0%</span>
+                                            {% else %}
+                                                <span class="{{ month_data.variacao_css_class }}">
+                                                    {% if variation > 0 %}▲{% else %}▼{% endif %}
+                                                    {{ variation_float|cut:"-" }}%
+                                                </span>
+                                            {% endif %}
+                                        {% endwith %}
+                                    {% endwith %}
+                                {% endif %}
+                            </td>
                         {% endfor %}
-                        {% for row in report_data %}
-                            <tr class="budget-row {% if row.level == 0 %}table-group-divider fw-bold bg-light{% endif %}"
-                                data-code="{{ row.account.code }}"></tr>
-                        {% endfor %}
-                    </tbody>
+                    </tr>
+                    {% endfor %}
+                </tbody>
                 </table>
             </div>
         </div>

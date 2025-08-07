@@ -399,7 +399,7 @@ def dashboard_orcamento(request, company):
     total_realizado = expense_transactions.aggregate(
         total=Coalesce(Sum('amount'), Value(Decimal(0)))
     )['total']
-    total_expenses = transactions.filter(account__account_type='E').aggregate(Sum('amount'))['amount__sum'] or 0
+    total_expenses = expense_transactions.filter(account__account_type='E').aggregate(Sum('amount'))['amount__sum'] or 0
     # 2. Total Orçado: Soma das RECEITAS orçadas, proporcional ao período
     orcamento_anual_receitas = Budget.objects.filter(
         account__company=company,
@@ -839,50 +839,49 @@ def budget_dashboard(request):
             build_report_list(node)
 
     for row in report_data:
-        # Cria a estrutura de dados mensal para a linha atual
+        monthly_budget = row['annual_budget'] if row['annual_budget'] > 0 else 0
         row['monthly_data'] = []
-        
-        # Itera pelos 12 meses para calcular variações e alertas
+
         for i in range(12):
             actual = row['monthly_actuals'][i]
-            monthly_budget = row['annual_budget'] / Decimal(12) if row['annual_budget'] > 0 else Decimal(0)
-            
-            # --- LÓGICA DA VARIAÇÃO CORRIGIDA ---
+
+            # --- Lógica de Cores para o 'Realizado' ---
+            realizado_css_class = ""
+            is_over_budget = monthly_budget > 0 and actual > monthly_budget
+
+            if row['account'].account_type == 'D': # Se for Despesa
+                if is_over_budget:
+                    realizado_css_class = "bg-danger text-white"  # RUIM: Acima do orçamento
+                elif actual > 0:
+                    realizado_css_class = "bg-primary text-white" # BOM: Dentro do orçamento
+
+            elif row['account'].account_type == 'R': # Se for Receita
+                if is_over_budget:
+                    realizado_css_class = "bg-primary text-white" # BOM: Acima do orçamento
+                # Adicionamos a regra para quando a receita fica ABAIXO do orçado
+                elif actual < monthly_budget:
+                    realizado_css_class = "bg-danger text-white" # RUIM: Abaixo do orçamento
+
+            # --- Lógica de Cores para a 'Variação' ---
             variation = Decimal(0)
             if i > 0:
                 previous_actual = row['monthly_actuals'][i-1]
                 if previous_actual != 0:
-                    # Garante que todos os números na fórmula sejam Decimal para precisão máxima
-                    variation = ((Decimal(actual) - Decimal(previous_actual)) / Decimal(previous_actual)) * Decimal(100)
-            
-            # --- Lógica de "Acima do Orçamento" ---
-            is_over_budget = monthly_budget > 0 and actual > monthly_budget
-            
-            # --- Lógica de Cores do Realizado ---
-            realizado_css_class = ""
-            if row['account'].account_type == 'E': # Despesa
-                if is_over_budget: realizado_css_class = "bg-danger text-white"
-                elif actual > 0: realizado_css_class = "bg-primary text-white"
-            elif row['account'].account_type == 'R': # Receita
-                if is_over_budget: realizado_css_class = "bg-primary text-white"
-                
-            # --- Lógica de Cores da Variação ---
+                    variation = ((actual - previous_actual) / previous_actual) * 100
+
             variacao_css_class = ""
             if variation == 0:
-                variacao_css_class = "badge bg-secondary"
-            elif row['account'].account_type == 'E': # Despesa
-                variacao_css_class = "badge bg-danger" if variation > 0 else "badge bg-success"
-            elif row['account'].account_type == 'R': # Receita
-                variacao_css_class = "badge bg-success" if variation > 0 else "badge bg-danger"
-                
-            # Adiciona o "pacote" de dados completo
+                variacao_css_class = "badge bg-secondary" # NEUTRO
+            elif row['account'].account_type == 'D': # Se for Despesa
+                variacao_css_class = "badge bg-danger" if variation > 0 else "badge bg-success" # Aumento é ruim, queda é bom
+            elif row['account'].account_type == 'R': # Se for Receita
+                variacao_css_class = "badge bg-success" if variation > 0 else "badge bg-danger" # Aumento é bom, queda é ruim
+
             row['monthly_data'].append({
                 'actual': actual,
                 'variation': variation,
-                'is_over_budget': is_over_budget,
                 'realizado_css_class': realizado_css_class,
                 'variacao_css_class': variacao_css_class,
-                'monthly_budget': monthly_budget
             })
 
 
