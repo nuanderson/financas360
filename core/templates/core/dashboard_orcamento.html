@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
 {% load l10n humanize %}
-{% block title %}Dashboard de Orçamento - {{ company.name }}{% endblock %}
+{% block title %}Dashboard - {{ company.name }}{% endblock %}
 {% block content %}
     <h1 class="fw-bold text-primary mb-3">
-        Dashboard de Orçamento <span class="text-muted fs-5">{{ company.name }}</span>
+        Dashboard <span class="text-muted fs-5 ">{{ company.name }}</span>
     </h1>
     <div class="card mb-4">
         <div class="card-body">
@@ -51,12 +51,12 @@
     </div>
     <div class="card mt-4">
         <div class="card-body">
-            <h5 class="card-title">Execução Orçamentária: {{ percentual_executado|floatformat:2|intcomma }}%</h5>
+            <h5 class="card-title">Execução Orçamentária: {{ percentual_executado_display|floatformat:2|intcomma }}%</h5>
             <div class="progress" style="height: 30px;">
                 <div class="progress-bar progress-bar-striped progress-bar-animated bg-{{ progress_color }}"
                      role="progressbar"
-                     style="width: {{ percentual_executado }}%"
-                     aria-valuenow="{{ percentual_executado }}"
+                     style="width: {{ percentual_executado_raw }}%"
+                     aria-valuenow="{{ percentual_executado_raw }}"
                      aria-valuemin="0"
                      aria-valuemax="100"></div>
             </div>

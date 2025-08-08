@@ -394,7 +394,7 @@ def dashboard_orcamento(request, company):
     expense_transactions = Transaction.objects.filter(
         company=company, 
         date__range=[start_date, end_date], 
-        account__account_type='E' # Filtra apenas Despesas ('E')
+        account__account_type='D'
     )
     total_realizado = expense_transactions.aggregate(
         total=Coalesce(Sum('amount'), Value(Decimal(0)))
@@ -431,7 +431,8 @@ def dashboard_orcamento(request, company):
         'end_date_str': end_date_str,
         'total_orcado_periodo': total_orcado_periodo,
         'total_realizado': total_realizado,
-        'percentual_executado': percentual_executado,
+        'percentual_executado_display': percentual_executado,
+        'percentual_executado_raw': f'{percentual_executado:.2f}'.replace(',', '.'),
         'progress_color': progress_color,
     }
     return render(request, 'core/dashboard_orcamento.html', context)
@@ -452,7 +453,7 @@ def expense_chart_data(request):
     # Filtra as despesas para o PERÍODO SELECIONADO
     expenses = Transaction.objects.filter(
         company=company,
-        account__account_type='E',
+        account__account_type='D',
         date__range=[start_date_str, end_date_str]
     )
 
@@ -905,7 +906,7 @@ def budget_deviations_chart_data(request):
     end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
 
     # Pega todas as contas de despesa "folha" (que não têm filhas)
-    leaf_expense_accounts = ChartOfAccounts.objects.filter(company=company, account_type='E', sub_accounts__isnull=True)
+    leaf_expense_accounts = ChartOfAccounts.objects.filter(company=company, account_type='D', sub_accounts__isnull=True)
 
     deviations = []
     dias_no_ano = Decimal(366 if calendar.isleap(start_date.year) else 365)
@@ -947,10 +948,10 @@ def budget_vs_actual_timeline_data(request):
 
     # Calcula o orçamento total anual para despesas
     orcamento_anual_total = Budget.objects.filter(
-        account__company=company, year=datetime.now().year, account__account_type='E'
+        account__company=company, year=datetime.now().year, account__account_type='R'
     ).aggregate(total=Coalesce(Sum('annual_amount'), Value(Decimal(0))))['total']
 
-    orcado_mensal = orcamento_anual_total / 12
+    orcado_mensal = orcamento_anual_total
 
     labels = []
     budget_data = []
@@ -963,7 +964,7 @@ def budget_vs_actual_timeline_data(request):
         budget_data.append(float(orcado_mensal))
 
         realizado_mes = Transaction.objects.filter(
-            company=company, account__account_type='E', 
+            company=company, account__account_type='D', 
             date__year=target_date.year, date__month=target_date.month
         ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal(0))))['total']
         actual_data.append(float(realizado_mes))
