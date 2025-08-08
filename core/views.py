@@ -345,7 +345,7 @@ def dashboard_dispatcher(request, company_id):
 
 
 @login_required
-def dashboard_lucratividade(request, company):  # Esta é a sua view 'dashboard' antiga, agora renomeada
+def dashboard_lucratividade(request, company):
     """
     Dashboard focado em Gestão Particular (Lucratividade).
     """
@@ -366,6 +366,48 @@ def dashboard_lucratividade(request, company):  # Esta é a sua view 'dashboard'
     total_expenses = transactions.filter(account__account_type='E').aggregate(Sum('amount'))['amount__sum'] or 0
     net_result = total_revenue - total_expenses
 
+    folha_total_lc = Transaction.objects.filter(
+        company=company, date__range=[start_date, end_date], account__code__startswith="2.01.1.01"
+    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+
+    percentual_folha_lc = (folha_total_lc / total_expenses * 100) if total_expenses > 0 else 0
+
+    rec_serv_terceiros = Transaction.objects.filter(
+        company=company, date__range=[start_date, end_date], account__code__startswith="1.01.01"
+    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+
+    percentual_rec_serv_terceiros = (rec_serv_terceiros / total_revenue * 100) if total_revenue > 0 else 0
+
+    rec_convenios = Transaction.objects.filter(
+        company=company, date__range=[start_date, end_date], account__code__startswith="1.01.02"
+    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+
+    percentual_rec_convenios = (rec_convenios / total_revenue * 100) if total_revenue > 0 else 0
+
+    rec_particulares = Transaction.objects.filter(
+        company=company, date__range=[start_date, end_date], account__code__startswith="1.01.03"
+    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+
+    percentual_rec_particulares = (rec_particulares / total_revenue * 100) if total_revenue > 0 else 0
+
+    rec_conv_desconto = Transaction.objects.filter(
+        company=company, date__range=[start_date, end_date], account__code__startswith="1.01.04"
+    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+
+    percentual_rec_conv_desconto = (rec_conv_desconto / total_revenue * 100) if total_revenue > 0 else 0
+
+    rec_fundo_programa_emenda = Transaction.objects.filter(
+        company=company, date__range=[start_date, end_date], account__code__startswith="1.01.05"
+    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+
+    percentual_rec_fundo_programa_emenda = (rec_fundo_programa_emenda / total_revenue * 100) if total_revenue > 0 else 0
+
+    rec_outras_receitas = Transaction.objects.filter(
+        company=company, date__range=[start_date, end_date], account__code__startswith="1.01.06"
+    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+
+    percentual_rec_outras_receitas = (rec_outras_receitas / total_revenue * 100) if total_revenue > 0 else 0
+
     context = {
         'company': company,
         'total_revenue': total_revenue,
@@ -373,7 +415,15 @@ def dashboard_lucratividade(request, company):  # Esta é a sua view 'dashboard'
         'net_result': net_result,
         'start_date_str': start_date_str,
         'end_date_str': end_date_str,
+        'percentual_folha_lc': percentual_folha_lc,
+        'percentual_rec_serv_terceiros': percentual_rec_serv_terceiros,
+        'percentual_rec_convenios': percentual_rec_convenios,
+        'percentual_rec_particulares': percentual_rec_particulares,
+        'percentual_rec_conv_desconto': percentual_rec_conv_desconto,
+        'percentual_rec_fundo_programa_emenda': percentual_rec_fundo_programa_emenda,
+        'percentual_rec_outras_receitas': percentual_rec_outras_receitas,
     }
+
     # Renderiza o template específico de lucratividade
     return render(request, 'core/dashboard_lucratividade.html', context)
 
@@ -383,7 +433,7 @@ def dashboard_orcamento(request, company):
     """
     Dashboard focado em Gestão Pública (Orçamento vs. Realizado).
     """
-    # --- Lógica do Filtro de Data (continua igual) ---
+    # --- Lógica do Filtro de Data
     today = date.today()
     start_date_str = request.GET.get('start_date', today.replace(day=1).strftime('%Y-%m-%d'))
     end_date_str = request.GET.get('end_date', (today.replace(day=calendar.monthrange(today.year, today.month)[1])).strftime('%Y-%m-%d'))
@@ -397,15 +447,17 @@ def dashboard_orcamento(request, company):
         account__account_type='D'
     )
     total_realizado = expense_transactions.aggregate(
-        total=Coalesce(Sum('amount'), Value(Decimal(0)))
+        total=Coalesce(Sum('amount'), Value(Decimal('0.00')))
     )['total']
-    total_expenses = expense_transactions.filter(account__account_type='E').aggregate(Sum('amount'))['amount__sum'] or 0
+
+    total_expenses = expense_transactions.filter(account__account_type='D').aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+
     # 2. Total Orçado: Soma das RECEITAS orçadas, proporcional ao período
     orcamento_anual_receitas = Budget.objects.filter(
         account__company=company,
         year=start_date.year,
         account__account_type='R' 
-    ).aggregate(total=Coalesce(Sum('annual_amount'), Value(Decimal(0))))['total']
+    ).aggregate(total=Coalesce(Sum('annual_amount'), Value(Decimal('0.00'))))['total']
 
     # Calcula a proporção do orçamento de receita para o período selecionado
     dias_no_ano = Decimal(366 if calendar.isleap(start_date.year) else 365)
@@ -417,7 +469,32 @@ def dashboard_orcamento(request, company):
     percentual_executado = 0
     if total_orcado_periodo > 0:
         percentual_executado = (total_realizado / total_orcado_periodo) * 100
-    
+
+     # Indicadores Adicionais
+    glosas_total = Transaction.objects.filter(
+        company=company, date__range=[start_date, end_date], account__code__startswith="1.05"
+    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+
+    repasse_total = Transaction.objects.filter(
+        company=company, date__range=[start_date, end_date], account__code__startswith="1.01"
+    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+
+    percentual_glosa = (glosas_total / repasse_total * 100) if repasse_total > 0 else 0
+
+    folha_total = Transaction.objects.filter(
+        company=company, date__range=[start_date, end_date], account__code__startswith="2.01.01"
+    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+
+    percentual_folha = (folha_total / total_realizado * 100) if total_realizado > 0 else 0
+
+    receitas_extra = Transaction.objects.filter(
+        company=company, date__range=[start_date, end_date], account__code="1.04"
+    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+
+    servicos_terceiros = Transaction.objects.filter(
+        company=company, date__range=[start_date, end_date], account__code__startswith="2.01.03"
+    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+
     # Lógica de cor da barra de progresso (continua igual)
     progress_color = 'success'
     if percentual_executado > 95:
@@ -434,6 +511,10 @@ def dashboard_orcamento(request, company):
         'percentual_executado_display': percentual_executado,
         'percentual_executado_raw': f'{percentual_executado:.2f}'.replace(',', '.'),
         'progress_color': progress_color,
+        'percentual_glosa': percentual_glosa,
+        'percentual_folha': percentual_folha,
+        'receitas_extra': receitas_extra,
+        'servicos_terceiros': servicos_terceiros,
     }
     return render(request, 'core/dashboard_orcamento.html', context)
 

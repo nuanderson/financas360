@@ -83,6 +83,29 @@
             </div>
         </div>
     </div>
+    <div class="card mt-5 border-0 shadow-sm rounded-4">
+        <div class="card-body">
+            <h5 class="fw-semibold mb-3">📊 Percentual de Folha de Pagamento</h5>
+            <p class="lead">A folha de pagamento representa <strong>{{ percentual_folha_lc|floatformat:2 }}%</strong> das despesas totais.</p>
+            <div class="progress" style="height: 30px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-info"
+                     role="progressbar"
+                     style="width: {{ percentual_folha_lc }}%"
+                     aria-valuenow="{{ percentual_folha_lc }}"
+                     aria-valuemin="0"
+                     aria-valuemax="100"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Novo gráfico de Percentual das Receitas -->
+    <div class="card mt-5 border-0 shadow-sm rounded-4">
+        <div class="card-body">
+            <h5 class="fw-semibold mb-3">💰 Distribuição Percentual das Receitas Operacionais</h5>
+            <canvas id="revenueBreakdownChart" height="250"></canvas>
+        </div>
+    </div>
+    
     <style>
     .btn-gradient {
         background: linear-gradient(90deg, #5B86E5, #36D1DC);
@@ -104,71 +127,89 @@
     </style>
     <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const ctxExpense = document.getElementById('expenseChart').getContext('2d');
-        const ctxRevenueExpense = document.getElementById('revenueExpenseChart').getContext('2d');
-        
-        // As variáveis de data já estão disponíveis, vindas do Django
         const startDate = "{{ start_date_str }}";
         const endDate = "{{ end_date_str }}";
 
-        // GRÁFICO DE PIZZA (Já estava correto)
+        // Gráfico de Pizza - Despesas
         fetch(`{% url 'core:expense_chart_data' %}?start_date=${startDate}&end_date=${endDate}`)
             .then(res => res.json())
             .then(data => {
-                new Chart(ctxExpense, {
+                new Chart(document.getElementById('expenseChart').getContext('2d'), {
                     type: 'doughnut',
                     data: {
                         labels: data.labels,
                         datasets: [{
                             label: 'Despesas por Categoria',
                             data: data.data,
-                            backgroundColor: [
-                                '#f94144', '#577590', '#f9c74f', '#90be6d', '#43aa8b', '#f9844a'
-                            ],
+                            backgroundColor: ['#f94144', '#577590', '#f9c74f', '#90be6d', '#43aa8b', '#f9844a'],
                             borderColor: '#ffffff',
                             borderWidth: 2
                         }]
                     },
-                    options: {
-                        responsive: true,
-                        plugins: { legend: { position: 'top' } }
-                    }
+                    options: { responsive: true, plugins: { legend: { position: 'top' } } }
                 });
             });
-        
-        // Montamos a URL da API do gráfico de barras com os mesmos parâmetros de data
-        const revenueExpenseUrl = `{% url 'core:revenue_expense_summary_data' %}?start_date=${startDate}&end_date=${endDate}`;
 
-        // Usamos a nova URL na chamada fetch
-        fetch(revenueExpenseUrl)
+        // Gráfico de Barras - Receita vs Despesa
+        fetch(`{% url 'core:revenue_expense_summary_data' %}?start_date=${startDate}&end_date=${endDate}`)
             .then(res => res.json())
             .then(data => {
-                // O resto do código para desenhar o gráfico permanece o mesmo
-                new Chart(ctxRevenueExpense, {
+                new Chart(document.getElementById('revenueExpenseChart').getContext('2d'), {
                     type: 'bar',
                     data: {
                         labels: data.labels,
                         datasets: [
-                            {
-                                label: 'Receitas',
-                                data: data.revenue_data,
-                                backgroundColor: 'rgba(75, 192, 192, 0.6)'
-                            },
-                            {
-                                label: 'Despesas',
-                                data: data.expense_data,
-                                backgroundColor: 'rgba(255, 99, 132, 0.6)'
-                            }
+                            { label: 'Receitas', data: data.revenue_data, backgroundColor: 'rgba(75, 192, 192, 0.6)' },
+                            { label: 'Despesas', data: data.expense_data, backgroundColor: 'rgba(255, 99, 132, 0.6)' }
                         ]
                     },
-                    options: {
-                        responsive: true,
-                        scales: {
-                            y: { beginAtZero: true }
-                        }
-                    }
+                    options: { responsive: true, scales: { y: { beginAtZero: true } } }
                 });
             });
+
+        // Novo Gráfico - Percentual das Receitas
+        new Chart(document.getElementById('revenueBreakdownChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: [
+                    'Serviços de Terceiros',
+                    'Convênios',
+                    'Particulares',
+                    'Descontos de Convênios',
+                    'Fundos / Programas / Emendas',
+                    'Outras Receitas'
+                ],
+                datasets: [{
+                    label: '% sobre Receita Total',
+                    data: [
+                        {{ percentual_rec_serv_terceiros|unlocalize }},
+                        {{ percentual_rec_convenios|unlocalize }},
+                        {{ percentual_rec_particulares|unlocalize }},
+                        {{ percentual_rec_conv_desconto|unlocalize }},
+                        {{ percentual_rec_fundo_programa_emenda|unlocalize }},
+                        {{ percentual_rec_outras_receitas|unlocalize }}
+                    ],
+                    backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6610f2', '#6c757d'],
+                    borderRadius: 6,
+                    barThickness: 35
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => ctx.raw.toFixed(2) + '%' } }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: { callback: value => value + '%' }
+                    }
+                }
+            }
+        });
     });
     </script>
 {% endblock %}
