@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+    {% load static %}
     <head>
         <meta charset="UTF-8" />
-        <title>Login - Finanças 360</title>
+        <title>Controle +</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <!-- Google Fonts + Bootstrap Icons -->
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
@@ -92,7 +93,11 @@
     </head>
     <body>
         <div class="login-container">
-            <h1>Finanças 360</h1>
+            <div style="text-align: center;">
+                <img src="{% static 'img/logo azul.png' %}"
+                     alt="Controle +"
+                     style="max-width: 200px; height: auto; display: inline-block;">
+            </div>
             <p>Por favor, entre com suas credenciais.</p>
             <form method="post">
                 {% csrf_token %}

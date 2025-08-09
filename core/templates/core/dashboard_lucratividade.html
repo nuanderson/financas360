@@ -65,7 +65,7 @@
             </div>
         </div>
     </div>
-    <div class="row mt-5 g-4">
+    <div class="row mt-3 g-4">
         <div class="col-md-6">
             <div class="card border-0 shadow-sm rounded-4">
                 <div class="card-body">
@@ -83,29 +83,29 @@
             </div>
         </div>
     </div>
-    <div class="card mt-5 border-0 shadow-sm rounded-4">
+    <div class="card mt-4 border-0 shadow-sm rounded-4">
         <div class="card-body">
             <h5 class="fw-semibold mb-3">📊 Percentual de Folha de Pagamento</h5>
-            <p class="lead">A folha de pagamento representa <strong>{{ percentual_folha_lc|floatformat:2 }}%</strong> das despesas totais.</p>
-            <div class="progress" style="height: 30px;">
+            <p class="lead">
+                A folha de pagamento representa <strong>{{ percentual_folha_lc|floatformat:2 }}</strong>% das despesas totais.
+            </p>
+            <div class="progress progress-custom-height">
                 <div class="progress-bar progress-bar-striped progress-bar-animated bg-info"
                      role="progressbar"
-                     style="width: {{ percentual_folha_lc }}%"
+                     style="width: {{ percentual_folha_lc|stringformat:'f' }}%"
                      aria-valuenow="{{ percentual_folha_lc }}"
                      aria-valuemin="0"
                      aria-valuemax="100"></div>
             </div>
         </div>
     </div>
-
     <!-- Novo gráfico de Percentual das Receitas -->
-    <div class="card mt-5 border-0 shadow-sm rounded-4">
+    <div class="card mt-4 border-0 shadow-sm rounded-4">
         <div class="card-body">
             <h5 class="fw-semibold mb-3">💰 Distribuição Percentual das Receitas Operacionais</h5>
             <canvas id="revenueBreakdownChart" height="250"></canvas>
         </div>
     </div>
-    
     <style>
     .btn-gradient {
         background: linear-gradient(90deg, #5B86E5, #36D1DC);
@@ -123,6 +123,9 @@
 
     canvas {
         max-width: 100%;
+    }
+    .progress-custom-height {
+        height: 30px;
     }
     </style>
     <script>
@@ -168,48 +171,54 @@
             });
 
         // Novo Gráfico - Percentual das Receitas
-        new Chart(document.getElementById('revenueBreakdownChart').getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels: [
-                    'Serviços de Terceiros',
-                    'Convênios',
-                    'Particulares',
-                    'Descontos de Convênios',
-                    'Fundos / Programas / Emendas',
-                    'Outras Receitas'
+    new Chart(document.getElementById('revenueBreakdownChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: [
+                'Serviços de Terceiros',
+                'Convênios',
+                'Particulares',
+                'Descontos de Convênios',
+                'Fundos / Programas / Emendas',
+                'Outras Receitas'
+            ],
+            datasets: [{
+                label: '% sobre Receita Total',
+                data: [
+                    {{ percentual_rec_serv_terceiros|unlocalize }},
+                    {{ percentual_rec_convenios|unlocalize }},
+                    {{ percentual_rec_particulares|unlocalize }},
+                    {{ percentual_rec_conv_desconto|unlocalize }},
+                    {{ percentual_rec_fundo_programa_emenda|unlocalize }},
+                    {{ percentual_rec_outras_receitas|unlocalize }}
                 ],
-                datasets: [{
-                    label: '% sobre Receita Total',
-                    data: [
-                        {{ percentual_rec_serv_terceiros|unlocalize }},
-                        {{ percentual_rec_convenios|unlocalize }},
-                        {{ percentual_rec_particulares|unlocalize }},
-                        {{ percentual_rec_conv_desconto|unlocalize }},
-                        {{ percentual_rec_fundo_programa_emenda|unlocalize }},
-                        {{ percentual_rec_outras_receitas|unlocalize }}
-                    ],
-                    backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6610f2', '#6c757d'],
-                    borderRadius: 6,
-                    barThickness: 35
-                }]
+                backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6610f2', '#6c757d'],
+                borderRadius: 6,
+                barThickness: 35
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => ctx.raw.toFixed(2) + '%' } },
+                datalabels: {
+                    color: '#fff',
+                    font: { weight: 'bold' },
+                    formatter: value => value.toFixed(2) + '%'
+                }
             },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { callbacks: { label: ctx => ctx.raw.toFixed(2) + '%' } }
-                },
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        max: 100,
-                        ticks: { callback: value => value + '%' }
-                    }
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: { callback: value => value + '%' }
                 }
             }
-        });
+        },
+        plugins: [ChartDataLabels] // ativar o plugin
     });
+});
     </script>
 {% endblock %}

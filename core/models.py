@@ -5,8 +5,8 @@ from django.utils.translation import gettext_lazy as _
 # Modelo para guardar as empresas dos clientes
 class Company(models.Model):
     MANAGEMENT_CHOICES = (
-        ('publica', 'Gestão Pública (Foco em Orçamento)'),
-        ('particular', 'Gestão Particular (Foco em Lucratividade)'),
+        ('Pública', 'Gestão Pública (Foco em Orçamento)'),
+        ('Particular', 'Gestão Particular (Foco em Lucratividade)'),
     )
     name = models.CharField(_("name"),max_length=100, unique=True, help_text=_("Client company name"))
     # Relação Muitos-para-Muitos.
@@ -33,7 +33,7 @@ class Company(models.Model):
 class ChartOfAccounts(models.Model):
     ACCOUNT_TYPE_CHOICES = (
         ('R', _('Revenue')), # Receita
-        ('E', _('Expense')), # Despesa
+        ('D', _('Expense')), # Despesa
     )
 
     company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("company"))

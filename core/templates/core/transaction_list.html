@@ -14,22 +14,22 @@
             <form method="post" action="{% url 'core:transaction_list' %}" novalidate>
                 {% csrf_token %}
                 <div class="row g-3">
-                    <div class="col-md-6">
+                    <div class="col-12 col-md-8">
                         <label for="{{ form.account.id_for_label }}" class="form-label">Conta</label>
                         {{ form.account }}
                         {% if form.account.errors %}<div class="text-danger small mt-1">{{ form.account.errors|join:", " }}</div>{% endif %}
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-12 col-md-4">
                         <label for="{{ form.date.id_for_label }}" class="form-label">Data</label>
                         {{ form.date|add_class:"form-control" }}
                         {% if form.date.errors %}<div class="text-danger small mt-1">{{ form.date.errors|join:", " }}</div>{% endif %}
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-12 col-md-6">
                         <label for="{{ form.amount.id_for_label }}" class="form-label">Valor</label>
                         {{ form.amount|add_class:"form-control" }}
                         {% if form.amount.errors %}<div class="text-danger small mt-1">{{ form.amount.errors|join:", " }}</div>{% endif %}
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-12 col-md-6">
                         <label for="{{ form.description.id_for_label }}" class="form-label">Descrição</label>
                         {{ form.description|add_class:"form-control" }}
                         {% if form.description.errors %}
@@ -37,7 +37,10 @@
                         {% endif %}
                     </div>
                 </div>
-                <button type="submit" class="btn btn-success mt-4">💾 Salvar Lançamento</button>
+                <button type="submit"
+                        class="btn text-white fw-semibold px-4 mt-4"
+                        style="background: linear-gradient(to right, #fc5c7d, #6a82fb);
+                               border: none">💾 Salvar Lançamento</button>
             </form>
         </div>
     </div>
@@ -61,8 +64,15 @@
                         {{ filter_form.account|add_class:"form-select" }}
                     </div>
                     <div class="col-md-12 text-end mt-3">
-                        <a href="{% url 'core:transaction_list' %}" class="btn btn-secondary">Limpar Filtros</a>
-                        <button type="submit" class="btn btn-primary">Aplicar Filtros</button>
+                        <a href="{% url 'core:transaction_list' %}"
+                           class="btn text-white fw-semibold px-4"
+                           style="background: linear-gradient(to right, #283048, #859398);
+                                  border: none">Limpar Filtros</a>
+                        <button type="submit"
+                                class="btn text-white fw-semibold px-4"
+                                style="background: linear-gradient(to right, #5B86E5, #36D1DC)">
+                            <i class="bi bi-search me-1"></i> Aplicar Filtros
+                        </button>
                     </div>
                 </div>
             </form>

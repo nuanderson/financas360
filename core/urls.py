@@ -32,7 +32,7 @@ urlpatterns = [
     # Página de Login
     path('login/', auth_views.LoginView.as_view(template_name='core/login.html'), name='login'),
     # Ação de Logout
-    path('logout/', auth_views.LogoutView.as_view(next_page='core:login'), name='logout'),
+    path('logout/', auth_views.LogoutView.as_view(next_page='/login/'), name='logout'),
     # API do Gráfico
     path('api/dados-grafico-despesas', views.expense_chart_data, name='expense_chart_data'),
     path('api/resumo-receita-despesa/', views.revenue_expense_summary_data, name='revenue_expense_summary_data'),

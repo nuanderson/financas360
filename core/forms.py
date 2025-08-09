@@ -62,7 +62,7 @@ class ChartOfAccountsForm(forms.ModelForm):
 
 class TransactionForm(forms.ModelForm):
     account_type_filter = forms.ChoiceField(
-        choices=(('', '---------'), ('R', 'Receita'), ('E', 'Despesa')),
+        choices=(('', '---------'), ('R', 'Receita'), ('D', 'Despesa')),
         required=False,
         label="Filtrar por tipo"
     )

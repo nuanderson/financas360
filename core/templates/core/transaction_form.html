@@ -1,38 +1,49 @@
 {% extends 'base.html' %}
+{% load form_filters %}
+{% load l10n humanize %}
 {% block title %}{{ page_title }} - {{ active_company.name }}{% endblock %}
 {% block content %}
-    <nav aria-label="breadcrumb" class="mb-4">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item">
-                <a href="{% url 'core:company_list' %}">Minhas Empresas</a>
-            </li>
-            <li class="breadcrumb-item">
-                <a href="{% url 'core:transaction_list' %}">Lançamentos</a>
-            </li>
-            <li class="breadcrumb-item active" aria-current="page">{{ page_title }}</li>
-        </ol>
-    </nav>
-    <div class="card shadow-sm">
-        <div class="card-header bg-light">
-            <h4 class="mb-0">{{ page_title }}</h4>
-        </div>
+    <h1 class="fw-bold text-primary mb-3">
+        {{ page_title }} <span class="text-muted fs-5">{{ active_company.name }}</span>
+    </h1>
+    <div class="card shadow-sm rounded-4 mb-4">
+        <div class="card-header bg-light fw-semibold">Adicionar Novo Lançamento</div>
         <div class="card-body">
-            <form method="post" novalidate>
+            <form method="post" action="" novalidate>
                 {% csrf_token %}
                 <div class="row g-3">
-                    {% for field in form %}
-                        <div class="col-md-6">
-                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                            {{ field }}
-                            {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors|join:", " }}</div>{% endif %}
-                        </div>
-                    {% endfor %}
+                    <div class="col-md-6">
+                        <label for="{{ form.account.id_for_label }}" class="form-label">Conta</label>
+                        {{ form.account|add_class:"form-select" }}
+                        {% if form.account.errors %}<div class="text-danger small mt-1">{{ form.account.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-3">
+                        <label for="{{ form.date.id_for_label }}" class="form-label">Data</label>
+                        {{ form.date|add_class:"form-control" }}
+                        {% if form.date.errors %}<div class="text-danger small mt-1">{{ form.date.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-3">
+                        <label for="{{ form.amount.id_for_label }}" class="form-label">Valor</label>
+                        {{ form.amount|add_class:"form-control" }}
+                        {% if form.amount.errors %}<div class="text-danger small mt-1">{{ form.amount.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-12">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">Descrição</label>
+                        {{ form.description|add_class:"form-control" }}
+                        {% if form.description.errors %}
+                            <div class="text-danger small mt-1">{{ form.description.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
                 </div>
-                <hr class="my-4">
-                <div class="d-flex justify-content-between">
+                <div class="mt-4 d-flex justify-content-between">
                     <a href="{% url 'core:transaction_list' %}"
-                       class="btn btn-outline-secondary">⬅️ Cancelar</a>
-                    <button type="submit" class="btn btn-primary">💾 Salvar</button>
+                       class="btn text-white fw-semibold px-4"
+                       style="background: linear-gradient(to right, #5433ff, #20bdff);
+                              border: none">⬅️ Cancelar</a>
+                    <button type="submit"
+                            class="btn text-white fw-semibold px-4"
+                            style="background: linear-gradient(to right, #fc5c7d, #6a82fb);
+                                   border: none">💾 Salvar Lançamento</button>
                 </div>
             </form>
         </div>

@@ -25,7 +25,11 @@
                            value="{{ end_date_str }}">
                 </div>
                 <div class="col-md-auto">
-                    <button type="submit" class="btn btn-primary">Filtrar</button>
+                    <button type="submit"
+                            class="btn text-white fw-semibold px-4"
+                            style="background: linear-gradient(to right, #5B86E5, #36D1DC)">
+                        <i class="bi bi-search me-1"></i> Filtrar
+                    </button>
                 </div>
             </form>
         </div>
@@ -81,40 +85,39 @@
         </div>
     </div>
     <div class="row g-4 mt-2">
-    <div class="col-md-6">
-        <div class="card text-center">
-            <div class="card-header">% GLOSAS SOBRE REPASSE</div>
-            <div class="card-body">
-                <h2 class="card-title text-warning">{{ percentual_glosa|floatformat:2 }}%</h2>
+        <div class="col-md-6">
+            <div class="card text-center">
+                <div class="card-header">% GLOSAS SOBRE REPASSE</div>
+                <div class="card-body">
+                    <h2 class="card-title text-warning">{{ percentual_glosa|floatformat:2 }}%</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card text-center">
+                <div class="card-header">% DA FOLHA NAS DESPESAS</div>
+                <div class="card-body">
+                    <h2 class="card-title text-warning">{{ percentual_folha|floatformat:2 }}%</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card text-center">
+                <div class="card-header">RECEITAS EXTRAORDINÁRIAS</div>
+                <div class="card-body">
+                    <h2 class="card-title text-success">R$ {{ receitas_extra|floatformat:2|intcomma }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card text-center">
+                <div class="card-header">SERVIÇOS TERCEIRIZADOS</div>
+                <div class="card-body">
+                    <h2 class="card-title text-danger">R$ {{ servicos_terceiros|floatformat:2|intcomma }}</h2>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card text-center">
-            <div class="card-header">% DA FOLHA NAS DESPESAS</div>
-            <div class="card-body">
-                <h2 class="card-title text-warning">{{ percentual_folha|floatformat:2 }}%</h2>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card text-center">
-            <div class="card-header">RECEITAS EXTRAORDINÁRIAS</div>
-            <div class="card-body">
-                <h2 class="card-title text-success">R$ {{ receitas_extra|floatformat:2|intcomma }}</h2>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card text-center">
-            <div class="card-header">SERVIÇOS TERCEIRIZADOS</div>
-            <div class="card-body">
-                <h2 class="card-title text-danger">R$ {{ servicos_terceiros|floatformat:2|intcomma }}</h2>
-            </div>
-        </div>
-    </div>
-</div>
-
 {% endblock %}
 {% block extra_js %}
     <script>
@@ -166,8 +169,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         {
                             label: 'Orçado',
                             data: data.budget_data,
-                            borderColor: '#adb5bd',
-                            backgroundColor: '#adb5bd',
+                            borderColor: '#0d6efd',
+                            backgroundColor: '#0d6efd',
                             borderDash: [5, 5],
                             tension: 0.1
                         }

@@ -363,7 +363,7 @@ def dashboard_lucratividade(request, company):
     )
 
     total_revenue = transactions.filter(account__account_type='R').aggregate(Sum('amount'))['amount__sum'] or 0
-    total_expenses = transactions.filter(account__account_type='E').aggregate(Sum('amount'))['amount__sum'] or 0
+    total_expenses = transactions.filter(account__account_type__in=['D', 'E']).aggregate(Sum('amount'))['amount__sum'] or 0
     net_result = total_revenue - total_expenses
 
     folha_total_lc = Transaction.objects.filter(
@@ -534,7 +534,7 @@ def expense_chart_data(request):
     # Filtra as despesas para o PERÍODO SELECIONADO
     expenses = Transaction.objects.filter(
         company=company,
-        account__account_type='D',
+        account__account_type__in=['D', 'E'], 
         date__range=[start_date_str, end_date_str]
     )
 
@@ -592,7 +592,7 @@ def revenue_expense_summary_data(request):
             total=Coalesce(Sum('amount'), Value(0.0), output_field=DecimalField())
         )['total']
 
-        expense = transactions.filter(account__account_type='E').aggregate(
+        expense = transactions.filter(account__account_type__in=['D', 'E']).aggregate(
             total=Coalesce(Sum('amount'), Value(0.0), output_field=DecimalField())
         )['total']
 
@@ -931,7 +931,7 @@ def budget_dashboard(request):
             realizado_css_class = ""
             is_over_budget = monthly_budget > 0 and actual > monthly_budget
 
-            if row['account'].account_type == 'D': # Se for Despesa
+            if row['account'].account_type in ['D', 'E']:
                 if is_over_budget:
                     realizado_css_class = "bg-danger text-white"  # RUIM: Acima do orçamento
                 elif actual > 0:
@@ -939,10 +939,9 @@ def budget_dashboard(request):
 
             elif row['account'].account_type == 'R': # Se for Receita
                 if is_over_budget:
-                    realizado_css_class = "bg-primary text-white" # BOM: Acima do orçamento
-                # Adicionamos a regra para quando a receita fica ABAIXO do orçado
+                    realizado_css_class = "bg-primary text-white" # BOM: Acima do orçamento (AZUL)
                 elif actual < monthly_budget:
-                    realizado_css_class = "bg-danger text-white" # RUIM: Abaixo do orçamento
+                    realizado_css_class = "bg-danger text-white" # RUIM: Abaixo do orçamento (VERMELHO)
 
             # --- Lógica de Cores para a 'Variação' ---
             variation = Decimal(0)
@@ -954,7 +953,7 @@ def budget_dashboard(request):
             variacao_css_class = ""
             if variation == 0:
                 variacao_css_class = "badge bg-secondary" # NEUTRO
-            elif row['account'].account_type == 'D': # Se for Despesa
+            elif row['account'].account_type == 'D' or 'E': # Se for Despesa
                 variacao_css_class = "badge bg-danger" if variation > 0 else "badge bg-success" # Aumento é ruim, queda é bom
             elif row['account'].account_type == 'R': # Se for Receita
                 variacao_css_class = "badge bg-success" if variation > 0 else "badge bg-danger" # Aumento é bom, queda é ruim
@@ -969,7 +968,7 @@ def budget_dashboard(request):
 
     context = {
         'company': active_company, 'year': current_year, 'report_data': report_data,
-        'months': ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+        'months': ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
     }
     return render(request, 'core/budget_dashboard.html', context)
 
