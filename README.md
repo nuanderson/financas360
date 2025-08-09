@@ -93,6 +93,9 @@ Crie um arquivo `.env` na raiz do projeto com as seguintes variáveis:
 SECRET_KEY=sua_chave_secreta_aqui
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
+DATABASE_URL=sqlite:///db.sqlite3
+EMAIL_HOST_USER=seu_email@example.com
+EMAIL_HOST_PASSWORD=sua_senha_de_app
 ```
 
 5. Execute as migrações:
