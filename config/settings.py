@@ -34,6 +34,7 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -150,3 +151,22 @@ EMAIL_USE_TLS = True # Habilita a criptografia TLS
 EMAIL_HOST_USER = config('EMAIL_HOST_USER') # Lê o e-mail do arquivo .env
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD') # Lê a Senha de App do .env
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER # O e-mail do remetente será o seu e-mail
+
+JAZZMIN_SETTINGS = {
+    "site_logo": "img/logo branca.png",
+    "site_title": "Controle + Admin",
+    "site_header": "Controle +",
+    "site_brand": "Controle +",
+    "welcome_sign": "Bem-vindo ao painel de administração",
+    "copyright": "Controle +",
+    "search_model": "auth.User",
+    "icon": {
+        'site': 'bi bi-house',
+        'admin': 'bi bi-person-lock',
+        'users': 'bi bi-people',
+        'settings': 'bi bi-gear',
+        'auth': 'fas fa-users-cog',
+        'auth.user': 'fas fa-user'
+    },
+    
+}
