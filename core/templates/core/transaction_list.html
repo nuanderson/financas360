@@ -1,7 +1,9 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load form_filters %}
 {% load l10n humanize %}
-{% block title %}Lançamentos - {{ active_company.name }}{% endblock %}
+{% block title %}
+    Lançamentos - {{ active_company.name }}
+{% endblock title %}
 {% block content %}
     <h1 class="fw-bold text-primary mb-3">
         Lançamentos <span class="text-muted fs-5">{{ active_company.name }}</span>
@@ -38,9 +40,7 @@
                     </div>
                 </div>
                 <button type="submit"
-                        class="btn text-white fw-semibold px-4 mt-4"
-                        style="background: linear-gradient(to right, #fc5c7d, #6a82fb);
-                               border: none">💾 Salvar Lançamento</button>
+                        class="btn text-white fw-semibold px-4 mt-4 btn-gradient-save">💾 Salvar Lançamento</button>
             </form>
         </div>
     </div>
@@ -65,12 +65,9 @@
                     </div>
                     <div class="col-md-12 text-end mt-3">
                         <a href="{% url 'core:transaction_list' %}"
-                           class="btn text-white fw-semibold px-4"
-                           style="background: linear-gradient(to right, #283048, #859398);
-                                  border: none">Limpar Filtros</a>
+                           class="btn text-white fw-semibold px-4 btn-gradient-clear">Limpar Filtros</a>
                         <button type="submit"
-                                class="btn text-white fw-semibold px-4"
-                                style="background: linear-gradient(to right, #5B86E5, #36D1DC)">
+                                class="btn text-white fw-semibold px-4 btn-gradient-filter">
                             <i class="bi bi-search me-1"></i> Aplicar Filtros
                         </button>
                     </div>
@@ -127,7 +124,7 @@
                     <ul class="pagination justify-content-center mb-0">
                         {% if transactions.has_previous %}
                             <li class="page-item">
-                                <a class="page-link" href="?page=1&{{ request.GET.urlencode }}">&laquo; Primeira</a>
+                                <a class="page-link" href="?page=1&{{ request.GET.urlencode }}">« Primeira</a>
                             </li>
                             <li class="page-item">
                                 <a class="page-link"
@@ -144,7 +141,7 @@
                             </li>
                             <li class="page-item">
                                 <a class="page-link"
-                                   href="?page={{ transactions.paginator.num_pages }}&{{ request.GET.urlencode }}">Última &raquo;</a>
+                                   href="?page={{ transactions.paginator.num_pages }}&{{ request.GET.urlencode }}">Última »</a>
                             </li>
                         {% endif %}
                     </ul>
@@ -153,5 +150,27 @@
         {% endif %}
     </div>
     {{ all_accounts_json_str|json_script:"accounts-data" }}
-{% endblock %}
-{% block extra_js %}{% endblock %}
+{% endblock content %}
+{% block extra_css %}
+    <style>
+.btn-gradient-save {
+    background: linear-gradient(to right, #fc5c7d, #6a82fb);
+    border: none;
+    color: #fff !important;
+}
+.btn-gradient-clear {
+    background: linear-gradient(to right, #283048, #859398);
+    border: none;
+    color: #fff !important;
+}
+.btn-gradient-filter {
+    background: linear-gradient(to right, #5B86E5, #36D1DC);
+    border: none;
+    color: #fff !important;
+}
+/* Preserve gradient on hover/focus */
+.btn-gradient-save:hover, .btn-gradient-save:focus { background: linear-gradient(to right, #fc5c7d, #6a82fb); opacity: .95; }
+.btn-gradient-clear:hover, .btn-gradient-clear:focus { background: linear-gradient(to right, #283048, #859398); opacity: .95; }
+.btn-gradient-filter:hover, .btn-gradient-filter:focus { background: linear-gradient(to right, #5B86E5, #36D1DC); opacity: .95; }
+    </style>
+{% endblock extra_css %}

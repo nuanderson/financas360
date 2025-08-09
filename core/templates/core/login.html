@@ -5,6 +5,10 @@
         <meta charset="UTF-8" />
         <title>Controle +</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="description"
+              content="Faça login para acessar o Controle +, sua plataforma de controle financeiro." />
+        <meta name="keywords"
+              content="controle financeiro, login, finanças, orçamento, Controle +" />
         <!-- Google Fonts + Bootstrap Icons -->
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
               rel="stylesheet" />
@@ -89,14 +93,24 @@
                 padding: 2rem 1.5rem;
             }
         }
+        .logo-container {
+            text-align: center;
+        }
+        .logo-img {
+            max-width: 200px;
+            height: auto;
+            display: inline-block;
+        }
         </style>
     </head>
     <body>
         <div class="login-container">
-            <div style="text-align: center;">
+            <div class="logo-container">
                 <img src="{% static 'img/logo azul.png' %}"
                      alt="Controle +"
-                     style="max-width: 200px; height: auto; display: inline-block;">
+                     class="logo-img"
+                     width="200"
+                     height="auto">
             </div>
             <p>Por favor, entre com suas credenciais.</p>
             <form method="post">

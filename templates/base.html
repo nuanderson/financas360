@@ -4,6 +4,10 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="description"
+              content="Sistema de controle financeiro e gestão de plantões para empresas.">
+        <meta name="keywords"
+              content="finanças, controle, gestão, plantões, orçamento, dashboard, empresa">
         <title>
             {% block title %}
                 Controle +
@@ -21,6 +25,12 @@
         <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
               rel="stylesheet" />
         <style>
+        .logo-img {
+            max-width: 200px;
+            width: 200px;
+            height: 60px;
+            height: auto;
+        }
         body {
             display: flex;
             min-height: 100vh;
@@ -108,15 +118,22 @@
                 gap: 1rem;
             }
         }
+        .sidebar-hr {
+            border-color: rgba(255,255,255,0.3);
+        }
         </style>
+        {# Permite que templates filhos injetem CSS adicional (ex.: gradientes de botões) #}
+        {% block extra_css %}
+        {% endblock extra_css %}
     </head>
     <body>
-        <aside class="sidebar">
+        <aside class="sidebar d-flex flex-column justify-content-between">
             <div>
                 <img src="{% static 'img/logo branca.png' %}"
                      alt="Controle +"
-                     style="max-width: 200px;
-                            height: auto">
+                     class="logo-img"
+                     width="200"
+                     height="60">
                 {% if active_company %}
                     <div class="active-company text-center">
                         <small>Unidade Ativa</small>
@@ -165,7 +182,7 @@
                         </li>
                     {% endif %}
                 </ul>
-                <hr style="border-color: rgba(255,255,255,0.3);">
+                <hr class="sidebar-hr">
                 <small class="text-white-50 ps-3">MÓDULO PLANTÕES</small>
                 <ul class="nav flex-column">
                     {% if active_company %}
@@ -212,7 +229,8 @@
             </div>
         </aside>
         <main class="main-content">
-            {% block content %}{% endblock %}
+            {% block content %}
+            {% endblock content %}
         </main>
         <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -222,13 +240,13 @@
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
         <script>
-        $(document).ready(function() {
-            $('.select2-widget').select2({
-                theme: "bootstrap-5"
+            $(document).ready(function() {
+                $('.select2-widget').select2({
+                    theme: "bootstrap-5"
+                });
             });
-        });
         </script>
         {% block extra_js %}
-        {% endblock %}
+        {% endblock extra_js %}
     </body>
 </html>

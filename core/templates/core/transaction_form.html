@@ -1,7 +1,9 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load form_filters %}
 {% load l10n humanize %}
-{% block title %}{{ page_title }} - {{ active_company.name }}{% endblock %}
+{% block title %}
+    {{ page_title }} - {{ active_company.name }}
+{% endblock title %}
 {% block content %}
     <h1 class="fw-bold text-primary mb-3">
         {{ page_title }} <span class="text-muted fs-5">{{ active_company.name }}</span>
@@ -36,16 +38,35 @@
                     </div>
                 </div>
                 <div class="mt-4 d-flex justify-content-between">
-                    <a href="{% url 'core:transaction_list' %}"
-                       class="btn text-white fw-semibold px-4"
-                       style="background: linear-gradient(to right, #5433ff, #20bdff);
-                              border: none">⬅️ Cancelar</a>
-                    <button type="submit"
-                            class="btn text-white fw-semibold px-4"
-                            style="background: linear-gradient(to right, #fc5c7d, #6a82fb);
-                                   border: none">💾 Salvar Lançamento</button>
+                    <a href="{% url "core:transaction_list" %}"
+                       class="btn text-white fw-semibold px-4 btn-cancel">⬅️ Cancelar</a>
+                    <button type="submit" class="btn text-white fw-semibold px-4 btn-save">💾 Salvar Lançamento</button>
                 </div>
             </form>
         </div>
     </div>
-{% endblock %}
+{% endblock content %}
+{% block extra_css %}
+    <style>
+.btn-cancel {
+    background: linear-gradient(to right, #5433ff, #20bdff);
+    border: none;
+}
+.btn-save {
+    background: linear-gradient(to right, #fc5c7d, #6a82fb);
+    border: none;
+}
+/* Preserva gradiente em hover/focus e garante contraste */
+.btn-cancel:hover, .btn-cancel:focus {
+    background: linear-gradient(to right, #5433ff, #20bdff);
+    color: #fff !important;
+    opacity: 0.95;
+}
+.btn-save:hover, .btn-save:focus {
+    background: linear-gradient(to right, #fc5c7d, #6a82fb);
+    color: #fff !important;
+    opacity: 0.95;
+}
+.btn-cancel, .btn-save { color: #fff !important; }
+    </style>
+{% endblock extra_css %}
