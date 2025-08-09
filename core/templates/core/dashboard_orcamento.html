@@ -1,13 +1,15 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load l10n humanize %}
-{% block title %}Dashboard - {{ company.name }}{% endblock %}
+{% block title %}
+    Dashboard - {{ company.name }}
+{% endblock title %}
 {% block content %}
     <h1 class="fw-bold text-primary mb-3">
         Dashboard <span class="text-muted fs-5 ">{{ company.name }}</span>
     </h1>
     <div class="card mb-4">
         <div class="card-body">
-            <form method="GET" action="" class="row g-3 align-items-end">
+            <form method="get" action="" class="row g-3 align-items-end">
                 <div class="col-md-3">
                     <label for="start_date" class="form-label fw-medium">Data Início</label>
                     <input type="date"
@@ -25,9 +27,7 @@
                            value="{{ end_date_str }}">
                 </div>
                 <div class="col-md-auto">
-                    <button type="submit"
-                            class="btn text-white fw-semibold px-4"
-                            style="background: linear-gradient(to right, #5B86E5, #36D1DC)">
+                    <button type="submit" class="btn text-white fw-semibold px-4 gradient-bg">
                         <i class="bi bi-search me-1"></i> Filtrar
                     </button>
                 </div>
@@ -56,7 +56,7 @@
     <div class="card mt-4">
         <div class="card-body">
             <h5 class="card-title">Execução Orçamentária: {{ percentual_executado_display|floatformat:2|intcomma }}%</h5>
-            <div class="progress" style="height: 30px;">
+            <div class="progress custom-progress-height">
                 <div class="progress-bar progress-bar-striped progress-bar-animated bg-{{ progress_color }}"
                      role="progressbar"
                      style="width: {{ percentual_executado_raw }}%"
@@ -118,16 +118,23 @@
             </div>
         </div>
     </div>
-{% endblock %}
+{% endblock content %}
 {% block extra_js %}
+    <style>
+.gradient-bg {
+    background: linear-gradient(to right, #5B86E5, #36D1DC) !important;
+}
+.custom-progress-height {
+    height: 30px;
+}
+    </style>
     <script>
-document.addEventListener('DOMContentLoaded', function () {
     const startDate = "{{ start_date_str }}";
     const endDate = "{{ end_date_str }}";
 
     // --- Gráfico de Desvios Orçamentários (Barras Horizontais) ---
     const ctxDeviations = document.getElementById('budgetDeviationsChart').getContext('2d');
-    const deviationsUrl = `{% url 'core:budget_deviations_chart_data' %}?start_date=${startDate}&end_date=${endDate}`;
+    const deviationsUrl = `{% url "core:budget_deviations_chart_data" %}?start_date=${startDate}&end_date=${endDate}`;
     fetch(deviationsUrl)
         .then(response => response.json())
         .then(data => {
@@ -151,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // --- Gráfico Orçado vs. Realizado (Linhas) ---
     const ctxTimeline = document.getElementById('budgetTimelineChart').getContext('2d');
-    fetch("{% url 'core:budget_vs_actual_timeline_data' %}")
+        fetch('{% url "core:budget_vs_actual_timeline_data" %}')
         .then(response => response.json())
         .then(data => {
             new Chart(ctxTimeline, {
@@ -179,6 +186,5 @@ document.addEventListener('DOMContentLoaded', function () {
                 options: { responsive: true }
             });
         });
-});
     </script>
-{% endblock %}
+{% endblock extra_js %}
