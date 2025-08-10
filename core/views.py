@@ -472,7 +472,7 @@ def dashboard_orcamento(request, company):
 
      # Indicadores Adicionais
     glosas_total = Transaction.objects.filter(
-        company=company, date__range=[start_date, end_date], account__code__startswith="1.05"
+        company=company, date__range=[start_date, end_date], account__code__startswith="1.03"
     ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
 
     repasse_total = Transaction.objects.filter(
