@@ -336,10 +336,10 @@ def dashboard_dispatcher(request, company_id):
     """
     company = get_object_or_404(Company, pk=company_id, users=request.user)
 
-    if company.management_type == 'publica':
+    if company.management_type == 'Pública':
         # Chama a view focada em orçamento
         return dashboard_orcamento(request, company)
-    else:  # 'particular'
+    else:  # 'Particular'
         # Chama a view focada em lucratividade
         return dashboard_lucratividade(request, company)
 
