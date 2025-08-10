@@ -82,12 +82,15 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': config('DATABASE_URL', 
-    default=f'sqlite:///{BASE_DIR / 'db.sqlite3'}', 
-    cast=db_url,
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='5432'),
+    }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -156,7 +159,7 @@ JAZZMIN_SETTINGS = {
     "site_logo": "img/logo branca.png",
     "site_title": "Controle + Admin",
     "site_header": "Controle +",
-    "site_brand": "Controle +",
+    "site_brand": ".",
     "welcome_sign": "Bem-vindo ao painel de administração",
     "copyright": "Controle +",
     "search_model": "auth.User",
