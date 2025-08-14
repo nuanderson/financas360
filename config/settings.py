@@ -160,7 +160,7 @@ JAZZMIN_SETTINGS = {
     "site_logo": "img/logo branca.png",
     "site_title": "Controle + Admin",
     "site_header": "Controle +",
-    "site_brand": ".",
+    "site_brand": "Controle +",
     "welcome_sign": "Bem-vindo ao painel de administração",
     "copyright": "Controle +",
     "search_model": "auth.User",

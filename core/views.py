@@ -16,7 +16,7 @@ from django.template.loader import render_to_string
 from django.core import serializers
 from django.core.paginator import Paginator
 from weasyprint import HTML
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import calendar
 import csv
 import io
@@ -189,6 +189,12 @@ def transaction_list(request):
     paginator = Paginator(transactions_list, 15) # Mostra 15 lançamentos por página
     page_number = request.GET.get('page')
     transactions = paginator.get_page(page_number)
+
+    # Prepara os parâmetros GET para serem usados nos links de paginação,
+    # garantindo que os filtros sejam mantidos.
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        del query_params['page']
 
     # Dados para o filtro de conta do formulário de adição
     all_accounts = ChartOfAccounts.objects.filter(company=active_company).values('pk', 'code', 'name', 'account_type')
@@ -495,6 +501,32 @@ def dashboard_orcamento(request, company):
         company=company, date__range=[start_date, end_date], account__code__startswith="2.01.03"
     ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
 
+    percentual_servicos_terceiros = (servicos_terceiros / total_realizado * 100) if total_realizado > 0 else 0
+
+    materiais = Transaction.objects.filter(
+        company=company, date__range=[start_date, end_date], account__code__startswith="2.01.02"
+    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+
+    percentual_materiais = (materiais / total_realizado * 100) if total_realizado > 0 else 0
+
+    apoio_gestao = Transaction.objects.filter(
+        company=company, date__range=[start_date, end_date], account__code__startswith="2.01.04"
+    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+
+    percentual_apoio_gestao = (apoio_gestao / total_realizado * 100) if total_realizado > 0 else 0
+
+    outras_despesas = Transaction.objects.filter(
+        company=company, date__range=[start_date, end_date], account__code__startswith="2.01.05"
+    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+
+    percentual_outras_despesas = (outras_despesas / total_realizado * 100) if total_realizado > 0 else 0
+
+    despesas_administrativas = Transaction.objects.filter(
+        company=company, date__range=[start_date, end_date], account__code__startswith="2.01.06"
+    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+
+    percentual_despesas_administrativas = (despesas_administrativas / total_realizado * 100) if total_realizado > 0 else 0
+
     # Lógica de cor da barra de progresso (continua igual)
     progress_color = 'success'
     if percentual_executado > 95:
@@ -515,6 +547,15 @@ def dashboard_orcamento(request, company):
         'percentual_folha': percentual_folha,
         'receitas_extra': receitas_extra,
         'servicos_terceiros': servicos_terceiros,
+        'percentual_servicos_terceiros': percentual_servicos_terceiros,
+        'materiais': materiais,
+        'percentual_materiais': percentual_materiais,
+        'apoio_gestao': apoio_gestao,
+        'percentual_apoio_gestao': percentual_apoio_gestao,
+        'outras_despesas': outras_despesas,
+        'percentual_outras_despesas': percentual_outras_despesas,
+        'despesas_administrativas': despesas_administrativas,
+        'percentual_despesas_administrativas': percentual_despesas_administrativas,
     }
     return render(request, 'core/dashboard_orcamento.html', context)
 
@@ -1100,3 +1141,179 @@ def budget_edit_view(request):
         'year': current_year,
     }
     return render(request, 'core/budget_edit.html', context)
+
+
+@login_required
+def import_transactions(request):
+    """
+    View para importar lançamentos via arquivo CSV.
+    """
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        messages.error(request, "Por favor, selecione uma empresa primeiro.")
+        return redirect('core:company_list')
+    active_company = get_object_or_404(Company, pk=active_company_id, users=request.user)
+
+    if request.method == 'POST':
+        form = CSVImportForm(request.POST, request.FILES)
+        if form.is_valid():
+            csv_file = request.FILES['csv_file']
+            
+            if not csv_file.name.endswith('.csv'):
+                messages.error(request, 'Este não é um arquivo CSV válido.')
+                return redirect('core:import_transactions')
+
+            # Lógica robusta de leitura e decodificação do arquivo
+            try:
+                data_set = csv_file.read().decode('utf-8-sig')
+            except UnicodeDecodeError:
+                csv_file.seek(0)
+                data_set = csv_file.read().decode('latin-1')
+            
+            io_string = io.StringIO(data_set)
+            
+            # Lógica para detectar o delimitador (vírgula ou ponto e vírgula)
+            try:
+                dialect = csv.Sniffer().sniff(io_string.readline(), delimiters=';,')
+                io_string.seek(0)
+                reader = csv.DictReader(io_string, dialect=dialect)
+            except csv.Error:
+                messages.error(request, "Não foi possível determinar o formato do arquivo CSV.")
+                return redirect('core:import_transactions')
+
+            success_count = 0
+            error_count = 0
+            
+            for i, row in enumerate(reader, 1):
+                try:
+                    transaction_date = datetime.strptime(row['data'], '%d/%m/%Y').date()
+                    account_code = row['codigo_conta']
+                    account = ChartOfAccounts.objects.get(company=active_company, code=account_code)
+                    amount_str = row['valor'].replace('.', '').replace(',', '.')
+                    amount = Decimal(amount_str)
+
+                    Transaction.objects.create(
+                        company=active_company,
+                        account=account,
+                        date=transaction_date,
+                        amount=abs(amount),
+                        description=row.get('descricao', '')
+                    )
+                    success_count += 1
+                except ChartOfAccounts.DoesNotExist:
+                    messages.warning(request, f"Linha {i}: A conta com código '{account_code}' não existe. A linha foi ignorada.")
+                    error_count += 1
+                except (ValueError, TypeError, InvalidOperation, KeyError) as e:
+                    messages.warning(request, f"Linha {i}: Formato de data, valor ou coluna inválido ({e}). A linha foi ignorada.")
+                    error_count += 1
+            
+            if success_count > 0:
+                messages.success(request, f"{success_count} lançamentos foram importados com sucesso.")
+            if error_count > 0:
+                messages.error(request, f"Falha ao importar {error_count} linhas.")
+            
+            return redirect('core:transaction_list')
+    else:
+        form = CSVImportForm()
+        
+    context = {'form': form}
+    return render(request, 'core/import_transactions.html', context)
+
+
+@login_required
+def download_transaction_template(request):
+    """
+    Gera e oferece para download um arquivo CSV modelo para importação de lançamentos,
+    pré-preenchido com as contas da empresa ativa.
+    """
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        messages.error(request, "Por favor, selecione uma empresa primeiro.")
+        return redirect('core:company_list')
+    active_company = get_object_or_404(Company, pk=active_company_id, users=request.user)
+
+    # Usamos um buffer de texto em memória para criar o CSV de forma segura
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=';')
+    
+    # Escreve o cabeçalho
+    writer.writerow(['data', 'codigo_conta', 'nome_conta', 'valor', 'descricao'])
+
+    # Busca apenas as contas "folha" (que não têm filhas)
+    accounts = ChartOfAccounts.objects.filter(
+        company=active_company, 
+        sub_accounts__isnull=True
+    ).order_by('code')
+
+    # Se não encontrar contas, adiciona uma linha de exemplo
+    if not accounts.exists():
+        writer.writerow(['(Ex: 31/12/2025)', '(Ex: 2.01.01.001)', '(Ex: Salários CLT)', '(Ex: -5000,00)', '(Ex: Pagamento de salários)'])
+    else:
+        # Se encontrar, preenche com os dados reais
+        for account in accounts:
+            writer.writerow(['', account.code, account.name, '', ''])
+    
+    # Pega o conteúdo do buffer
+    csv_content = output.getvalue()
+
+    # Cria a resposta HTTP final, usando 'utf-8-sig' para máxima compatibilidade com Excel
+    response = HttpResponse(csv_content, content_type='text/csv; charset=utf-8-sig')
+    response['Content-Disposition'] = f'attachment; filename="modelo_lancamentos_{active_company.name}.csv"'
+
+    return response
+
+
+# Em core/views.py
+@login_required
+def expense_percentage_chart_data(request):
+    """Retorna composição percentual das despesas por grandes grupos.
+
+    Corrigido: antes usava variáveis não definidas (start_date/end_date) e account_type 'E'.
+    Agora usa 'D' (despesa), trata divisão por zero e sempre retorna 200.
+    """
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        return JsonResponse({'labels': [], 'data': [], 'error': 'No active company'}, status=400)
+    company = get_object_or_404(Company, pk=active_company_id, users=request.user)
+
+    today = date.today()
+    start_date_str = request.GET.get('start_date', today.replace(day=1).strftime('%Y-%m-%d'))
+    end_date_str = request.GET.get('end_date', (today.replace(day=calendar.monthrange(today.year, today.month)[1])).strftime('%Y-%m-%d'))
+
+    try:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return JsonResponse({'labels': [], 'data': [], 'error': 'Invalid date format'}, status=400)
+
+    # Total de despesas no período
+    total_realizado = Transaction.objects.filter(
+        company=company, account__account_type='D', date__range=[start_date, end_date]
+    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+
+    def pct(code_prefix: str) -> Decimal:
+        total = Transaction.objects.filter(
+            company=company, account__account_type='D', date__range=[start_date, end_date], account__code__startswith=code_prefix
+        ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+        if total_realizado and total_realizado > 0:
+            return (total / total_realizado) * 100
+        return Decimal('0')
+
+    percentual_folha = pct('2.01.01')
+    percentual_servicos_terceiros = pct('2.01.03')
+    percentual_materiais = pct('2.01.02')
+    percentual_apoio_gestao = pct('2.01.04')
+    percentual_outras_despesas = pct('2.01.05')
+    percentual_despesas_administrativas = pct('2.01.06')
+
+    labels = ['Folha', 'Serviços Terceiros', 'Materiais', 'Apoio à Gestão', 'Outras Despesas', 'Desp. Admin.']
+    data = [
+        float(round(percentual_folha, 2)),
+        float(round(percentual_servicos_terceiros, 2)),
+        float(round(percentual_materiais, 2)),
+        float(round(percentual_apoio_gestao, 2)),
+        float(round(percentual_outras_despesas, 2)),
+        float(round(percentual_despesas_administrativas, 2)),
+    ]
+
+    return JsonResponse({'labels': labels, 'data': data, 'total_realizado': float(total_realizado)})

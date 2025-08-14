@@ -3,9 +3,19 @@
 {% block title %}
     Dashboard - {{ company.name }}
 {% endblock title %}
+{% block extra_css %}
+    <style>
+.gradient-bg { background: linear-gradient(to right, #5B86E5, #36D1DC) !important; }
+.custom-progress-height { height: 30px; }
+.chart-card { min-height: 380px; position: relative; }
+.chart-placeholder { position: absolute; inset: 0; display:flex; align-items:center; justify-content:center; font-size:.9rem; color:#6c757d; }
+.spinner { width:2.2rem; height:2.2rem; border:.35rem solid #e9ecef; border-top-color:#36D1DC; border-radius:50%; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg);} }
+    </style>
+{% endblock extra_css %}
 {% block content %}
     <h1 class="fw-bold text-primary mb-3">
-        Dashboard <span class="text-muted fs-5 ">{{ company.name }}</span>
+        Dashboard <span class="text-muted fs-5">{{ company.name }}</span>
     </h1>
     <div class="card mb-4">
         <div class="card-body">
@@ -34,7 +44,7 @@
             </form>
         </div>
     </div>
-    <p class="lead">Execução orçamentária para o período selecionado:</p>
+    <p class="lead mb-4">Execução orçamentária para o período selecionado:</p>
     <div class="row g-4">
         <div class="col-md-6">
             <div class="card text-center">
@@ -55,7 +65,7 @@
     </div>
     <div class="card mt-4">
         <div class="card-body">
-            <h5 class="card-title">Execução Orçamentária: {{ percentual_executado_display|floatformat:2|intcomma }}%</h5>
+            <h5 class="card-title mb-3">Execução Orçamentária: {{ percentual_executado_display|floatformat:2 }}%</h5>
             <div class="progress custom-progress-height">
                 <div class="progress-bar progress-bar-striped progress-bar-animated bg-{{ progress_color }}"
                      role="progressbar"
@@ -68,18 +78,35 @@
     </div>
     <div class="row mt-4 g-4">
         <div class="col-lg-6">
-            <div class="card">
+            <div class="card chart-card">
                 <div class="card-body">
-                    <h5 class="card-title">Maiores Desvios do Orçamento</h5>
-                    <canvas id="budgetDeviationsChart"></canvas>
+                    <h5 class="card-title mb-3">Maiores Desvios do Orçamento</h5>
+                    <div class="chart-placeholder" id="dev-placeholder">
+                        <div class="spinner" aria-label="Carregando"></div>
+                    </div>
+                    <canvas id="budgetDeviationsChart" height="180"></canvas>
                 </div>
             </div>
         </div>
         <div class="col-lg-6">
-            <div class="card">
+            <div class="card chart-card">
                 <div class="card-body">
-                    <h5 class="card-title">Orçado vs. Realizado (Últimos 12 Meses)</h5>
-                    <canvas id="budgetTimelineChart"></canvas>
+                    <h5 class="card-title mb-3">Orçado vs. Realizado (Últimos 12 Meses)</h5>
+                    <div class="chart-placeholder" id="tl-placeholder">
+                        <div class="spinner" aria-label="Carregando"></div>
+                    </div>
+                    <canvas id="budgetTimelineChart" height="180"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card chart-card">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">% Despesas (Período)</h5>
+                    <div class="chart-placeholder" id="pct-placeholder">
+                        <div class="spinner" aria-label="Carregando"></div>
+                    </div>
+                    <canvas id="expensePercentageChart" height="180"></canvas>
                 </div>
             </div>
         </div>
@@ -111,80 +138,101 @@
         </div>
         <div class="col-md-6">
             <div class="card text-center">
-                <div class="card-header">SERVIÇOS TERCEIRIZADOS</div>
+                <div class="card-header">% SERVIÇOS TERCEIRIZADOS NAS DESPESAS</div>
                 <div class="card-body">
-                    <h2 class="card-title text-danger">R$ {{ servicos_terceiros|floatformat:2|intcomma }}</h2>
+                    <h2 class="card-title text-warning">{{ percentual_servicos_terceiros|floatformat:2 }}%</h2>
                 </div>
             </div>
         </div>
     </div>
 {% endblock content %}
 {% block extra_js %}
-    <style>
-.gradient-bg {
-    background: linear-gradient(to right, #5B86E5, #36D1DC) !important;
-}
-.custom-progress-height {
-    height: 30px;
-}
-    </style>
     <script>
-    const startDate = "{{ start_date_str }}";
-    const endDate = "{{ end_date_str }}";
+        const startDate = encodeURIComponent("{{ start_date_str }}");
+        const endDate = encodeURIComponent("{{ end_date_str }}");
 
-    // --- Gráfico de Desvios Orçamentários (Barras Horizontais) ---
-    const ctxDeviations = document.getElementById('budgetDeviationsChart').getContext('2d');
-    const deviationsUrl = `{% url "core:budget_deviations_chart_data" %}?start_date=${startDate}&end_date=${endDate}`;
-    fetch(deviationsUrl)
-        .then(response => response.json())
-        .then(data => {
-            new Chart(ctxDeviations, {
-                type: 'bar',
-                data: {
-                    labels: data.labels,
-                    datasets: [{
-                        label: 'Desvio (Realizado - Orçado)',
-                        data: data.data,
-                        backgroundColor: data.colors,
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    plugins: { legend: { display: false } }
-                }
-            });
-        });
+        function removePlaceholder(id){ const el = document.getElementById(id); if(el) el.remove(); }
+        function showError(canvasId,msg){
+            const canvas = document.getElementById(canvasId); if(!canvas) return;
+            const ctx = canvas.getContext('2d'); if(!ctx) return;
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.font='14px Inter, sans-serif'; ctx.fillStyle='#dc3545'; ctx.textAlign='center'; ctx.fillText(msg, canvas.width/2, canvas.height/2);
+        }
+        function timeoutFetch(url, ms=15000){
+            const controller = new AbortController();
+            const t = setTimeout(()=>controller.abort(), ms);
+            return fetch(url,{signal:controller.signal})
+              .finally(()=>clearTimeout(t))
+              .catch(err=>{ console.error('Fetch error', url, err); throw err; });
+        }
 
-    // --- Gráfico Orçado vs. Realizado (Linhas) ---
-    const ctxTimeline = document.getElementById('budgetTimelineChart').getContext('2d');
-        fetch('{% url "core:budget_vs_actual_timeline_data" %}')
-        .then(response => response.json())
-        .then(data => {
-            new Chart(ctxTimeline, {
-                type: 'line',
-                data: {
-                    labels: data.labels,
-                    datasets: [
-                        {
-                            label: 'Realizado',
-                            data: data.actual_data,
-                            borderColor: '#dc3545',
-                            backgroundColor: '#dc3545',
-                            tension: 0.1
-                        },
-                        {
-                            label: 'Orçado',
-                            data: data.budget_data,
-                            borderColor: '#0d6efd',
-                            backgroundColor: '#0d6efd',
-                            borderDash: [5, 5],
-                            tension: 0.1
-                        }
-                    ]
-                },
-                options: { responsive: true }
+        // Desvios
+        timeoutFetch(`{% url "core:budget_deviations_chart_data" %}?start_date=${startDate}&end_date=${endDate}`)
+        .then(r=>r.json())
+        .then(data=>{
+            removePlaceholder('dev-placeholder');
+            if(!data.labels || !data.labels.length){ showError('budgetDeviationsChart','Sem dados para o período'); return; }
+            new Chart(document.getElementById('budgetDeviationsChart').getContext('2d'), {
+                type:'bar',
+                data:{ labels:data.labels, datasets:[{ label:'Desvio (Realizado - Orçado)', data:data.data, backgroundColor:data.colors }]},
+                options:{ indexAxis:'y', responsive:true, plugins:{ legend:{ display:false } } }
             });
-        });
+        })
+        .catch(()=>{ removePlaceholder('dev-placeholder'); showError('budgetDeviationsChart','Erro ao carregar'); });
+
+        // Timeline
+        timeoutFetch(`{% url "core:budget_vs_actual_timeline_data" %}`)
+        .then(r=>r.json())
+        .then(data=>{
+            removePlaceholder('tl-placeholder');
+            new Chart(document.getElementById('budgetTimelineChart').getContext('2d'), {
+                type:'line',
+                data:{ labels:data.labels, datasets:[
+                    { label:'Realizado', data:data.actual_data, borderColor:'#dc3545', backgroundColor:'#dc3545', tension:.1, fill:false },
+                    { label:'Orçado', data:data.budget_data, borderColor:'#0d6efd', backgroundColor:'#0d6efd', borderDash:[5,5], tension:.1, fill:false }
+                ]},
+                options:{ responsive:true, plugins:{ legend:{ position:'bottom' } } }
+            });
+        })
+        .catch(()=>{ removePlaceholder('tl-placeholder'); showError('budgetTimelineChart','Erro ao carregar'); });
+
+        // Percentual Despesas
+        timeoutFetch(`{% url 'core:expense_percentage_chart_data' %}?start_date=${startDate}&end_date=${endDate}`)
+        .then(r=>r.json())
+        .then(data=>{
+            removePlaceholder('pct-placeholder');
+            if(!data.labels || !data.labels.length){ showError('expensePercentageChart','Sem dados'); return; }
+            new Chart(document.getElementById('expensePercentageChart').getContext('2d'), {
+                type:'bar',
+                data:{ labels:data.labels, datasets:[{ 
+                    label:'% do Gasto Total', 
+                    data:data.data, 
+                    backgroundColor:'rgba(54,162,235,.65)', 
+                    borderColor:'rgba(54,162,235,1)', 
+                    borderWidth:1,
+                    datalabels:{
+                        anchor:'end',
+                        align:'start',
+                        color:'#000000',
+                        font:{weight:'600', size:15},
+                        formatter:(v)=> (typeof v === 'number' && !isNaN(v)) ? v.toFixed(1)+'%' : 'N/A'
+                    }
+                }]},
+                options:{ 
+                    responsive:true, 
+                    plugins:{ 
+                        legend:{ display:false }, 
+                        tooltip:{ callbacks:{ label:(ctx)=> (typeof ctx.parsed?.y !== 'undefined' ? ctx.parsed.y : ctx.raw) + '%' } },
+                        datalabels:{ clamp:true, clip:true }
+                    }, 
+                    scales:{ 
+                        y:{ beginAtZero:true, ticks:{ callback:(v)=> v + '%' } }
+                    } 
+                },
+                // ChartDataLabels plugin is used only for the expense percentage chart below.
+                plugins: [ChartDataLabels]
+            });
+        })
+        .catch(()=>{ removePlaceholder('pct-placeholder'); showError('expensePercentageChart','Erro ao carregar'); });
     </script>
 {% endblock extra_js %}

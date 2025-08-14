@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load form_filters %}
+{% block title %}
+    Importar Lançamentos
+{% endblock title %}
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url "core:company_list" %}">Minhas Empresas</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url "core:transaction_list" %}">Lançamentos</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Importar via CSV</li>
+        </ol>
+    </nav>
+    <div class="card">
+        <div class="card-header">
+            <h2>Importar Lançamentos para: {{ active_company.name }}</h2>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <h5 class="alert-heading">Instruções</h5>
+                <ol>
+                    <li>
+                        <strong>Baixe o modelo:</strong> Clique no botão abaixo para baixar a planilha já com todas as contas da sua empresa.
+                    </li>
+                    <li>
+                        <strong>Preencha os dados:</strong> Abra o arquivo e preencha as colunas `data`, `valor` e `descricao` para cada lançamento.
+                    </li>
+                    <li>
+                        <strong>Faça o upload:</strong> Salve o arquivo e use o formulário de upload abaixo para enviá-lo.
+                    </li>
+                </ol>
+            </div>
+            <div class="mb-4">
+                <a href="{% url "core:download_transaction_template" %}"
+                   class="btn btn-success">
+                    <i class="bi bi-download"></i> Baixar Planilha Modelo
+                </a>
+            </div>
+            <hr>
+            <h5 class="mt-4">2. Envie o arquivo preenchido</h5>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit" class="btn btn-primary mt-3">Processar Arquivo</button>
+            </form>
+        </div>
+    </div>
+{% endblock content %}

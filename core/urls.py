@@ -22,6 +22,8 @@ urlpatterns = [
     path('lancamentos/', views.transaction_list, name='transaction_list'),
     path('lancamentos/<int:pk>/editar/', views.TransactionUpdateView.as_view(), name='transaction_update'),
     path('lancamentos/<int:pk>/excluir/', views.TransactionDeleteView.as_view(), name='transaction_delete'),
+    path('lancamentos/importar/', views.import_transactions, name='import_transactions'),
+    path('lancamentos/importar/modelo/', views.download_transaction_template, name='download_transaction_template'),
     # Página de Lançamentos de Orçamentos
     path('orcamento/', views.budget_edit_view, name='budget_edit'),
     # Página de Relatórios
@@ -38,4 +40,5 @@ urlpatterns = [
     path('api/resumo-receita-despesa/', views.revenue_expense_summary_data, name='revenue_expense_summary_data'),
     path('api/budget-deviations-chart/', views.budget_deviations_chart_data, name='budget_deviations_chart_data'),
     path('api/budget-vs-actual-timeline/', views.budget_vs_actual_timeline_data, name='budget_vs_actual_timeline_data'),
+    path('api/expense-percentage-chart/', views.expense_percentage_chart_data, name='expense_percentage_chart_data'),
 ]

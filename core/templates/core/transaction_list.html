@@ -76,8 +76,18 @@
         </div>
     </div>
     <div class="card shadow-sm">
-        <div class="card-header bg-light">
+        <div class="card-header bg-light d-flex align-items-center justify-content-between">
             <h5 class="mb-0">📄 Extrato de Lançamentos</h5>
+            <div class="d-flex gap-2">
+                <a href="{% url 'core:import_transactions' %}"
+                   class="btn btn-sm text-white fw-semibold btn-gradient-import">
+                    <i class="bi bi-upload me-1"></i> Importar Lançamentos
+                </a>
+                <a href="{% url 'core:download_transaction_template' %}"
+                   class="btn btn-sm text-white fw-semibold btn-gradient-template">
+                    <i class="bi bi-download me-1"></i> Baixar Modelo CSV
+                </a>
+            </div>
         </div>
         <div class="card-body p-0">
             <table class="table table-striped table-hover mb-0">
@@ -118,17 +128,17 @@
                 </tbody>
             </table>
         </div>
-        {% if transactions.has_other_pages %}
-            <div class="card-footer">
+        <div class="card-footer">
+            {% if transactions.has_other_pages %}
                 <nav aria-label="Navegação do extrato">
                     <ul class="pagination justify-content-center mb-0">
                         {% if transactions.has_previous %}
                             <li class="page-item">
-                                <a class="page-link" href="?page=1&{{ request.GET.urlencode }}">« Primeira</a>
+                                <a class="page-link" href="?page=1&{{ query_params }}">« Primeira</a>
                             </li>
                             <li class="page-item">
                                 <a class="page-link"
-                                   href="?page={{ transactions.previous_page_number }}&{{ request.GET.urlencode }}">Anterior</a>
+                                   href="?page={{ transactions.previous_page_number }}&{{ query_params }}">Anterior</a>
                             </li>
                         {% endif %}
                         <li class="page-item disabled">
@@ -137,17 +147,17 @@
                         {% if transactions.has_next %}
                             <li class="page-item">
                                 <a class="page-link"
-                                   href="?page={{ transactions.next_page_number }}&{{ request.GET.urlencode }}">Próxima</a>
+                                   href="?page={{ transactions.next_page_number }}&{{ query_params }}">Próxima</a>
                             </li>
                             <li class="page-item">
                                 <a class="page-link"
-                                   href="?page={{ transactions.paginator.num_pages }}&{{ request.GET.urlencode }}">Última »</a>
+                                   href="?page={{ transactions.paginator.num_pages }}&{{ query_params }}">Última »</a>
                             </li>
                         {% endif %}
                     </ul>
                 </nav>
-            </div>
-        {% endif %}
+            {% endif %}
+        </div>
     </div>
     {{ all_accounts_json_str|json_script:"accounts-data" }}
 {% endblock content %}
@@ -168,9 +178,19 @@
     border: none;
     color: #fff !important;
 }
+.btn-gradient-import {
+    background: linear-gradient(to right, #00c6ff, #0072ff);
+    border: none;
+}
+.btn-gradient-template {
+    background: linear-gradient(to right, #4b6cb7, #182848);
+    border: none;
+}
 /* Preserve gradient on hover/focus */
 .btn-gradient-save:hover, .btn-gradient-save:focus { background: linear-gradient(to right, #fc5c7d, #6a82fb); opacity: .95; }
 .btn-gradient-clear:hover, .btn-gradient-clear:focus { background: linear-gradient(to right, #283048, #859398); opacity: .95; }
 .btn-gradient-filter:hover, .btn-gradient-filter:focus { background: linear-gradient(to right, #5B86E5, #36D1DC); opacity: .95; }
+.btn-gradient-import:hover, .btn-gradient-import:focus { background: linear-gradient(to right, #00c6ff, #0072ff); opacity: .95; }
+.btn-gradient-template:hover, .btn-gradient-template:focus { background: linear-gradient(to right, #4b6cb7, #182848); opacity: .95; }
     </style>
 {% endblock extra_css %}
