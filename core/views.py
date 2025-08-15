@@ -994,10 +994,11 @@ def budget_dashboard(request):
             variacao_css_class = ""
             if variation == 0:
                 variacao_css_class = "badge bg-secondary" # NEUTRO
-            elif row['account'].account_type == 'D' or 'E': # Se for Despesa
-                variacao_css_class = "badge bg-danger" if variation > 0 else "badge bg-success" # Aumento é ruim, queda é bom
             elif row['account'].account_type == 'R': # Se for Receita
                 variacao_css_class = "badge bg-success" if variation > 0 else "badge bg-danger" # Aumento é bom, queda é ruim
+            elif row['account'].account_type == 'D' or 'E': # Se for Despesa
+                variacao_css_class = "badge bg-danger" if variation > 0 else "badge bg-success" # Aumento é ruim, queda é bom
+            
 
             row['monthly_data'].append({
                 'actual': actual,
@@ -1006,10 +1007,40 @@ def budget_dashboard(request):
                 'variacao_css_class': variacao_css_class,
             })
 
+    summary_data = {
+        'revenue': {'monthly_actuals': [Decimal(0)]*12, 'monthly_variations': [Decimal(0)]*12},
+        'expense': {'monthly_actuals': [Decimal(0)]*12, 'monthly_variations': [Decimal(0)]*12},
+        'net_result': {'monthly_actuals': [Decimal(0)]*12, 'monthly_variations': [Decimal(0)]*12},
+    }
+
+    # Extrai os dados das contas-raiz que já foram calculados
+    for row in report_data:
+        if row['account'].code == '1': # Assumindo que 1 é Receita
+            summary_data['revenue']['monthly_actuals'] = row['monthly_actuals']
+            summary_data['revenue']['monthly_variations'] = [m['variation'] for m in row['monthly_data']]
+        elif row['account'].code == '2': # Assumindo que 2 é Despesa
+            summary_data['expense']['monthly_actuals'] = row['monthly_actuals']
+            summary_data['expense']['monthly_variations'] = [m['variation'] for m in row['monthly_data']]
+
+    # Calcula o Resultado Líquido e sua variação
+    for i in range(12):
+        rev = summary_data['revenue']['monthly_actuals'][i]
+        exp = summary_data['expense']['monthly_actuals'][i]
+        summary_data['net_result']['monthly_actuals'][i] = rev - exp
+
+        if i > 0:
+            prev_rev = summary_data['revenue']['monthly_actuals'][i-1]
+            prev_exp = summary_data['expense']['monthly_actuals'][i-1]
+            previous_net_result = prev_rev - prev_exp
+            current_net_result = rev - exp
+            if previous_net_result != 0:
+                summary_data['net_result']['monthly_variations'][i] = ((current_net_result - previous_net_result) / abs(previous_net_result)) * 100
+
 
     context = {
         'company': active_company, 'year': current_year, 'report_data': report_data,
-        'months': ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+        'months': ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'],
+        'summary_data': summary_data,
     }
     return render(request, 'core/budget_dashboard.html', context)
 
