@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Especialidade, Turno, UnidadeAssistencia, OrcamentoPlantao, LancamentoPlantao
+from .models import Especialidade, Turno, UnidadeAssistencia
 
 @admin.register(Especialidade)
 class EspecialidadeAdmin(admin.ModelAdmin):
@@ -16,7 +16,7 @@ class UnidadeAssistenciaAdmin(admin.ModelAdmin):
     list_display = ('name', 'company')
     list_filter = ('company',)
 
-@admin.register(OrcamentoPlantao)
+""" @admin.register(OrcamentoPlantao)
 class OrcamentoPlantaoAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'quantidade', 'tipo_plantao', 'valor_plantao', 'company')
     list_filter = ('company', 'especialidade', 'turno')
@@ -24,4 +24,4 @@ class OrcamentoPlantaoAdmin(admin.ModelAdmin):
 @admin.register(LancamentoPlantao)
 class LancamentoPlantaoAdmin(admin.ModelAdmin):
     list_display = ('orcamento', 'date', 'valor_realizado')
-    list_filter = ('orcamento__company', 'date')
+    list_filter = ('orcamento__company', 'date') """

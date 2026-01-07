@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load l10n humanize %}
+{% block title %}
+    Quadro de Plantões por Unidade
+{% endblock title %}
+{% block content %}
+    <h1>
+        Quadro de Plantões por Unidade <span class="text-muted fs-4">{{ selected_year }}</span>
+    </h1>
+    <hr>
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form id="filterForm"
+                  method="GET"
+                  action=""
+                  class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="year" class="form-label">Ano</label>
+                    <select name="year"
+                            id="year"
+                            class="form-select"
+                            onchange="document.getElementById('filterForm').submit()">
+                        {% for y in years %}
+                            <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% for unit_data in report_data_by_unit %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Unidade de Assistência: {{ unit_data.unidade.name }}</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered table-hover"
+                           style="font-size: 0.85em">
+                        <thead class="table-light" style="position: sticky; top:0;">
+                            <tr>
+                                <th class="align-middle">Plantões</th>
+                                {% for month in months %}<th class="text-center">{{ month }}</th>{% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="table-group-divider">
+                                <td class="fw-bold">TOTAIS</td>
+                                {% for total_data in unit_data.totals_monthly %}
+                                    <td class="text-center {% if total_data.is_over_budget %}bg-danger text-white{% elif total_data.actual > 0 %}bg-primary text-white{% endif %}">
+                                        <small class="text-white-50">Orçado: {{ total_data.budgeted|intcomma }}</small>
+                                        <br>
+                                        <span class="fw-bold">{{ total_data.actual|intcomma }}</span>
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                            {% for plantao in unit_data.plantoes %}
+                                <tr>
+                                    <td class="fw-bold">{{ plantao.name }}</td>
+                                    {% for actual in plantao.monthly_actuals %}<td class="text-end">{{ actual|intcomma }}</td>{% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div class="alert alert-info">
+            Nenhum lançamento de plantão encontrado para o ano selecionado. Cadastre os lançamentos na tela "Lançar Plantões".
+        </div>
+    {% endfor %}
+{% endblock content %}

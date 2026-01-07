@@ -8,7 +8,7 @@
     <h1 class="fw-bold text-primary mb-3">
         Dashboard <span class="text-muted fs-5">{{ company.name }}</span>
     </h1>
-    <div class="card mb-4 border-0 shadow-sm rounded-4">
+    <div class="card mb-4">
         <div class="card-body">
             <form method="get" action="" class="row g-3 align-items-end">
                 <div class="col-md-3">
@@ -27,8 +27,8 @@
                            name="end_date"
                            value="{{ end_date_str }}">
                 </div>
-                <div class="col-md-auto mt-md-4">
-                    <button type="submit" class="btn text-white fw-semibold px-4 btn-gradient">
+                <div class="col-md-auto">
+                    <button type="submit" class="btn text-white fw-semibold px-4 gradient-bg">
                         <i class="bi bi-search me-1"></i> Filtrar
                     </button>
                 </div>
@@ -107,8 +107,7 @@
         </div>
     </div>
     <style>
-    <style>
-    .btn-gradient {
+    .gradient-bg {
         background: linear-gradient(to right, #5B86E5, #36D1DC);
         color: white;
         font-weight: 600;
@@ -118,7 +117,7 @@
         transition: background 0.3s ease;
     }
 
-    .btn-gradient:hover {
+    .gradient-bg:hover {
         background: linear-gradient(90deg, #4a75cc, #2ab8c6);
     }
     canvas {
@@ -127,8 +126,8 @@
     .progress-custom-height {
         height: 30px;
     }
-</style>
-<script>
+    </style>
+    <script>
     document.addEventListener('DOMContentLoaded', function () {
         const startDate = "{{ start_date_str }}";
         const endDate = "{{ end_date_str }}";
@@ -220,5 +219,5 @@
         plugins: [ChartDataLabels] // ativar o plugin
     });
 });
-</script>
+    </script>
 {% endblock content %}

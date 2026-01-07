@@ -22,6 +22,16 @@ class BudgetAdmin(admin.ModelAdmin):
     list_filter = ('year', 'company') # Filtro direto e eficiente
     search_fields = ('account__name', 'account__code')
 
+    # Filtrar as contas pelo company selecionado
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'account':
+            company_id = request.GET.get('company')  # Captura a empresa via GET da URL
+            if company_id:
+                kwargs["queryset"] = ChartOfAccounts.objects.filter(company_id=company_id)
+            else:
+                kwargs["queryset"] = ChartOfAccounts.objects.none()  # Nenhuma conta até selecionar empresa
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):

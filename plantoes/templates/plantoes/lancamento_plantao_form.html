@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% load form_filters %}
+{% block title %}
+    Lançamento de Plantão
+{% endblock title %}
+{% block content %}
+    <h1>
+        {% if object %}
+            Editar
+        {% else %}
+            Adicionar
+        {% endif %}
+        Lançamento de Plantão
+    </h1>
+    <hr>
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        {{ form.especialidade.label_tag }}{{ form.especialidade|add_class:"form-select select2-widget" }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ form.unidade_assistencia.label_tag }}{{ form.unidade_assistencia|add_class:"form-select select2-widget" }}
+                    </div>
+                    <div class="col-md-4">{{ form.turno.label_tag }}{{ form.turno|add_class:"form-select select2-widget" }}</div>
+                    <div class="col-md-4">{{ form.date.label_tag }}{{ form.date|add_class:"form-control" }}</div>
+                    <div class="col-md-2">{{ form.quantidade.label_tag }}{{ form.quantidade|add_class:"form-control" }}</div>
+                    <div class="col-md-2">{{ form.tipo_plantao.label_tag }}{{ form.tipo_plantao|add_class:"form-select" }}</div>
+                    <div class="col-md-4">{{ form.valor_unitario.label_tag }}{{ form.valor_unitario|add_class:"form-control" }}</div>
+                    <div class="col-md-12">{{ form.observacoes.label_tag }}{{ form.observacoes|add_class:"form-control" }}</div>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-end">
+                    <a href="{% url 'plantoes:lancamento_list' %}"
+                       class="btn btn-secondary me-2">Cancelar</a>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock content %}

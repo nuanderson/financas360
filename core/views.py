@@ -915,7 +915,28 @@ def budget_dashboard(request):
         return redirect('core:company_list')
     active_company = get_object_or_404(Company, pk=active_company_id, users=request.user)
 
-    current_year = datetime.now().year
+    now_year = datetime.now().year
+    
+    # Busca anos com transações realizadas
+    transaction_years = Transaction.objects.filter(company=active_company).dates('date', 'year')
+    year_list = set([d.year for d in transaction_years])
+    
+    # Busca anos com orçamento definido (caso tenha orçamento mas não tenha transação ainda)
+    budget_years = Budget.objects.filter(account__company=active_company).values_list('year', flat=True).distinct()
+    year_list.update(budget_years)
+    
+    # Garante que o ano atual esteja na lista, mesmo sem dados
+    year_list.add(now_year)
+    
+    # Ordena decrescente (2025, 2024, 2023...)
+    available_years = sorted(list(year_list), reverse=True)
+
+    # Pega o ano da URL (?year=2023) ou usa o ano atual
+    selected_year_get = request.GET.get('year')
+    try:
+        current_year = int(selected_year_get) if selected_year_get else now_year
+    except ValueError:
+        current_year = now_year
 
     accounts = ChartOfAccounts.objects.filter(company=active_company).order_by('code')
     budgets = Budget.objects.filter(account__company=active_company, year=current_year)
@@ -1038,7 +1059,10 @@ def budget_dashboard(request):
 
 
     context = {
-        'company': active_company, 'year': current_year, 'report_data': report_data,
+        'company': active_company, 
+        'year': current_year,
+        'available_years': available_years, 
+        'report_data': report_data,
         'months': ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'],
         'summary_data': summary_data,
     }

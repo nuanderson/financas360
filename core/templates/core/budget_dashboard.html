@@ -96,13 +96,36 @@
     </div>
     <!-- Card com o ano e o novo filtro de contas -->
     <div class="card shadow-sm border-0 mb-3">
-        <div class="col-md-6">
-            <div class="input-group">
-                <span class="input-group-text">🔍 Filtre a Conta</span>
-                <input type="text"
-                       id="accountFilter"
-                       class="form-control"
-                       placeholder="Filtrar por nome ou código da conta...">
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-center">
+                
+                <div class="col-md-3">
+                    <form method="get" action="">
+                        <div class="input-group">
+                            <span class="input-group-text fw-bold"><i class="bi bi-calendar-event"></i> &nbsp;Ano</span>
+                            <select name="year" class="form-select" onchange="this.form.submit()">
+                                {% for y in available_years %}
+                                    <option value="{{ y|unlocalize }}" {% if y == year %}selected{% endif %}>
+                                        {{ y }}
+                                    </option>
+                                {% empty %}
+                                    <option value="{{ year }}" selected>{{ year }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="col-md-9">
+                    <div class="input-group">
+                        <span class="input-group-text">🔍 Buscar Conta</span>
+                        <input type="text"
+                               id="accountFilter"
+                               class="form-control"
+                               placeholder="Digite o nome ou código da conta...">
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>

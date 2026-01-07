@@ -1,5 +1,5 @@
 from django import forms
-from .models import Especialidade, Turno, UnidadeAssistencia, OrcamentoPlantao, LancamentoPlantao
+from .models import Especialidade, Turno, UnidadeAssistencia, OrcamentoMensalPlantao, LancamentoPlantao
 
 class EspecialidadeForm(forms.ModelForm):
     class Meta:
@@ -19,11 +19,27 @@ class UnidadeAssistenciaForm(forms.ModelForm):
         fields = ['name']
         labels = {'name': 'Nome da Unidade de Assistência'}
 
-
-class OrcamentoPlantaoForm(forms.ModelForm):
+class OrcamentoMensalPlantaoForm(forms.ModelForm):
     class Meta:
-        model = OrcamentoPlantao
-        fields = ['especialidade', 'turno', 'unidade_assistencia', 'quantidade', 'tipo_plantao', 'valor_plantao']
+        model = OrcamentoMensalPlantao
+        fields = ['valor_orcado']
+        widgets = {
+            'valor_orcado': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end'}),
+        }
+
+class LancamentoPlantaoForm(forms.ModelForm):
+    date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), label="Data do Plantão")
+
+    class Meta:
+        model = LancamentoPlantao
+        fields = ['especialidade', 'turno', 'unidade_assistencia', 'date', 
+                  'quantidade', 'tipo_plantao', 'valor_unitario', 'observacoes']
+        widgets = {
+            'especialidade': forms.Select(attrs={'class': 'form-select select2-widget'}),
+            'turno': forms.Select(attrs={'class': 'form-select select2-widget'}),
+            'unidade_assistencia': forms.Select(attrs={'class': 'form-select select2-widget'}),
+            'observacoes': forms.Textarea(attrs={'rows': 3}),
+        }
 
     def __init__(self, *args, **kwargs):
         company = kwargs.pop('company', None)
@@ -32,14 +48,3 @@ class OrcamentoPlantaoForm(forms.ModelForm):
             self.fields['especialidade'].queryset = Especialidade.objects.filter(company=company)
             self.fields['turno'].queryset = Turno.objects.filter(company=company)
             self.fields['unidade_assistencia'].queryset = UnidadeAssistencia.objects.filter(company=company)
-
-
-class LancamentoPlantaoForm(forms.ModelForm):
-    class Meta:
-        model = LancamentoPlantao
-        # A view vai cuidar de associar o 'orcamento' e a 'date'
-        fields = ['valor_realizado', 'observacoes']
-        widgets = {
-            'valor_realizado': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end'}),
-            'observacoes': forms.TextInput(attrs={'class': 'form-control form-control-sm'})
-        }

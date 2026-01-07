@@ -22,11 +22,15 @@ urlpatterns = [
     path('unidades/<int:pk>/editar/', views.UnidadeAssistenciaUpdateView.as_view(), name='unidade_update'),
     path('unidades/<int:pk>/excluir/', views.UnidadeAssistenciaDeleteView.as_view(), name='unidade_delete'),
 
-    # CRUD para Orçamento de Plantão
-    path('orcamentos/', views.OrcamentoPlantaoListView.as_view(), name='orcamento_list'),
-    path('orcamentos/novo/', views.OrcamentoPlantaoCreateView.as_view(), name='orcamento_create'),
-    path('orcamentos/<int:pk>/editar/', views.OrcamentoPlantaoUpdateView.as_view(), name='orcamento_update'),
-    path('orcamentos/<int:pk>/excluir/', views.OrcamentoPlantaoDeleteView.as_view(), name='orcamento_delete'),
-    path('lancamentos/', views.lancamento_plantao_view, name='lancamento_create'),
-    path('quadro/', views.plantoes_budget_dashboard, name='plantoes_dashboard'),
+    # CRUD para Orçamento Mensal de Plantão
+    path('orcamento-mensal/', views.orcamento_mensal_view, name='orcamento_mensal'),
+
+    # CRUD para Lançamento de Plantão
+    path('lancamentos/', views.LancamentoPlantaoListView.as_view(), name='lancamento_list'),
+    path('lancamentos/novo/', views.LancamentoPlantaoCreateView.as_view(), name='lancamento_create'),
+    path('lancamentos/<int:pk>/editar/', views.LancamentoPlantaoUpdateView.as_view(), name='lancamento_update'),
+    path('lancamentos/<int:pk>/excluir/', views.LancamentoPlantaoDeleteView.as_view(), name='lancamento_delete'),
+
+    # Relatórios de Plantões
+    path('quadro-de-plantoes/', views.plantoes_report_view, name='plantoes_report'),
 ]
