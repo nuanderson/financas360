@@ -9,7 +9,7 @@ from .forms import ChartOfAccountsForm, TransactionForm, CompanyForm, CSVImportF
 from django.contrib import messages
 from django.db.models import Sum, Q, F, Value, DecimalField
 from django.db.models.functions import Coalesce 
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from django.http import JsonResponse, HttpResponse
 from dateutil.relativedelta import relativedelta
 from django.template.loader import render_to_string
@@ -1071,80 +1071,127 @@ def budget_dashboard(request):
 
 @login_required
 def budget_deviations_chart_data(request):
-    """ API de dados para o gráfico de Maiores Desvios Orçamentários. """
+    """
+    Maiores Desvios:
+    Busca contas que tiveram orçamento OU transações no período.
+    Não depende de ser conta 'folha' estrita, olha para onde houve movimento.
+    """
     active_company_id = request.session.get('active_company_id')
     company = get_object_or_404(Company, pk=active_company_id, users=request.user)
 
     today = date.today()
     start_date_str = request.GET.get('start_date', today.replace(day=1).strftime('%Y-%m-%d'))
     end_date_str = request.GET.get('end_date', (today.replace(day=calendar.monthrange(today.year, today.month)[1])).strftime('%Y-%m-%d'))
-    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    
+    try:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return JsonResponse({'error': 'Data inválida'}, status=400)
 
-    # Pega todas as contas de despesa "folha" (que não têm filhas)
-    leaf_expense_accounts = ChartOfAccounts.objects.filter(company=company, account_type='D', sub_accounts__isnull=True)
+    # 1. Identificar contas de Despesa ('D' ou 'E') relevantes
+    # Pega IDs de contas que têm orçamento no ano OU transações no período
+    account_ids_budget = Budget.objects.filter(
+        account__company=company, 
+        year=start_date.year,
+        account__account_type__in=['D', 'E']
+    ).values_list('account_id', flat=True)
+
+    account_ids_trans = Transaction.objects.filter(
+        company=company,
+        date__range=[start_date, end_date],
+        account__account_type__in=['D', 'E']
+    ).values_list('account_id', flat=True)
+
+    # Une os IDs (set para remover duplicatas)
+    relevant_account_ids = set(list(account_ids_budget) + list(account_ids_trans))
+    
+    # Busca os objetos de conta
+    accounts = ChartOfAccounts.objects.filter(id__in=relevant_account_ids)
 
     deviations = []
+    
+    # Fator de tempo para proporcionalizar o orçamento
     dias_no_ano = Decimal(366 if calendar.isleap(start_date.year) else 365)
     dias_no_periodo = Decimal((end_date - start_date).days + 1)
+    fator_proporcional = dias_no_periodo / dias_no_ano
 
-    for account in leaf_expense_accounts:
-        try:
-            budget = Budget.objects.get(account=account, year=start_date.year)
-            orcado_periodo = (budget.annual_amount / dias_no_ano) * dias_no_periodo
-        except Budget.DoesNotExist:
-            orcado_periodo = Decimal(0)
+    for account in accounts:
+        # Pega orçamento anual
+        budget_obj = Budget.objects.filter(account=account, year=start_date.year).first()
+        orcado_periodo = Decimal(0)
+        
+        if budget_obj:
+            orcado_periodo = budget_obj.annual_amount * fator_proporcional
 
+        # Pega realizado no período
         realizado = Transaction.objects.filter(
-            account=account, date__range=[start_date, end_date]
+            account=account, 
+            date__range=[start_date, end_date]
         ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal(0))))['total']
 
+        # Se tiver movimento ou orçamento, calcula desvio
         if orcado_periodo > 0 or realizado > 0:
             desvio = realizado - orcado_periodo
-            deviations.append({'name': account.name, 'desvio': float(desvio)})
+            # Adiciona à lista
+            deviations.append({
+                'name': f"{account.code} - {account.name}", 
+                'desvio': float(desvio)
+            })
 
-    # Ordena pelos maiores desvios (positivos ou negativos)
+    # Ordena: Maiores desvios absolutos (seja gasto a mais ou economia grande)
     deviations.sort(key=lambda x: abs(x['desvio']), reverse=True)
-
-    # Pega os top 10 maiores desvios
     top_deviations = deviations[:10]
 
-    labels = [item['name'] for item in top_deviations]
-    data = [item['desvio'] for item in top_deviations]
-    colors = ['#dc3545' if v > 0 else '#198754' for v in data] # Vermelho para estouro, Verde para economia
-
-    return JsonResponse({'labels': labels, 'data': data, 'colors': colors})
+    return JsonResponse({
+        'labels': [item['name'] for item in top_deviations],
+        'data': [item['desvio'] for item in top_deviations],
+        'colors': ['#dc3545' if v > 0 else '#198754' for v in [item['desvio'] for item in top_deviations]]
+    })
 
 
 @login_required
 def budget_vs_actual_timeline_data(request):
-    """ API de dados para o gráfico de Linha Dupla (Orçado vs. Realizado). """
+    """
+    Linha do Tempo (12 meses):
+    Mostra o total de Despesas Orçadas vs Realizadas.
+    """
     active_company_id = request.session.get('active_company_id')
     company = get_object_or_404(Company, pk=active_company_id, users=request.user)
-
-    # Calcula o orçamento total anual para despesas
-    orcamento_anual_total = Budget.objects.filter(
-        account__company=company, year=datetime.now().year, account__account_type='R'
-    ).aggregate(total=Coalesce(Sum('annual_amount'), Value(Decimal(0))))['total']
-
-    orcado_mensal = orcamento_anual_total
 
     labels = []
     budget_data = []
     actual_data = []
 
-    # Itera pelos últimos 12 meses
+    # Loop pelos últimos 12 meses
     for i in range(12):
         target_date = datetime.now() - relativedelta(months=i)
+        target_year = target_date.year
+        target_month = target_date.month
+        
         labels.append(target_date.strftime("%b/%Y"))
-        budget_data.append(float(orcado_mensal))
 
+        # ORÇADO: Soma todos os orçamentos de DESPESA do ano e divide por 12
+        orcamento_anual_total = Budget.objects.filter(
+            account__company=company, 
+            year=target_year, 
+            account__account_type__in=['D', 'E'] 
+        ).aggregate(total=Coalesce(Sum('annual_amount'), Value(Decimal(0))))['total']
+
+        orcado_mensal = float(orcamento_anual_total) / 12 if orcamento_anual_total else 0.0
+        budget_data.append(orcado_mensal)
+
+        # REALIZADO: Soma transações de DESPESA naquele mês específico
         realizado_mes = Transaction.objects.filter(
-            company=company, account__account_type='D', 
-            date__year=target_date.year, date__month=target_date.month
+            company=company, 
+            account__account_type__in=['D', 'E'],
+            date__year=target_year, 
+            date__month=target_month
         ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal(0))))['total']
+        
         actual_data.append(float(realizado_mes))
 
+    # Inverter para ordem cronológica
     labels.reverse()
     budget_data.reverse()
     actual_data.reverse()
@@ -1318,17 +1365,18 @@ def download_transaction_template(request):
     return response
 
 
-# Em core/views.py
 @login_required
 def expense_percentage_chart_data(request):
-    """Retorna composição percentual das despesas por grandes grupos.
-
-    Corrigido: antes usava variáveis não definidas (start_date/end_date) e account_type 'E'.
-    Agora usa 'D' (despesa), trata divisão por zero e sempre retorna 200.
+    """
+    Gráfico de % de Despesas:
+    CORRIGIDO: Agora agrupa as transações reais por conta, 
+    pegando as 5 contas onde mais se gastou dinheiro.
     """
     active_company_id = request.session.get('active_company_id')
     if not active_company_id:
-        return JsonResponse({'labels': [], 'data': [], 'error': 'No active company'}, status=400)
+        # Retorna erro JSON em vez de quebrar
+        return JsonResponse({'error': 'No active company'}, status=400)
+    
     company = get_object_or_404(Company, pk=active_company_id, users=request.user)
 
     today = date.today()
@@ -1339,36 +1387,47 @@ def expense_percentage_chart_data(request):
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
         end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
     except ValueError:
-        return JsonResponse({'labels': [], 'data': [], 'error': 'Invalid date format'}, status=400)
+        return JsonResponse({'error': 'Invalid date format'}, status=400)
 
-    # Total de despesas no período
+    # 1. Calcular o Total de Despesas no Período
     total_realizado = Transaction.objects.filter(
-        company=company, account__account_type='D', date__range=[start_date, end_date]
+        company=company, 
+        account__account_type__in=['D', 'E'], 
+        date__range=[start_date, end_date]
     ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
 
-    def pct(code_prefix: str) -> Decimal:
-        total = Transaction.objects.filter(
-            company=company, account__account_type='D', date__range=[start_date, end_date], account__code__startswith=code_prefix
-        ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
-        if total_realizado and total_realizado > 0:
-            return (total / total_realizado) * 100
-        return Decimal('0')
+    # Se não gastou nada, retorna vazio (evita divisão por zero)
+    if not total_realizado or total_realizado == 0:
+        return JsonResponse({'labels': [], 'data': [], 'total_realizado': 0})
 
-    percentual_folha = pct('2.01.01')
-    percentual_servicos_terceiros = pct('2.01.03')
-    percentual_materiais = pct('2.01.02')
-    percentual_apoio_gestao = pct('2.01.04')
-    percentual_outras_despesas = pct('2.01.05')
-    percentual_despesas_administrativas = pct('2.01.06')
+    # 2. Agrupar por Conta para ver onde foi o dinheiro
+    # Pega as top 5 contas com maior gasto no período
+    top_expenses = Transaction.objects.filter(
+        company=company,
+        account__account_type__in=['D', 'E'],
+        date__range=[start_date, end_date]
+    ).values('account__name').annotate(total=Sum('amount')).order_by('-total')[:5]
 
-    labels = ['Folha', 'Serviços Terceiros', 'Materiais', 'Apoio à Gestão', 'Outras Despesas', 'Desp. Admin.']
-    data = [
-        float(round(percentual_folha, 2)),
-        float(round(percentual_servicos_terceiros, 2)),
-        float(round(percentual_materiais, 2)),
-        float(round(percentual_apoio_gestao, 2)),
-        float(round(percentual_outras_despesas, 2)),
-        float(round(percentual_despesas_administrativas, 2)),
-    ]
+    labels = []
+    data = []
 
+    total_top_5 = Decimal(0)
+
+    for item in top_expenses:
+        amount = item['total']
+        percent = (amount / total_realizado) * 100
+        labels.append(item['account__name'])
+        data.append(float(round(percent, 2)))
+        total_top_5 += amount
+
+    # Adiciona categoria "Outros" se sobrar valor relevante
+    others = total_realizado - total_top_5
+    if others > 0:
+        percent_others = (others / total_realizado) * 100
+        # Só mostra Outros se for > 1%
+        if percent_others > 1:
+            labels.append("Outros")
+            data.append(float(round(percent_others, 2)))
+
+    # AQUI ESTAVA O ERRO ANTES: O return estava mal indentado ou faltando
     return JsonResponse({'labels': labels, 'data': data, 'total_realizado': float(total_realizado)})

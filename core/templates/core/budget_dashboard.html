@@ -9,7 +9,20 @@
     </h1>
     <style>
     .budget-table { font-size: 0.85em; }
-    .col-indicador { width: 15%; }
+    .col-conta-header { 
+        width: 350px; 
+        min-width: 350px; 
+        max-width: 350px; 
+    }
+    .col-orcamento-header { 
+        width: 120px; 
+        min-width: 120px;
+    }
+    .col-resumo-header { 
+        width: 470px; 
+        min-width: 470px; 
+        max-width: 470px;
+    }
     </style>
     <div class="card shadow-sm mb-3">
         <div class="card-body p-0">
@@ -17,7 +30,7 @@
                 <table class="table table-sm table-bordered table-hover align-middle mb-0 budget-table">
                     <thead class="table-light">
                         <tr>
-                            <th class="align-middle col-indicador ">Ano: {{ year }}</th>
+                            <th class="align-middle col-resumo-header">Ano: {{ year }}</th>
                             {% for month in months %}<th colspan="2" class="text-center">{{ month }}</th>{% endfor %}
                         </tr>
                         <tr>
@@ -134,8 +147,8 @@
                class="table table-sm table-bordered table-hover align-middle mb-0 budget-table">
             <thead class="table-light sticky-top">
                 <tr>
-                    <th rowspan="2" class="align-middle">Conta</th>
-                    <th rowspan="2" class="align-middle text-center">Orçamento Anual</th>
+                    <th rowspan="2" class="align-middle col-conta-header">Conta</th>
+                    <th rowspan="2" class="align-middle text-center col-orcamento-header">Orçamento Anual</th>
                     {% for month in months %}<th colspan="2" class="text-center">{{ month }}</th>{% endfor %}
                 </tr>
                 <tr>
