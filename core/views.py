@@ -1,18 +1,21 @@
 from django.forms import modelformset_factory
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
 from django.views.generic import UpdateView, DeleteView, CreateView
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, path
 from .models import Company, ChartOfAccounts, Transaction, Budget
 from .forms import ChartOfAccountsForm, TransactionForm, CompanyForm, CSVImportForm, BudgetForm, TransactionFilterForm
-from django.contrib import messages
-from django.db.models import Sum, Q, F, Value, DecimalField
-from django.db.models.functions import Coalesce 
+from django.contrib import messages, admin
+from django.db.models import Sum, Q, F, Value, DecimalField, Count
+from django.db.models.functions import Coalesce, TruncDay 
 from datetime import datetime, date, timedelta
 from django.http import JsonResponse, HttpResponse
 from dateutil.relativedelta import relativedelta
 from django.template.loader import render_to_string
+from django.template.response import TemplateResponse
+from django.utils.html import format_html
 from django.core import serializers
 from django.core.paginator import Paginator
 from weasyprint import HTML
@@ -163,6 +166,7 @@ def transaction_list(request):
         if form.is_valid():
             new_transaction = form.save(commit=False)
             new_transaction.company = active_company
+            new_transaction.created_by = request.user
             new_transaction.save()
             messages.success(request, "Lançamento salvo com sucesso!")
             return redirect('core:transaction_list')
@@ -245,6 +249,11 @@ class TransactionUpdateView(LoginRequiredMixin, UpdateView):
         """ Redireciona para a lista de lançamentos após o sucesso. """
         return reverse_lazy('core:transaction_list')
 
+    def form_valid(self, form):
+        if not form.instance.created_by:
+            form.instance.created_by = self.request.user
+            
+        return super().form_valid(form)
 
 class TransactionDeleteView(LoginRequiredMixin, DeleteView):
     model = Transaction
@@ -1429,5 +1438,6 @@ def expense_percentage_chart_data(request):
             labels.append("Outros")
             data.append(float(round(percent_others, 2)))
 
-    # AQUI ESTAVA O ERRO ANTES: O return estava mal indentado ou faltando
     return JsonResponse({'labels': labels, 'data': data, 'total_realizado': float(total_realizado)})
+
+

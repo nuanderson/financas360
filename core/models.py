@@ -44,7 +44,7 @@ class ChartOfAccounts(models.Model):
     parent_account = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='sub_accounts', verbose_name=_("parent account"))
 
     def __str__(self):
-        return f"{self.code} - {self.name}"
+        return f"[{self.company.name}] {self.code} - {self.name}"
 
     class Meta:
         verbose_name = _("Chart of Account")
@@ -66,6 +66,11 @@ class Transaction(models.Model):
     date = models.DateField(_("date"))
     amount = models.DecimalField(_("amount"),max_digits=12, decimal_places=2)
     description = models.TextField(_("description"),blank=True, null=True)
+
+    # Campo para saber QUEM fez (opcional: null=True para não quebrar dados antigos)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Criado por")
+    # Campo para saber QUANDO foi digitado (automático)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Data de Criação")
 
     def __str__(self):
         return f"[{self.date}] {self.account.name} - R$ {self.amount}"
