@@ -9,6 +9,7 @@
     </h1>
     <style>
     .budget-table { font-size: 0.85em; }
+
     .col-conta-header { 
         width: 350px; 
         min-width: 350px; 
@@ -22,6 +23,28 @@
         width: 470px; 
         min-width: 470px; 
         max-width: 470px;
+    }
+
+    .sticky-col {
+        position: -webkit-sticky; /* Safari */
+        position: sticky;
+        left: 0;
+        z-index: 10;
+        border-right: 2px solid #dee2e6;
+    }
+
+    thead th.sticky-col {
+        z-index: 20; 
+        background-color: #f8f9fa;
+    }
+
+    tbody td.sticky-col {
+        background-color: #fff;
+        z-index: 10;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
     }
     </style>
     <div class="card shadow-sm mb-3">
@@ -107,7 +130,7 @@
             </div>
         </div>
     </div>
-    <!-- Card com o ano e o novo filtro de contas -->
+
     <div class="card shadow-sm border-0 mb-3">
         <div class="card-body py-2">
             <div class="row g-2 align-items-center">
@@ -129,7 +152,13 @@
                     </form>
                 </div>
 
-                <div class="col-md-9">
+                <div class="col-auto">
+                     <a href="{% url 'core:export_budget_xls' %}?year={{ year|unlocalize }}" class="btn btn-success text-white shadow-sm" title="Exportar para Excel">
+                        <i class="fas fa-file-excel"></i> Exportar para Excel
+                    </a>
+                </div>
+
+                <div class="col">
                     <div class="input-group">
                         <span class="input-group-text">🔍 Buscar Conta</span>
                         <input type="text"
@@ -147,7 +176,7 @@
                class="table table-sm table-bordered table-hover align-middle mb-0 budget-table">
             <thead class="table-light sticky-top">
                 <tr>
-                    <th rowspan="2" class="align-middle col-conta-header">Conta</th>
+                    <th rowspan="2" class="align-middle col-conta-header sticky-col">Conta</th>
                     <th rowspan="2" class="align-middle text-center col-orcamento-header">Orçamento Anual</th>
                     {% for month in months %}<th colspan="2" class="text-center">{{ month }}</th>{% endfor %}
                 </tr>
@@ -161,7 +190,9 @@
             <tbody>
                 {% for row in report_data %}
                     <tr class="budget-row {% if row.level == 0 %}table-group-divider fw-bold{% endif %}">
-                        <td style="padding-left: {{ row.level|add:1 }}rem;">{{ row.account.code }} - {{ row.account.name }}</td>
+                        <td class="sticky-col" style="padding-left: {{ row.level|add:1 }}rem;">
+                            {{ row.account.code }} - {{ row.account.name }}
+                        </td>
                         <td class="bg-warning fw-bold text-center">
                             {% if row.annual_budget != 0 %}{{ row.annual_budget|floatformat:2|intcomma }}{% endif %}
                         </td>
@@ -198,32 +229,29 @@
 {% endblock content %}
 {% block extra_js %}
     <script>
-document.addEventListener('DOMContentLoaded', function () {
-    const filterInput = document.getElementById('accountFilter');
-    // A seleção da tabela e das linhas continua a mesma
-    const table = document.getElementById('budgetTable');
-    const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+    document.addEventListener('DOMContentLoaded', function () {
+        const filterInput = document.getElementById('accountFilter');
+        const table = document.getElementById('budgetTable');
+        const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
 
-    filterInput.addEventListener('keyup', function () {
-        const filterText = filterInput.value.toLowerCase();
+        filterInput.addEventListener('keyup', function () {
+            const filterText = filterInput.value.toLowerCase();
 
-        // Itera sobre todas as linhas da tabela
-        for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
-            const accountCell = row.getElementsByTagName('td')[0]; // Pega a primeira célula
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const accountCell = row.getElementsByTagName('td')[0];
 
-            // --- AQUI ESTÁ A CORREÇÃO ---
-            // Se a célula existir (não for uma linha vazia ou mal formatada)
-            if (accountCell) {
-                const cellText = accountCell.textContent || accountCell.innerText;
-                
-                // A lógica de mostrar/esconder continua a mesma
-                if (cellText.toLowerCase().indexOf(filterText) > -1) {
-                    row.style.display = "";
-                } else {
-                    row.style.display = "none";
+            
+                if (accountCell) {
+                    const cellText = accountCell.textContent || accountCell.innerText;
+                    
+                    
+                    if (cellText.toLowerCase().indexOf(filterText) > -1) {
+                        row.style.display = "";
+                    } else {
+                        row.style.display = "none";
+                    }
                 }
-            }
         }
     });
 });

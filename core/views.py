@@ -24,6 +24,9 @@ import calendar
 import csv
 import io
 import json
+import openpyxl
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.utils import get_column_letter
 
 
 class AccountUpdateView(LoginRequiredMixin, UpdateView):
@@ -1441,3 +1444,145 @@ def expense_percentage_chart_data(request):
     return JsonResponse({'labels': labels, 'data': data, 'total_realizado': float(total_realizado)})
 
 
+@login_required
+def export_budget_xls(request):
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        messages.error(request, "Por favor, selecione uma empresa primeiro.")
+        return redirect('core:company_list')
+    active_company = get_object_or_404(Company, pk=active_company_id, users=request.user)
+
+    # --- 1. Lógica de Dados (Cópia da budget_dashboard) ---
+    now_year = datetime.now().year
+    selected_year_get = request.GET.get('year')
+    try:
+        current_year = int(selected_year_get) if selected_year_get else now_year
+    except ValueError:
+        current_year = now_year
+
+    accounts = ChartOfAccounts.objects.filter(company=active_company).order_by('code')
+    budgets = Budget.objects.filter(account__company=active_company, year=current_year)
+    transactions = Transaction.objects.filter(company=active_company, date__year=current_year)
+
+    monthly_totals = {}
+    for month in range(1, 13):
+        month_total = transactions.filter(date__month=month).values('account').annotate(total=Sum('amount'))
+        for item in month_total:
+            monthly_totals[(item['account'], month)] = item['total']
+
+    budget_map = {b.account.id: b.annual_amount for b in budgets}
+    
+    # Estrutura de árvore para cálculo (igual ao dashboard)
+    account_map = {acc.id: {'children': [], 'data': {
+        'account': acc,
+        'annual_budget': budget_map.get(acc.id, Decimal(0)),
+        'monthly_actuals': [monthly_totals.get((acc.id, m), Decimal(0)) for m in range(1, 13)]
+    }} for acc in accounts}
+
+    for acc in accounts:
+        if acc.parent_account_id and acc.parent_account_id in account_map:
+            account_map[acc.parent_account_id]['children'].append(account_map[acc.id])
+
+    def aggregate_totals(node):
+        for child_node in node['children']:
+            aggregate_totals(child_node)
+            node['data']['annual_budget'] += child_node['data']['annual_budget']
+            for i in range(12):
+                node['data']['monthly_actuals'][i] += child_node['data']['monthly_actuals'][i]
+    
+    for acc_id, node in account_map.items():
+        if node['data']['account'].parent_account_id is None:
+            aggregate_totals(node)
+
+    report_data = []
+    def build_report_list(node, level=0):
+        node['data']['level'] = level
+        report_data.append(node['data'])
+        for child_node in sorted(node['children'], key=lambda x: x['data']['account'].code):
+            build_report_list(child_node, level + 1)
+
+    for acc_id, node in account_map.items():
+        if node['data']['account'].parent_account_id is None:
+            build_report_list(node)
+
+    # --- 2. Criação do Excel ---
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = f"Orçamento {current_year}"
+
+    # Estilos
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
+    
+    # Cores para o status (iguais ao sistema)
+    red_fill = PatternFill(start_color="DC3545", end_color="DC3545", fill_type="solid") # Vermelho
+    blue_fill = PatternFill(start_color="0D6EFD", end_color="0D6EFD", fill_type="solid") # Azul (Primary)
+    white_font = Font(color="FFFFFF")
+    
+    # Cabeçalho
+    headers = ["Conta", "Orçamento Anual"] + [calendar.month_name[i] for i in range(1, 13)]
+    ws.append(headers)
+
+    # Formatar Cabeçalho
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center")
+
+    # Preencher Linhas
+    for row_data in report_data:
+        account = row_data['account']
+        indent = "    " * row_data['level']
+        row_cells = [f"{indent}{account.code} - {account.name}", row_data['annual_budget']]
+        
+        # Adiciona os meses
+        row_cells.extend(row_data['monthly_actuals'])
+        
+        ws.append(row_cells)
+        current_row = ws.max_row
+
+        # Formatação Condicional (Lógica de Cores)
+        monthly_budget = row_data['annual_budget'] / 12 if row_data['annual_budget'] else 0
+        
+        # Começa na coluna 3 (Janeiro) até 14 (Dezembro)
+        for i, actual in enumerate(row_data['monthly_actuals']):
+            col_idx = i + 3 
+            cell = ws.cell(row=current_row, column=col_idx)
+            
+            # Formatar como número
+            cell.number_format = '#,##0.00'
+
+            # Aplicar Cores
+            is_over_budget = monthly_budget > 0 and actual > monthly_budget
+            fill_to_apply = None
+
+            if account.account_type in ['D', 'E']: # Despesa
+                if is_over_budget:
+                    fill_to_apply = red_fill
+                elif actual > 0:
+                    fill_to_apply = blue_fill
+            elif account.account_type == 'R': # Receita
+                if is_over_budget:
+                    fill_to_apply = blue_fill # Azul é bom pra receita alta
+                elif actual < monthly_budget and actual > 0:
+                    fill_to_apply = red_fill # Vermelho é ruim pra receita baixa
+
+            if fill_to_apply:
+                cell.fill = fill_to_apply
+                cell.font = white_font
+
+        # Formata colunas de valor e nome
+        ws.cell(row=current_row, column=2).number_format = '#,##0.00' # Orcamento Anual
+
+    # Ajustar largura das colunas
+    ws.column_dimensions['A'].width = 50
+    for i in range(2, 15):
+        ws.column_dimensions[get_column_letter(i)].width = 15
+
+    # --- 3. Retornar a Resposta ---
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename=Orcamento_{active_company.name}_{current_year}.xlsx'
+    
+    wb.save(response)
+    return response

@@ -31,6 +31,7 @@ urlpatterns = [
     path('relatorios/dre/pdf/', views.dre_report_pdf, name='dre_report_pdf'),
     # Página do Quadro Orçamentário
     path('quadro-orcamentario/', views.budget_dashboard, name='budget_dashboard'),
+    path('quadro-orcamentario/exportar/', views.export_budget_xls, name='export_budget_xls'),
     # Página de Login
     path('login/', auth_views.LoginView.as_view(template_name='core/login.html'), name='login'),
     # Ação de Logout
