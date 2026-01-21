@@ -42,4 +42,11 @@ urlpatterns = [
     path('api/budget-deviations-chart/', views.budget_deviations_chart_data, name='budget_deviations_chart_data'),
     path('api/budget-vs-actual-timeline/', views.budget_vs_actual_timeline_data, name='budget_vs_actual_timeline_data'),
     path('api/expense-percentage-chart/', views.expense_percentage_chart_data, name='expense_percentage_chart_data'),
+    # Bloco de Notas
+    path('notas/', views.note_list, name='note_list'),
+    path('notas/nova/', views.NoteCreateView.as_view(), name='note_create'),
+    path('notas/editar/<int:pk>/', views.NoteUpdateView.as_view(), name='note_update'),
+    path('notas/excluir/<int:pk>/', views.NoteDeleteView.as_view(), name='note_delete'),
+    path('notas/tags/nova/', views.tag_create, name='tag_create'),
+    path('notas/arquivar/<int:pk>/', views.note_archive, name='note_archive'),
 ]

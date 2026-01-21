@@ -1,5 +1,5 @@
 from django import forms
-from .models import ChartOfAccounts, Transaction, Company, Budget
+from .models import ChartOfAccounts, Transaction, Company, Budget, NoteTag, Note
 
 class ChartOfAccountsForm(forms.ModelForm):
     class Meta:
@@ -132,3 +132,29 @@ class TransactionFilterForm(forms.Form):
         super().__init__(*args, **kwargs)
         if company:
             self.fields['account'].queryset = ChartOfAccounts.objects.filter(company=company)
+
+
+class NoteForm(forms.ModelForm):
+    class Meta:
+        model = Note
+        fields = ['title', 'content', 'color', 'reminder_date', 'tag', 'is_global', 'is_public']
+        widgets = {
+            'reminder_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'color': forms.Select(attrs={'class': 'form-select'}),
+            'tag': forms.Select(attrs={'class': 'form-select'}),
+            'content': forms.Textarea(attrs={'rows': 4}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        company = kwargs.pop('company', None)
+        super().__init__(*args, **kwargs)
+        if company:
+            self.fields['tag'].queryset = NoteTag.objects.filter(company=company)
+        else:
+            self.fields['tag'].queryset = NoteTag.objects.none()
+
+
+class NoteTagForm(forms.ModelForm):
+    class Meta:
+        model = NoteTag
+        fields = ['name']

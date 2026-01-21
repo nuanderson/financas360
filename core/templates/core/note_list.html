@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Bloco de Notas{% endblock %}
+
+{% block content %}
+
+<style>
+    /* Força a cor do card sobrescrevendo o branco do Bootstrap */
+    .note-warning { background-color: #fff9c4 !important; border-color: #fff59d !important; } /* Amarelo */
+    .note-info    { background-color: #e3f2fd !important; border-color: #bbdefb !important; } /* Azul */
+    .note-success { background-color: #e8f5e9 !important; border-color: #c8e6c9 !important; } /* Verde */
+    .note-danger  { background-color: #ffebee !important; border-color: #ffcdd2 !important; } /* Vermelho/Rosa */
+    .note-secondary { background-color: #f5f5f5 !important; border-color: #e0e0e0 !important; } /* Cinza */
+    
+    .card:hover { transform: translateY(-3px); }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="fw-bold text-primary mb-3">
+        <i class="fas {% if show_archived %}fa-archive{% else %}fa-sticky-note{% endif %}"></i> 
+        {% if show_archived %}Arquivo de Notas{% else %}Bloco de Notas{% endif %}
+    </h1>
+    <div>
+        {% if show_archived %}
+            <a href="{% url 'core:note_list' %}" class="btn btn-secondary shadow-sm">
+                <i class="fas fa-arrow-left"></i> Voltar para Notas Ativas
+            </a>
+        {% else %}
+            <a href="{% url 'core:note_list' %}?archived=true" class="btn btn-outline-secondary btn-sm me-2">
+                <i class="fas fa-archive"></i> Ver Arquivadas
+            </a>
+            <a href="{% url 'core:tag_create' %}" class="btn btn-outline-secondary btn-sm me-2">
+                <i class="fas fa-tag"></i> Novo Marcador
+            </a>
+            <a href="{% url 'core:note_create' %}" class="btn btn-primary shadow-sm">
+                <i class="fas fa-plus"></i> Nova Nota
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+{% if not show_archived %}
+<div class="card mb-4 border-0 shadow-sm bg-light">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-md-3">
+                <input type="text" name="q" class="form-control form-control-sm" placeholder="Buscar texto..." value="{{ request.GET.q|default:'' }}">
+            </div>
+            <div class="col-md-3">
+                <select name="tag" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">Todos os Marcadores</option>
+                    {% for tag in tags %}
+                        <option value="{{ tag.id }}" {% if request.GET.tag == tag.id|stringformat:"i" %}selected{% endif %}>{{ tag.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="visibility" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">Todas as Notas</option>
+                    <option value="mine" {% if request.GET.visibility == 'mine' %}selected{% endif %}>Apenas Minhas</option>
+                    <option value="public" {% if request.GET.visibility == 'public' %}selected{% endif %}>Notas da Equipe</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <a href="{% url 'core:note_list' %}" class="btn btn-sm btn-link text-muted">Limpar</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="row">
+    {% for note in notes %}
+    <div class="col-md-4 col-lg-3 mb-4">
+        <div class="card h-100 shadow-sm border note-{{ note.color }}" style="transition: transform 0.2s;">
+            <div class="card-body d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    
+                    <div>
+                        {% if note.is_global %}
+                            <span class="badge bg-dark" title="Visível em todas as empresas">Global</span>
+                        {% endif %}
+                        {% if note.tag %}
+                            <span class="badge bg-white text-dark border border-secondary">{{ note.tag.name }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                         {% if note.created_by == user %}
+                            <a href="{% url 'core:note_archive' note.pk %}" class="text-secondary opacity-50 hover-opacity-100" 
+                               title="{% if note.is_archived %}Desarquivar{% else %}Arquivar{% endif %}">
+                                <i class="fas {% if note.is_archived %}fa-box-open{% else %}fa-box-archive{% endif %}"></i>
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="mb-2 text-muted small">
+                    {% if note.is_global and note.is_public %}
+                        <i class="fas fa-bullhorn text-warning" title="Aviso Geral"></i> <span class="fw-bold text-dark" style="font-size: 0.8em;">Aviso Geral</span>
+                    
+                    {% elif note.is_global and not note.is_public %}
+                        <i class="fas fa-lock" title="Privado Global"></i> <span style="font-size: 0.8em;">Privado (Global)</span>
+
+                    {% elif not note.is_global and note.is_public %}
+                        <i class="fas fa-users" title="Equipe da Empresa"></i> <span style="font-size: 0.8em;">Equipe</span>
+
+                    {% else %}
+                        <i class="fas fa-lock" title="Privado"></i> <span style="font-size: 0.8em;">Privado</span>
+                    {% endif %}
+                </div>
+
+                {% if note.title %}
+                    <h5 class="card-title fw-bold text-dark">{{ note.title }}</h5>
+                {% endif %}
+                
+                <p class="card-text text-dark flex-grow-1" style="white-space: pre-line;">{{ note.content|truncatechars:150 }}</p>
+                
+                <div class="mt-3 pt-2 border-top border-dark-subtle d-flex justify-content-between align-items-center text-muted small">
+                    
+                    <span>
+                        {% if note.reminder_date %}
+                            <i class="fas fa-clock {% if note.reminder_date < today and not note.is_archived %}text-danger{% endif %}"></i> {{ note.reminder_date|date:"d/m" }}
+                        {% else %}
+                            {{ note.created_at|date:"d/m" }}
+                        {% endif %}
+                    </span>
+
+                    {% if note.created_by == user %}
+                        <div>
+                            <a href="{% url 'core:note_update' note.pk %}" class="text-dark me-2" title="Editar"><i class="fas fa-edit"></i></a>
+                            <a href="{% url 'core:note_delete' note.pk %}" class="text-danger" title="Excluir Definitivamente"><i class="fas fa-trash"></i></a>
+                        </div>
+                    {% else %}
+                        <span title="Criado por: {{ note.created_by }}"><i class="fas fa-user"></i> {{ note.created_by.username }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12 text-center py-5 text-muted">
+        <i class="fas {% if show_archived %}fa-box-open{% else %}fa-sticky-note{% endif %} fa-3x mb-3 opacity-50"></i>
+        <p>
+            {% if show_archived %}
+                Nenhuma nota no arquivo morto.
+            {% else %}
+                Nenhuma nota ativa encontrada. Crie a primeira!
+            {% endif %}
+        </p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -98,4 +98,47 @@ class Budget(models.Model):
         # Garante que só exista um orçamento por conta e por ano
         unique_together = ('company', 'account', 'year')    
     
-    
+
+class NoteTag(models.Model):
+    name = models.CharField(max_length=30, verbose_name="Nome do Marcador")
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='tags')
+
+    class Meta:
+        unique_together = ('name', 'company')
+        verbose_name = "Marcador de Nota"
+        verbose_name_plural = "Marcadores de Notas"
+
+    def __str__(self):
+        return self.name
+
+class Note(models.Model):
+    COLOR_CHOICES = [
+        ('warning', 'Amarelo (Padrão)'),
+        ('info', 'Azul (Informativo)'),
+        ('success', 'Verde (Ideia/OK)'),
+        ('danger', 'Vermelho (Urgente)'),
+        ('secondary', 'Cinza (Arquivo)'),
+    ]
+
+    title = models.CharField(max_length=100, blank=True, verbose_name="Título")
+    content = models.TextField(verbose_name="Conteúdo")
+    color = models.CharField(max_length=20, choices=COLOR_CHOICES, default='warning', verbose_name="Cor")
+
+    # Datas
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    reminder_date = models.DateField(null=True, blank=True, verbose_name="Lembrar em")
+
+    # Vínculos
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
+    tag = models.ForeignKey(NoteTag, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Marcador")
+
+    # Flags de Lógica
+    is_global = models.BooleanField(default=False, verbose_name="Global (Aparece em todas as empresas)")
+    is_public = models.BooleanField(default=False, verbose_name="Pública (Para toda equipe)")
+
+    is_archived = models.BooleanField(default=False, verbose_name="Arquivado")
+
+    def __str__(self):
+        return self.title or f"Nota #{self.id}"

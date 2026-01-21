@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %} 
+
+{% block title %}Novo Marcador{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card shadow">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">Criar Novo Marcador</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <div class="mt-3 text-end">
+                        <a href="{% url 'core:note_list' %}" class="btn btn-link text-muted">Cancelar</a>
+                        <button type="submit" class="btn btn-dark">Salvar Marcador</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
