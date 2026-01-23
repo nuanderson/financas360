@@ -42,6 +42,7 @@ urlpatterns = [
     path('api/budget-deviations-chart/', views.budget_deviations_chart_data, name='budget_deviations_chart_data'),
     path('api/budget-vs-actual-timeline/', views.budget_vs_actual_timeline_data, name='budget_vs_actual_timeline_data'),
     path('api/expense-percentage-chart/', views.expense_percentage_chart_data, name='expense_percentage_chart_data'),
+    path('api/revenue-vs-expense-12m/', views.revenue_vs_expense_12m_data, name='revenue_vs_expense_12m_data'),
     # Bloco de Notas
     path('notas/', views.note_list, name='note_list'),
     path('notas/nova/', views.NoteCreateView.as_view(), name='note_create'),

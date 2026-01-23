@@ -25,6 +25,7 @@
         max-width: 470px;
     }
 
+    /* Coluna Fixa (Sticky) */
     .sticky-col {
         position: -webkit-sticky; /* Safari */
         position: sticky;
@@ -45,6 +46,83 @@
 
     .table-responsive {
         overflow-x: auto;
+    }
+
+    /* --- HIERARQUIA VISUAL (Degradê de Cinza) --- */
+
+    /* Nível 0 (Ex: 1 - RECEITAS): Cinza Escuro */
+    tr.level-0 td {
+        background-color: #adb5bd !important; 
+        color: #000;
+        font-weight: 800;
+    }
+    /* Garante que a coluna fixa pegue a cor */
+    tr.level-0 td.sticky-col {
+        background-color: #adb5bd !important;
+    }
+
+    /* Nível 1 (Ex: 1.01 - CONTRATO): Cinza Médio */
+    tr.level-1 td {
+        background-color: #ced4da !important;
+        color: #212529;
+        font-weight: 700;
+    }
+    tr.level-1 td.sticky-col {
+        background-color: #ced4da !important;
+    }
+
+    /* Nível 2 (Ex: 1.01.01 - FIXO): Cinza Claro */
+    tr.level-2 td {
+        background-color: #e9ecef !important;
+        color: #495057;
+        font-weight: 600;
+    }
+    tr.level-2 td.sticky-col {
+        background-color: #e9ecef !important;
+    }
+
+    /* Nível 3 (Padrão): Branco */
+    tr.level-3 td {
+        background-color: #fff !important;
+        font-weight: 400;
+    }
+    tr.level-3 td.sticky-col {
+        background-color: #fff !important;
+    }
+
+    /* --- CORES DE STATUS (Vermelho/Azul/Verde) --- */
+    /* Usamos 'tr td.bg-...' para aumentar a especificidade e ganhar do '!important' das linhas acima */
+
+    tr td.bg-danger {
+        background-color: #dc3545 !important;
+        color: #fff !important;
+        font-weight: bold;
+    }
+
+    tr td.bg-primary {
+        background-color: #0d6efd !important;
+        color: #fff !important;
+        font-weight: bold;
+    }
+
+    tr td.bg-success {
+        background-color: #198754 !important;
+        color: #fff !important;
+        font-weight: bold;
+    }
+
+    tr td.bg-warning {
+        background-color: #ffc107 !important;
+        color: #000 !important;
+        font-weight: bold;
+    }
+    
+    /* Garante que links dentro de células coloridas fiquem brancos */
+    tr td.bg-danger a, 
+    tr td.bg-primary a, 
+    tr td.bg-success a {
+        color: #fff !important;
+        text-decoration: none;
     }
     </style>
     <div class="card shadow-sm mb-3">
@@ -130,20 +208,16 @@
             </div>
         </div>
     </div>
-
     <div class="card shadow-sm border-0 mb-3">
         <div class="card-body py-2">
             <div class="row g-2 align-items-center">
-                
                 <div class="col-md-3">
                     <form method="get" action="">
                         <div class="input-group">
                             <span class="input-group-text fw-bold"><i class="bi bi-calendar-event"></i> &nbsp;Ano</span>
                             <select name="year" class="form-select" onchange="this.form.submit()">
                                 {% for y in available_years %}
-                                    <option value="{{ y|unlocalize }}" {% if y == year %}selected{% endif %}>
-                                        {{ y }}
-                                    </option>
+                                    <option value="{{ y|unlocalize }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
                                 {% empty %}
                                     <option value="{{ year }}" selected>{{ year }}</option>
                                 {% endfor %}
@@ -151,13 +225,13 @@
                         </div>
                     </form>
                 </div>
-
                 <div class="col-auto">
-                     <a href="{% url 'core:export_budget_xls' %}?year={{ year|unlocalize }}" class="btn btn-success text-white shadow-sm" title="Exportar para Excel">
+                    <a href="{% url 'core:export_budget_xls' %}?year={{ year|unlocalize }}"
+                       class="btn btn-success text-white shadow-sm"
+                       title="Exportar para Excel">
                         <i class="fas fa-file-excel"></i> Exportar para Excel
                     </a>
                 </div>
-
                 <div class="col">
                     <div class="input-group">
                         <span class="input-group-text">🔍 Buscar Conta</span>
@@ -167,7 +241,6 @@
                                placeholder="Digite o nome ou código da conta...">
                     </div>
                 </div>
-
             </div>
         </div>
     </div>
@@ -189,12 +262,16 @@
             </thead>
             <tbody>
                 {% for row in report_data %}
-                    <tr class="budget-row {% if row.level == 0 %}table-group-divider fw-bold{% endif %}">
+                    <tr class="budget-row level-{{ row.level }}">
                         <td class="sticky-col" style="padding-left: {{ row.level|add:1 }}rem;">
                             {{ row.account.code }} - {{ row.account.name }}
                         </td>
-                        <td class="bg-warning fw-bold text-center">
-                            {% if row.annual_budget != 0 %}{{ row.annual_budget|floatformat:2|intcomma }}{% endif %}
+                        <td class="text-center">
+                            {% if row.annual_budget != 0 %}
+                                {{ row.annual_budget|floatformat:2|intcomma }}
+                            {% else %}
+                                -
+                            {% endif %}
                         </td>
                         {% for month_data in row.monthly_data %}
                             <td class="text-center {% if month_data.actual != 0 %}{{ month_data.realizado_css_class }}{% endif %}">
@@ -205,7 +282,9 @@
                                     {% with variation=month_data.variation %}
                                         {% with variation_float=variation|floatformat:0 %}
                                             {% if variation_float == "0.0" %}
-                                                <span class="badge bg-secondary">0%</span>
+                                                <span class="badge bg-secondary text-white-50"
+                                                      style="background: transparent !important;
+                                                             color: #aaa !important">-</span>
                                             {% else %}
                                                 <span class="{{ month_data.variacao_css_class }}">
                                                     {% if variation > 0 %}

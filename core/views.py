@@ -450,96 +450,114 @@ def dashboard_lucratividade(request, company):
 def dashboard_orcamento(request, company):
     """
     Dashboard focado em Gestão Pública (Orçamento vs. Realizado).
+    AJUSTE: Comparando Orçamento de DESPESAS vs Despesas Realizadas.
     """
     # --- Lógica do Filtro de Data
     today = date.today()
-    start_date_str = request.GET.get('start_date', today.replace(day=1).strftime('%Y-%m-%d'))
-    end_date_str = request.GET.get('end_date', (today.replace(day=calendar.monthrange(today.year, today.month)[1])).strftime('%Y-%m-%d'))
-    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    competence = request.GET.get('competence') # Vem no formato "2025-01"
 
-    # 1. Total Realizado (Gastos): Busca APENAS as despesas no período
+    if competence:
+        try:
+            year, month = map(int, competence.split('-'))
+            start_date = date(year, month, 1)
+            # calendar.monthrange retorna (dia_semana, ultimo_dia)
+            last_day = calendar.monthrange(year, month)[1]
+            end_date = date(year, month, last_day)
+        except ValueError:
+            # Se vier lixo na URL, volta para o mês atual
+            start_date = today.replace(day=1)
+            end_date = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+            competence = start_date.strftime('%Y-%m')
+    else:
+        # Padrão: Mês atual
+        start_date = today.replace(day=1)
+        end_date = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+        competence = start_date.strftime('%Y-%m')
+
+    # Strings para passar para o Template e APIs
+    start_date_str = start_date.strftime('%Y-%m-%d')
+    end_date_str = end_date.strftime('%Y-%m-%d')
+
+    # --- 1. CÁLCULO DE TOTAIS (KPIs) ---
+
+    # 1.1 Total Receitas
+    revenue_transactions = Transaction.objects.filter(
+        company=company,
+        date__range=[start_date, end_date],
+        account__account_type='R'
+    )
+    total_receitas = revenue_transactions.aggregate(
+        total=Coalesce(Sum('amount'), Value(Decimal('0.00')))
+    )['total']
+
+    # 1.2 Total Realizado (Despesas)
     expense_transactions = Transaction.objects.filter(
         company=company, 
         date__range=[start_date, end_date], 
-        account__account_type='D'
+        account__account_type__in=['D', 'E'] # Garante pegar todos os tipos de despesa
     )
     total_realizado = expense_transactions.aggregate(
         total=Coalesce(Sum('amount'), Value(Decimal('0.00')))
     )['total']
 
-    total_expenses = expense_transactions.filter(account__account_type='D').aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+    # --- 2. CÁLCULO DO ORÇAMENTO (ALTERADO PARA DESPESAS) ---
 
-    # 2. Total Orçado: Soma das RECEITAS orçadas, proporcional ao período
-    orcamento_anual_receitas = Budget.objects.filter(
+    # Soma dos orçamentos das contas de DESPESA ('D' ou 'E')
+    orcamento_anual_despesas = Budget.objects.filter(
         account__company=company,
         year=start_date.year,
-        account__account_type='R' 
+        account__account_type__in=['D', 'E']  # <--- MUDANÇA AQUI (Era 'R')
     ).aggregate(total=Coalesce(Sum('annual_amount'), Value(Decimal('0.00'))))['total']
 
-    # Calcula a proporção do orçamento de receita para o período selecionado
+    # Calcula a proporção do orçamento de despesa para o período selecionado
     dias_no_ano = Decimal(366 if calendar.isleap(start_date.year) else 365)
     dias_no_periodo = Decimal((end_date - start_date).days + 1)
     
-    total_orcado_periodo = ((orcamento_anual_receitas * 12) / dias_no_ano) * dias_no_periodo
+    # Mantendo a lógica de que o valor no banco é mensal (* 12 para anualizar)
+    total_orcado_periodo = ((orcamento_anual_despesas * 12) / dias_no_ano) * dias_no_periodo
     
-    # 3. Percentual de Execução (Gasto Realizado vs. Orçamento de Receita)
+    # 3. Percentual de Execução (Gasto Realizado vs. Orçamento de Despesa)
     percentual_executado = 0
     if total_orcado_periodo > 0:
         percentual_executado = (total_realizado / total_orcado_periodo) * 100
 
-     # Indicadores Adicionais
-    glosas_total = Transaction.objects.filter(
-        company=company, date__range=[start_date, end_date], account__code__startswith="1.03"
-    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
+    # --- 4. INDICADORES ADICIONAIS ---
+    
+    def get_group_total(prefix_code):
+        return Transaction.objects.filter(
+            company=company, 
+            date__range=[start_date, end_date], 
+            account__code__startswith=prefix_code
+        ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
 
-    repasse_total = Transaction.objects.filter(
-        company=company, date__range=[start_date, end_date], account__code__startswith="1.01"
-    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
-
+    # Cálculos auxiliares mantidos...
+    glosas_total = get_group_total("1.03")
+    repasse_total = get_group_total("1.01")
     percentual_glosa = (glosas_total / repasse_total * 100) if repasse_total > 0 else 0
 
-    folha_total = Transaction.objects.filter(
-        company=company, date__range=[start_date, end_date], account__code__startswith="2.01.01"
-    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
-
+    folha_total = get_group_total("2.01.01")
     percentual_folha = (folha_total / total_realizado * 100) if total_realizado > 0 else 0
 
     receitas_extra = Transaction.objects.filter(
         company=company, date__range=[start_date, end_date], account__code="1.04"
     ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
 
-    servicos_terceiros = Transaction.objects.filter(
-        company=company, date__range=[start_date, end_date], account__code__startswith="2.01.03"
-    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
-
+    servicos_terceiros = get_group_total("2.01.03")
     percentual_servicos_terceiros = (servicos_terceiros / total_realizado * 100) if total_realizado > 0 else 0
 
-    materiais = Transaction.objects.filter(
-        company=company, date__range=[start_date, end_date], account__code__startswith="2.01.02"
-    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
-
+    materiais = get_group_total("2.01.02")
     percentual_materiais = (materiais / total_realizado * 100) if total_realizado > 0 else 0
 
-    apoio_gestao = Transaction.objects.filter(
-        company=company, date__range=[start_date, end_date], account__code__startswith="2.01.04"
-    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
-
+    apoio_gestao = get_group_total("2.01.04")
     percentual_apoio_gestao = (apoio_gestao / total_realizado * 100) if total_realizado > 0 else 0
 
-    outras_despesas = Transaction.objects.filter(
-        company=company, date__range=[start_date, end_date], account__code__startswith="2.01.05"
-    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
-
+    outras_despesas = get_group_total("2.01.05")
     percentual_outras_despesas = (outras_despesas / total_realizado * 100) if total_realizado > 0 else 0
 
-    despesas_administrativas = Transaction.objects.filter(
-        company=company, date__range=[start_date, end_date], account__code__startswith="2.01.06"
-    ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal('0.00'))))['total']
-
+    despesas_administrativas = get_group_total("2.01.06")
     percentual_despesas_administrativas = (despesas_administrativas / total_realizado * 100) if total_realizado > 0 else 0
 
-    # Lógica de cor da barra de progresso (continua igual)
+    # Lógica de cor da barra de progresso
     progress_color = 'success'
     if percentual_executado > 95:
         progress_color = 'danger'
@@ -548,13 +566,18 @@ def dashboard_orcamento(request, company):
 
     context = {
         'company': company,
+        'competence': competence,
         'start_date_str': start_date_str,
         'end_date_str': end_date_str,
-        'total_orcado_periodo': total_orcado_periodo,
+        
+        'total_receitas': total_receitas,
         'total_realizado': total_realizado,
+        'total_orcado_periodo': total_orcado_periodo, # Agora reflete o orçamento de DESPESAS
+        
         'percentual_executado_display': percentual_executado,
         'percentual_executado_raw': f'{percentual_executado:.2f}'.replace(',', '.'),
         'progress_color': progress_color,
+        
         'percentual_glosa': percentual_glosa,
         'percentual_folha': percentual_folha,
         'receitas_extra': receitas_extra,
@@ -1167,6 +1190,7 @@ def budget_vs_actual_timeline_data(request):
     """
     Linha do Tempo (12 meses):
     Mostra o total de Despesas Orçadas vs Realizadas.
+    AJUSTE: Agora considera o valor do banco como 'Mensal', sem dividir por 12.
     """
     active_company_id = request.session.get('active_company_id')
     company = get_object_or_404(Company, pk=active_company_id, users=request.user)
@@ -1183,15 +1207,17 @@ def budget_vs_actual_timeline_data(request):
         
         labels.append(target_date.strftime("%b/%Y"))
 
-        # ORÇADO: Soma todos os orçamentos de DESPESA do ano e divide por 12
-        orcamento_anual_total = Budget.objects.filter(
+        # ORÇADO: 
+        # Antes dividíamos por 12. Agora, para manter a coerência com o dashboard
+        # que trata o input como valor mensal, nós apenas somamos.
+        orcamento_mensal_total = Budget.objects.filter(
             account__company=company, 
             year=target_year, 
             account__account_type__in=['D', 'E'] 
         ).aggregate(total=Coalesce(Sum('annual_amount'), Value(Decimal(0))))['total']
 
-        orcado_mensal = float(orcamento_anual_total) / 12 if orcamento_anual_total else 0.0
-        budget_data.append(orcado_mensal)
+        # Se o valor no banco é 500, o gráfico mostrará 500 (e não 41,66)
+        budget_data.append(float(orcamento_mensal_total))
 
         # REALIZADO: Soma transações de DESPESA naquele mês específico
         realizado_mes = Transaction.objects.filter(
@@ -1203,12 +1229,64 @@ def budget_vs_actual_timeline_data(request):
         
         actual_data.append(float(realizado_mes))
 
-    # Inverter para ordem cronológica
+    # Inverter para ordem cronológica (do mais antigo para o atual)
     labels.reverse()
     budget_data.reverse()
     actual_data.reverse()
 
     return JsonResponse({'labels': labels, 'budget_data': budget_data, 'actual_data': actual_data})
+
+
+@login_required
+def revenue_vs_expense_12m_data(request):
+    """
+    Gráfico Comparativo: Receita vs Despesa (Últimos 12 Meses)
+    """
+    active_company_id = request.session.get('active_company_id')
+    company = get_object_or_404(Company, pk=active_company_id, users=request.user)
+
+    labels = []
+    revenue_data = []
+    expense_data = []
+
+    # Loop pelos últimos 12 meses
+    for i in range(12):
+        target_date = datetime.now() - relativedelta(months=i)
+        target_year = target_date.year
+        target_month = target_date.month
+        
+        labels.append(target_date.strftime("%b/%Y"))
+
+        # 1. RECEITA (Tipo R)
+        receita_mes = Transaction.objects.filter(
+            company=company, 
+            account__account_type='R',
+            date__year=target_year, 
+            date__month=target_month
+        ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal(0))))['total']
+        
+        revenue_data.append(float(receita_mes))
+
+        # 2. DESPESA (Tipo D ou E)
+        despesa_mes = Transaction.objects.filter(
+            company=company, 
+            account__account_type__in=['D', 'E'],
+            date__year=target_year, 
+            date__month=target_month
+        ).aggregate(total=Coalesce(Sum('amount'), Value(Decimal(0))))['total']
+        
+        expense_data.append(float(despesa_mes))
+
+    # Inverter para ordem cronológica (Jan -> Dez)
+    labels.reverse()
+    revenue_data.reverse()
+    expense_data.reverse()
+
+    return JsonResponse({
+        'labels': labels, 
+        'revenue_data': revenue_data, 
+        'expense_data': expense_data
+    })
 
 
 @login_required
