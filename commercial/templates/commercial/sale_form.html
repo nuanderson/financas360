@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Nova Venda{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card shadow border-0">
+            <div class="card-header bg-white py-3">
+                <h5 class="m-0 fw-bold text-primary">Registrar Venda / Contrato</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Cliente</label>
+                            {{ form.customer }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Serviço / Procedimento</label>
+                            {{ form.service }}
+                        </div>
+                    </div>
+
+                    <hr class="my-4 text-muted">
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Data da Venda</label>
+                            {{ form.sale_date }}
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label text-primary fw-bold">Valor Total (R$)</label>
+                            {{ form.total_amount }}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label text-success">Valor de Entrada (R$)</label>
+                            {{ form.entry_amount }}
+                            <div class="form-text small">Se não houver entrada, deixe 0.</div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4 text-muted">
+                    <h6 class="text-muted text-uppercase small fw-bold mb-3">Financeiro & Pagamento</h6>
+
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Nº Parcelas</label>
+                            {{ form.installment_count }}
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label">Forma de Pagto</label>
+                            {{ form.payment_method }}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Categoria (Plano de Contas)</label>
+                            {{ form.category }}
+                            <div class="form-text small">Ex: Receita de Procedimentos, Consultas.</div>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold text-primary">Conta de Destino (Onde entra o dinheiro?)</label>
+                            {{ form.bank_account }}
+                            <div class="form-text small">Ex: Banco Cora, Maquininha Rede, Caixinha em Espécie.</div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4 text-muted">
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Status da Venda</label>
+                            {{ form.status }}
+                            
+                            <div class="alert alert-info mt-3 py-2 small shadow-sm">
+                                <i class="bi bi-info-circle-fill me-1"></i> 
+                                Ao selecionar <strong>Fechado/Confirmado</strong>, o sistema lançará as parcelas no Contas a Receber automaticamente.
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Observações</label>
+                            {{ form.notes }}
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                        <a href="{% url 'commercial:sale_list' active_company.id %}" class="btn btn-light border">Cancelar</a>
+                        <button type="submit" class="btn btn-success px-4 fw-bold shadow-sm">
+                            <i class="bi bi-check-lg"></i> Salvar Venda
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // 1. Recebe a lista de preços que veio da View (JSON)
+        // O safe é necessário para o Django não escapar as aspas do JSON
+        const prices = {{ service_prices_json|safe }}; 
+
+        // 2. Quando o campo "Serviço" mudar...
+        $('#id_service').change(function() {
+            const serviceId = $(this).val();
+            
+            // Verifica se o ID existe na lista de preços
+            if (serviceId && prices[serviceId]) {
+                // Formata o preço com 2 casas decimais
+                const price = prices[serviceId].toFixed(2);
+                
+                // Preenche o campo Valor Total
+                $('#id_total_amount').val(price);
+            } else {
+                // Se o usuário limpar o campo serviço, pode-se limpar o valor ou não
+                // $('#id_total_amount').val(''); // Descomente se quiser limpar
+            }
+        });
+    });
+</script>
+{% endblock %}

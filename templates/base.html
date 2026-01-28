@@ -38,26 +38,18 @@
             color: #343a40;
         }
 
+        /* Estilos da Sidebar */
         .sidebar {
             width: 280px;
             min-height: 100vh;
             padding: 2rem 1.5rem;
             background: linear-gradient(45deg, #4159D0, #C84FC0, #FFCD70);
             color: white;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
             box-shadow: 2px 0 5px rgba(0,0,0,0.1);
         }
 
-        .sidebar h3 {
-            font-weight: 700;
-            margin-bottom: 1.5rem;
-        }
-
-        .sidebar small {
-            font-size: 0.85rem;
-        }
+        .sidebar h3 { font-weight: 700; margin-bottom: 1.5rem; }
+        .sidebar small { font-size: 0.85rem; }
 
         .nav-link {
             font-weight: 500;
@@ -83,23 +75,13 @@
             margin-bottom: 1.5rem;
         }
 
-        hr {
-            border-color: rgba(255, 255, 255, 0.3);
-        }
+        hr { border-color: rgba(255, 255, 255, 0.3); }
 
-        .footer-user {
-            font-size: 0.9rem;
-        }
-
-        a.text-white.fw-bold:hover {
-            text-decoration: underline;
-        }
+        .footer-user { font-size: 0.9rem; }
+        a.text-white.fw-bold:hover { text-decoration: underline; }
 
         @media (max-width: 768px) {
-            body {
-                flex-direction: column;
-            }
-
+            body { flex-direction: column; }
             .sidebar {
                 width: 100%;
                 flex-direction: row;
@@ -107,133 +89,23 @@
                 justify-content: space-between;
                 padding: 1rem;
             }
-
-            .main-content {
-                padding: 1rem;
-            }
-
-            .sidebar .nav {
-                flex-direction: row;
-                gap: 1rem;
-            }
+            .main-content { padding: 1rem; }
+            .sidebar .nav { flex-direction: row; gap: 1rem; }
         }
-        .sidebar-hr {
-            border-color: rgba(255,255,255,0.3);
-        }
+        .sidebar-hr { border-color: rgba(255,255,255,0.3); }
         </style>
-        {# Permite que templates filhos injetem CSS adicional (ex.: gradientes de botões) #}
         {% block extra_css %}
         {% endblock extra_css %}
     </head>
     <body>
-        <aside class="sidebar d-flex flex-column justify-content-between">
-            <div>
-                <img src="{% static 'img/logo branca.png' %}"
-                     alt="Controle +"
-                     class="logo-img"
-                     width="200"
-                     height="60">
-                {% if active_company %}
-                    <div class="active-company text-center">
-                        <small>Unidade Ativa</small>
-                        <h5 class="text-white text-center">{{ active_company.name }}</h5>
-                    </div>
-                {% else %}
-                    <div class="active-company">
-                        <small class="text-white-50">Nenhuma unidade ativa</small>
-                        <h5 class="text-white">Selecione uma unidade</h5>
-                    </div>
-                {% endif %}
-                <hr />
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="{% url 'core:company_list' %}">
-                            <i class="bi bi-building"></i> Minhas Unidades
-                        </a>
-                    </li>
-                    {% if active_company %}
-                        <li class="nav-item">
-                            <a class="nav-link text-white"
-                               href="{% url 'core:dashboard' active_company.id %}">
-                                <i class="bi bi-graph-up"></i> Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white"
-                               href="{% url 'core:chart_of_accounts_list' active_company.id %}">
-                                <i class="bi bi-journal-text"></i> Plano de Contas
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{% url 'core:transaction_list' %}">
-                                <i class="bi bi-arrow-left-right"></i> Lançamentos
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{% url 'core:dre_report' %}">
-                                <i class="bi bi-file-earmark-bar-graph"></i> Relatórios
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{% url 'core:budget_dashboard' %}">
-                                <i class="bi bi-table"></i> Quadro Orçamentário
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{% url 'core:note_list' %}">
-                                <i class="bi bi-sticky"></i> Bloco de Notas
-                            </a>
-                        </li>
-                    {% endif %}
-                </ul>
-                {% comment %}
-                <hr class="sidebar-hr">
-                <small class="text-white-50 ps-3">MÓDULO PLANTÕES</small>
-                <ul class="nav flex-column">
-                    {% if active_company %}
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{% url 'plantoes:orcamento_mensal' %}">
-                                <i class="bi bi-clipboard-data"></i> Orçamento Plantões
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{% url 'plantoes:lancamento_list' %}">
-                                <i class="bi bi-card-checklist"></i> Lançar Plantões
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{% url 'plantoes:plantoes_report' %}">
-                                <i class="bi bi-calendar3-week"></i> Quadro de Plantões
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{% url 'plantoes:plantoes_settings' %}">
-                                <i class="bi bi-gear"></i> Configurações
-                            </a>
-                        </li>
-                    {% endif %}
-                </ul>
-                {% endcomment %}
-            </div>
-            <div>
-                <hr />
-                <div class="text-center mb-2">
-                    <i class="bi bi-person-circle"></i>
-                    <span class="d-block">Logado como:</span>
-                    <strong>{{ user.get_full_name|default:user.username }}</strong>
-                </div>
-                <form action="{% url 'core:logout' %}" method="post" class="d-grid">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-danger fw-bold">
-                        <i class="bi bi-box-arrow-right me-1"></i> Sair
-                    </button>
-                </form>
-            </div>
-        </aside>
+        
+        {% include 'sidebar.html' %}
+
         <main class="main-content">
             {% block content %}
             {% endblock content %}
         </main>
+
         <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>

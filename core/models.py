@@ -1,12 +1,14 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
+from datetime import date
 
 # Modelo para guardar as empresas dos clientes
 class Company(models.Model):
     MANAGEMENT_CHOICES = (
         ('Pública', 'Gestão Pública (Foco em Orçamento)'),
         ('Particular', 'Gestão Particular (Foco em Lucratividade)'),
+        ('Particular Plus', 'Gestão Particular Plus (Controle Completo)'),
     )
     name = models.CharField(_("name"),max_length=100, unique=True, help_text=_("Client company name"))
     # Relação Muitos-para-Muitos.
@@ -71,6 +73,54 @@ class Transaction(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Criado por")
     # Campo para saber QUANDO foi digitado (automático)
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Data de Criação")
+
+    STATUS_CHOICES = [
+        ('PAID', 'Realizado/Pago'),
+        ('PENDING', 'Pendente/Agendado'),
+    ]
+
+    status = models.CharField(
+        max_length=10, 
+        choices=STATUS_CHOICES, 
+        default='PAID', 
+        verbose_name="Status da Transação"
+    )
+
+    # Data de Vencimento (Para Contas a Pagar/Receber)
+    due_date = models.DateField("Data de Vencimento", blank=True, null=True)
+    
+    # Data do Pagamento Real (Pode ser diferente do vencimento)
+    payment_date = models.DateField("Data do Pagamento", blank=True, null=True)
+
+    # Vínculos com a nova vertente (Usamos string 'app.Model' para evitar erro de importação circular)
+    customer = models.ForeignKey(
+        'commercial.Customer', 
+        on_delete=models.SET_NULL, 
+        null=True, blank=True, 
+        verbose_name="Cliente"
+    )
+
+    supplier = models.ForeignKey(
+        'commercial.Supplier', 
+        on_delete=models.SET_NULL, 
+        null=True, blank=True, 
+        verbose_name="Fornecedor"
+    )
+    
+    # Vínculo com a Venda (Para saber que essa transação é a parcela 2/10 da Venda X)
+    sale_origin = models.ForeignKey(
+        'commercial.Sale',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='generated_transactions'
+    )
+
+    bank_account = models.ForeignKey(
+        'commercial.BankAccount', 
+        on_delete=models.SET_NULL, 
+        null=True, blank=True, 
+        verbose_name="Conta Bancária"
+    )
 
     def __str__(self):
         return f"[{self.date}] {self.account.name} - R$ {self.amount}"

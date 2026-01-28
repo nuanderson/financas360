@@ -1,0 +1,155 @@
+{% load static %}
+
+<aside class="sidebar d-flex flex-column justify-content-between">
+    <div>
+        <img src="{% static 'img/logo branca.png' %}"
+             alt="Controle +"
+             class="logo-img"
+             width="200"
+             height="60">
+
+        {% if active_company %}
+            <div class="active-company text-center">
+                <small>Unidade Ativa</small>
+                <h5 class="text-white text-center">{{ active_company.name }}</h5>
+            </div>
+        {% else %}
+            <div class="active-company">
+                <small class="text-white-50">Nenhuma unidade ativa</small>
+                <h5 class="text-white">Selecione uma unidade</h5>
+            </div>
+        {% endif %}
+        
+        <hr />
+
+        <ul class="nav flex-column">
+            
+            <li class="nav-item">
+                <a class="nav-link text-white" href="{% url 'core:company_list' %}">
+                    <i class="bi bi-building"></i> Minhas Unidades
+                </a>
+            </li>
+
+            {% if active_company %}
+
+                {% if active_company.management_type == 'Particular Plus' %}
+                    
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'core:dashboard' active_company.id %}">
+                            <i class="bi bi-graph-up"></i> Dashboard
+                        </a>
+                    </li>
+
+                    <small class="text-white-50 ps-3 mt-3 d-block fw-bold" style="font-size: 0.75rem;">CADASTROS</small>
+
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'commercial:customer_list' active_company.id %}">
+                            <i class="bi bi-people"></i> Clientes
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'commercial:supplier_list' active_company.id %}">
+                            <i class="bi bi-truck"></i> Fornecedores
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'commercial:service_list' active_company.id %}">
+                            <i class="bi bi-bandaid"></i> Serviços
+                        </a>
+                    </li>
+
+                    <small class="text-white-50 ps-3 mt-3 d-block fw-bold" style="font-size: 0.75rem;">COMERCIAL</small>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'commercial:sale_create' active_company.id %}"> <i class="bi bi-cart-check"></i> Nova Venda
+                        </a>
+                    </li>
+
+                    <small class="text-white-50 ps-3 mt-3 d-block fw-bold" style="font-size: 0.75rem;">FINANCEIRO</small>
+
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="#"> <i class="bi bi-arrow-down-circle"></i> Contas a Pagar
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="#"> <i class="bi bi-arrow-up-circle"></i> Contas a Receber
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'core:transaction_list' %}">
+                            <i class="bi bi-bank"></i> Caixa Realizado
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'commercial:bank_account_list' active_company.id %}">
+                            <i class="bi bi-wallet2"></i> Contas Bancárias
+                        </a>
+                    </li>
+
+                    <li class="nav-item mt-2">
+                        <a class="nav-link text-warning fw-bold bg-dark bg-opacity-25 rounded" 
+                           href="{% url 'core:budget_dashboard' %}">
+                            <i class="bi bi-grid-3x3-gap-fill"></i> Quadro de Metas
+                        </a>
+                    </li>
+
+                    <li class="nav-item mt-2">
+                        <a class="nav-link text-white-50" href="{% url 'core:chart_of_accounts_list' active_company.id %}">
+                            <i class="bi bi-list-check"></i> <small>Plano de Contas</small>
+                        </a>
+                    </li>
+
+                {% else %}
+                    
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'core:dashboard' active_company.id %}">
+                            <i class="bi bi-graph-up"></i> Dashboard
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'core:chart_of_accounts_list' active_company.id %}">
+                            <i class="bi bi-journal-text"></i> Plano de Contas
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'core:transaction_list' %}">
+                            <i class="bi bi-arrow-left-right"></i> Lançamentos
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'core:dre_report' %}">
+                            <i class="bi bi-file-earmark-bar-graph"></i> Relatórios
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'core:budget_dashboard' %}">
+                            <i class="bi bi-table"></i> Quadro Orçamentário
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'core:note_list' %}">
+                            <i class="bi bi-sticky"></i> Bloco de Notas
+                        </a>
+                    </li>
+
+                {% endif %} {% endif %} </ul>
+    </div>
+
+    <div>
+        <hr />
+        <div class="text-center mb-2">
+            <i class="bi bi-person-circle"></i>
+            <span class="d-block">Logado como:</span>
+            <strong>{{ user.get_full_name|default:user.username }}</strong>
+        </div>
+        <form action="{% url 'core:logout' %}" method="post" class="d-grid">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger fw-bold">
+                <i class="bi bi-box-arrow-right me-1"></i> Sair
+            </button>
+        </form>
+    </div>
+</aside>

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Cadastro de Conta Bancária{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow border-0">
+            <div class="card-header bg-white py-3">
+                <h5 class="m-0 fw-bold text-primary">
+                    {% if form.instance.pk %}Editar Conta{% else %}Nova Conta Bancária{% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nome da Conta / Local</label>
+                        {{ form.name }}
+                        <div class="form-text">Ex: Banco Cora, Maquininha Rede, Caixinha da Recepção.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Saldo Inicial (R$)</label>
+                        {{ form.initial_balance }}
+                        <div class="form-text">Quanto tem nessa conta hoje?</div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <a href="{% url 'commercial:bank_account_list' active_company.id %}" class="btn btn-light border">Cancelar</a>
+                        <button type="submit" class="btn btn-primary px-4">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

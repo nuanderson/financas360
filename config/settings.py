@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
     'core',
     'plantoes',
+    'commercial',
     'crispy_forms',
     'crispy_bootstrap5',
 ]
