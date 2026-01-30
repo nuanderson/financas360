@@ -27,7 +27,6 @@ def create_installments_signal(sender, instance, created, **kwargs):
                 due_date=instance.sale_date,
                 status='PAID',
                 payment_date=instance.sale_date,
-                type='R', # Receita
                 customer=instance.customer,
                 sale_origin=instance
             )
@@ -54,7 +53,6 @@ def create_installments_signal(sender, instance, created, **kwargs):
                     due_date=due_date,
                     status='PENDING', 
                     payment_date=None,
-                    type='R', # Receita
                     customer=instance.customer,
                     sale_origin=instance
                 )

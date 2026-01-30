@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}
+    Dashboard - {{ active_company.name }}
+{% endblock title %}
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Visão Geral</h1>
+        <span class="text-muted small">{% now "d/m/Y" %}</span>
+    </div>
+    <div class="row">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-primary border-4 shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Vendas (Mês Atual)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">R$ {{ sales_month|intcomma }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-cart-check fs-2 text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-success border-4 shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">A Receber (Pendente)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">R$ {{ to_receive|intcomma }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-graph-up-arrow fs-2 text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-danger border-4 shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">A Pagar (Pendente)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">R$ {{ to_pay|intcomma }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-graph-down-arrow fs-2 text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-info border-4 shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Saldo em Caixa</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">R$ {{ current_balance|intcomma }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-wallet2 fs-2 text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-xl-8 col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Evolução Financeira (6 Meses)</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-area" style="height: 320px;">
+                        <canvas id="cashFlowChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Receita por Procedimento</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-pie pt-4 pb-2" style="height: 250px;">
+                        <canvas id="servicesChart"></canvas>
+                    </div>
+                    <div class="mt-4 text-center small text-muted">* Top 5 serviços mais vendidos</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Acesso Rápido</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2 d-md-block">
+                        <a href="{% url 'commercial:sale_create' active_company.id %}"
+                           class="btn btn-primary mb-2">
+                            <i class="bi bi-plus-lg"></i> Nova Venda
+                        </a>
+                        <a href="{% url 'commercial:expense_create' active_company.id %}"
+                           class="btn btn-danger mb-2">
+                            <i class="bi bi-dash-lg"></i> Lançar Despesa
+                        </a>
+                        <a href="{% url 'commercial:customer_create' active_company.id %}"
+                           class="btn btn-secondary mb-2">
+                            <i class="bi bi-person-plus"></i> Novo Cliente
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Dica do Sistema</h6>
+                </div>
+                <div class="card-body">
+                    <p>
+                        Mantenha as baixas de <strong>Contas a Receber</strong> e <strong>Contas a Pagar</strong> sempre atualizadas. O gráfico de Evolução Financeira considera apenas o que foi efetivamente <strong>PAGO</strong>.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock content %}
+{% block extra_js %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+    // Configurações Globais de Fonte e Cor
+    Chart.defaults.font.family = "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto";
+    Chart.defaults.color = '#858796';
+
+    // --- GRÁFICO DE BARRAS (Fluxo de Caixa) ---
+    const ctxFlow = document.getElementById("cashFlowChart");
+    new Chart(ctxFlow, {
+        type: 'bar',
+        data: {
+            labels: {{ chart_months|safe }}, // Recebe os meses do Python
+            datasets: [{
+                label: "Receitas",
+                backgroundColor: "#1cc88a", // Verde
+                hoverBackgroundColor: "#17a673",
+                borderColor: "#1cc88a",
+                data: {{ chart_in|safe }}, // Recebe valores de entrada
+                barPercentage: 0.6,
+                borderRadius: 4,
+            }, {
+                label: "Despesas",
+                backgroundColor: "#e74a3b", // Vermelho
+                hoverBackgroundColor: "#be2617",
+                borderColor: "#e74a3b",
+                data: {{ chart_out|safe }}, // Recebe valores de saída
+                barPercentage: 0.6,
+                borderRadius: 4,
+            }],
+        },
+        options: {
+            maintainAspectRatio: false,
+            layout: { padding: { left: 10, right: 25, top: 25, bottom: 0 } },
+            scales: {
+                x: { 
+                    grid: { display: false, drawBorder: false }, 
+                    ticks: { maxTicksLimit: 6 } 
+                },
+                y: { 
+                    ticks: { 
+                        maxTicksLimit: 5, padding: 10,
+                        // Formata Eixo Y como moeda (R$)
+                        callback: function(value) { return 'R$ ' + value.toLocaleString('pt-BR'); }
+                    },
+                    grid: { color: "rgb(234, 236, 244)", zeroLineColor: "rgb(234, 236, 244)", drawBorder: false, borderDash: [2] }
+                },
+            },
+            plugins: {
+                legend: { display: true, position: 'bottom' },
+                tooltip: {
+                    backgroundColor: "rgb(255,255,255)",
+                    bodyColor: "#858796",
+                    titleColor: '#6e707e',
+                    borderColor: '#dddfeb',
+                    borderWidth: 1,
+                    xPadding: 15,
+                    yPadding: 15,
+                    displayColors: false,
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': R$ ' + context.raw.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // --- GRÁFICO DE ROSCA (Top Serviços) ---
+    const ctxService = document.getElementById("servicesChart");
+    
+    // Dados vindos da View
+    const serviceData = {{ service_data|safe }};
+    const serviceLabels = {{ service_labels|safe }};
+
+    // Só cria o gráfico se houver dados
+    if (serviceData.length > 0) {
+        new Chart(ctxService, {
+            type: 'doughnut',
+            data: {
+                labels: serviceLabels,
+                datasets: [{
+                    data: serviceData,
+                    backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'],
+                    hoverBackgroundColor: ['#2e59d9', '#17a673', '#2c9faf', '#dda20a', '#be2617'],
+                    hoverBorderColor: "rgba(234, 236, 244, 1)",
+                }],
+            },
+            options: {
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'bottom', labels: { boxWidth: 15 } },
+                    tooltip: {
+                        backgroundColor: "rgb(255,255,255)",
+                        bodyColor: "#858796",
+                        borderColor: '#dddfeb',
+                        borderWidth: 1,
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': R$ ' + context.raw.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                            }
+                        }
+                    }
+                },
+                cutout: '70%', // Tamanho do buraco no meio (Rosca)
+            },
+        });
+    } else {
+        // Se não tiver dados, mostra mensagem amigável
+        ctxService.parentNode.innerHTML = `
+            <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                <i class="bi bi-pie-chart display-4 mb-2 opacity-50"></i>
+                <small>Sem vendas confirmadas</small>
+            </div>
+        `;
+    }
+    </script>
+{% endblock extra_js %}

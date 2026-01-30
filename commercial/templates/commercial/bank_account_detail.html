@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Extrato - {{ bank_account.name }}{% endblock %}
+{% block content %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card bg-primary text-white shadow border-0">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50 text-uppercase mb-1">Saldo Atual em Conta</h6>
+                            <h2 class="display-6 fw-bold mb-0">R$ {{ current_balance|intcomma }}</h2>
+                            <small class="text-white-50">{{ bank_account.name }}</small>
+                        </div>
+                        <div class="text-end">
+                            <div class="bg-white bg-opacity-25 p-3 rounded">
+                                <i class="bi bi-wallet2 fs-1"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-white bg-opacity-10 border-0 d-flex justify-content-between">
+                    <small>Entradas: R$ {{ total_in|intcomma }}</small>
+                    <small>Saídas: R$ {{ total_out|intcomma }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="text-gray-800 mb-0">Histórico de Movimentações</h5>
+        <a href="{% url 'commercial:bank_account_list' active_company.id %}"
+           class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Voltar
+        </a>
+    </div>
+    <div class="card shadow mb-4 border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Data</th>
+                            <th>Descrição</th>
+                            <th>Categoria</th>
+                            <th>Valor</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="bg-light">
+                            <td class="ps-4 text-muted">-</td>
+                            <td class="text-muted fst-italic">Saldo Inicial (Abertura)</td>
+                            <td>-</td>
+                            <td class="text-primary fw-bold">R$ {{ bank_account.initial_balance|intcomma }}</td>
+                            <td>
+                                <span class="badge bg-secondary">Saldo</span>
+                            </td>
+                        </tr>
+                        {% for item in transactions %}
+                            <tr>
+                                <td class="ps-4">{{ item.date|date:"d/m/Y" }}</td>
+                                <td>
+                                    <div class="fw-bold text-dark">{{ item.description }}</div>
+                                    {% if item.customer %}
+                                        <small class="text-muted">{{ item.customer.name }}</small>
+                                    {% elif item.supplier %}
+                                        <small class="text-muted">{{ item.supplier.trade_name }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-secondary border">{{ item.account.name }}</span>
+                                </td>
+                                <td class="fw-bold {% if item.account.account_type == 'R' %}text-success{% else %}text-danger{% endif %}">
+                                    {% if item.account.account_type == 'R' %}
+                                        +
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                    R$ {{ item.amount|intcomma }}
+                                </td>
+                                <td>
+                                    {% if item.status == 'PAID' %}
+                                        <i class="bi bi-check-circle-fill text-success" title="Confirmado"></i>
+                                    {% else %}
+                                        <i class="bi bi-clock text-warning" title="Pendente (Não afeta saldo)"></i>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">Nenhuma movimentação recente.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endblock %}

@@ -1,6 +1,7 @@
 from django import forms
 from .models import Customer, Supplier, Service, Sale, BankAccount
 from core.models import ChartOfAccounts as Account
+from core.models import Transaction
 
 # --- FORMULÁRIO DE CLIENTE ---
 class CustomerForm(forms.ModelForm):
@@ -113,3 +114,40 @@ class BankAccountForm(forms.ModelForm):
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Banco Cora, Cofre, Rede'}),
             'initial_balance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
         }
+
+# --- FORMULÁRIO DE DESPESA (CONTAS A PAGAR) ---
+class ExpenseForm(forms.ModelForm):
+    class Meta:
+        model = Transaction
+        fields = [
+            'description', 'supplier', 'account', 
+            'amount', 'due_date', 'bank_account', 'notes' # notes não existe nativo no Transaction, vamos usar description ou criar um campo extra se precisar. 
+            # Se Transaction não tem 'notes', usamos apenas description.
+        ]
+        # Ajuste conforme os campos reais do seu Transaction model no core
+        fields = ['description', 'supplier', 'account', 'amount', 'due_date', 'bank_account']
+        
+        widgets = {
+            'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Conta de Luz, Compra de Material'}),
+            'supplier': forms.Select(attrs={'class': 'form-select select2-widget'}),
+            'account': forms.Select(attrs={'class': 'form-select select2-widget'}), # Categoria
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'due_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'bank_account': forms.Select(attrs={'class': 'form-select'}), # De onde vai sair o dinheiro
+        }
+
+    def __init__(self, *args, **kwargs):
+        company_id = kwargs.pop('company_id', None)
+        super().__init__(*args, **kwargs)
+        if company_id:
+            # Filtros básicos
+            self.fields['supplier'].queryset = self.fields['supplier'].queryset.filter(company_id=company_id)
+            self.fields['bank_account'].queryset = BankAccount.objects.filter(company_id=company_id)
+            
+            # FILTRO CRUCIAL: Mostrar apenas contas de DESPESA ('D')
+            self.fields['account'].queryset = Account.objects.filter(
+                company_id=company_id, 
+                account_type='D'
+            )
+            self.fields['account'].label = "Categoria de Despesa"
+            self.fields['bank_account'].label = "Pagar com (Banco/Caixa)"
