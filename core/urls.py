@@ -8,6 +8,7 @@ urlpatterns = [
     path('', views.home_redirect, name='home'),
     # Hub de Empresas
     path('empresas/', views.company_list, name='company_list'),
+    path('selecionar-empresa/<int:company_id>/', views.select_company, name='select_company'),
     path('empresas/nova/', views.CompanyCreateView.as_view(), name='company_create'),
     path('empresas/<int:pk>/editar/', views.CompanyUpdateView.as_view(), name='company_update'),
     path('empresas/<int:pk>/excluir/', views.CompanyDeleteView.as_view(), name='company_delete'),
@@ -17,6 +18,8 @@ urlpatterns = [
     path('empresa/<int:company_id>/plano-de-contas/<int:account_id>/excluir/', views.AccountDeleteView.as_view(), name='account_delete'),
     path('empresa/<int:company_id>/plano-de-contas/importar/', views.import_chart_of_accounts, name='import_chart_of_accounts'),
     path('empresa/<int:company_id>/ativar/', views.set_active_company, name='set_active_company'),
+    path('empresa/<int:company_id>/dashboard/', views.dashboard_dispatcher, name='dashboard'),
+    path('dashboard/', views.dashboard_dispatcher, name='dashboard_no_id'),
     path('empresa/<int:company_id>/dashboard', views.dashboard_dispatcher, name='dashboard'),
     # Página de Lançamentos
     path('lancamentos/', views.transaction_list, name='transaction_list'),

@@ -42,4 +42,11 @@ urlpatterns = [
 
     # DASHBOARD
     path('empresa/<int:company_id>/dashboard/', views.DashboardView.as_view(), name='dashboard'),
+
+    # METAS
+    path('empresa/<int:company_id>/metas/', views.GoalsDashboardView.as_view(), name='goals_dashboard'),
+    path('empresa/<int:company_id>/metas/nova/', views.GoalCreateView.as_view(), name='goal_create'),
+
+    # DRE GERENCIAL
+    path('empresa/<int:company_id>/dre/', views.DREView.as_view(), name='dre_report'),
 ]

@@ -97,3 +97,19 @@ class Sale(models.Model):
 
     def __str__(self):
         return f"{self.customer.name} - {self.service.name}"
+
+
+class MonthlyGoal(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='goals')
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, verbose_name="Categoria")
+    
+    # Vamos usar apenas Mês e Ano para simplicidade
+    month = models.DateField("Mês de Referência") # O dia será sempre 1
+    target_amount = models.DecimalField("Meta / Limite (R$)", max_digits=12, decimal_places=2)
+    
+    class Meta:
+        unique_together = ('company', 'account', 'month') # Evita duas metas pra mesma conta no mesmo mês
+        ordering = ['account__name']
+
+    def __str__(self):
+        return f"{self.account.name} - {self.month.strftime('%m/%Y')}"

@@ -347,19 +347,44 @@ def home_redirect(request):
 
 
 @login_required
-def dashboard_dispatcher(request, company_id):
-    """
-    Esta view atua como um "roteador". Ela busca a empresa,
-    verifica seu tipo de gestão e chama a view de dashboard apropriada.
-    """
-    company = get_object_or_404(Company, pk=company_id, users=request.user)
+def dashboard_dispatcher(request, company_id=None):
+    # 1. Resolve o ID da empresa (URL ou Sessão - tenta os dois nomes)
+    c_id = company_id or request.session.get('company_id') or request.session.get('active_company_id')
 
+    # Se não tiver ID nenhum, manda voltar pra lista
+    if not c_id:
+        return redirect('core:company_list')
+
+    # 2. Busca a empresa e valida permissão
+    company = get_object_or_404(Company, pk=c_id, users=request.user)
+    
+    # Atualiza a sessão (CORREÇÃO AQUI: Atualiza os dois nomes)
+    request.session['company_id'] = company.id
+    request.session['active_company_id'] = company.id # <--- Crucial para as outras telas funcionarem
+    
+    # 3. Prepara o contexto (CRUCIAL PARA O MENU LATERAL)
+    context = {
+        'active_company': company, # O sidebar.html usa este nome
+        'company': company         # O miolo do dashboard antigo usa este nome
+    }
+
+    # 4. Lógica de Seleção de Template (Roteador)
+    
+    # CASO 1: Gestão Pública -> Dashboard de Orçamento
     if company.management_type == 'Pública':
-        # Chama a view focada em orçamento
-        return dashboard_orcamento(request, company)
-    else:  # 'Particular'
-        # Chama a view focada em lucratividade
-        return dashboard_lucratividade(request, company)
+        return render(request, 'core/dashboard_orcamento.html', context)
+    
+    # CASO 2: Gestão Particular -> Dashboard de Lucratividade
+    elif company.management_type == 'Particular': 
+        return render(request, 'core/dashboard_lucratividade.html', context)
+
+    # CASO 3: Particular Plus (Redireciona para o app Commercial)
+    elif company.management_type == 'Particular Plus':
+        return redirect('commercial:dashboard', company_id=company.id)
+
+    # CASO 4: Fallback
+    else:
+        return render(request, 'core/dashboard_orcamento.html', context)
 
 
 @login_required
@@ -1824,3 +1849,22 @@ def note_archive(request, pk):
         return redirect('core:note_list')
     else:
         return redirect(reverse('core:note_list') + '?archived=true')
+
+
+@login_required
+def select_company(request, company_id):
+    # 1. Busca a empresa e garante que o usuário tem permissão
+    company = get_object_or_404(Company, pk=company_id, users=request.user)
+
+    # 2. Salva na sessão (CORREÇÃO AQUI)
+    # Salvamos nos dois nomes para garantir compatibilidade total
+    request.session['company_id'] = company.id 
+    request.session['active_company_id'] = company.id # <--- O resto do sistema usa esse nome!
+
+    # 3. A LÓGICA DE REDIRECIONAMENTO INTELIGENTE
+    if company.management_type == 'Particular Plus':
+        # Se for Particular Plus -> Vai para o Dashboard Comercial
+        return redirect('commercial:dashboard', company_id=company.id)
+    else:
+        # Se for Pública ou Padrão -> Vai para o Dashboard do Core
+        return redirect('core:dashboard', company_id=company.id)

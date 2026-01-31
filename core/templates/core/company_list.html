@@ -18,9 +18,8 @@
                                 <small class="text-muted">Gestão {{ company.management_type }}</small>
                             </div>
                             <div class="btn-group" role="group">
-                                <a href="{% url 'core:set_active_company' company.id %}"
-                                   class="btn btn-outline-success btn-sm">
-                                    <i class="bi bi-box-arrow-in-right"></i> Acessar
+                                <a href="{% url 'core:select_company' company.id %}" class="btn btn-primary">
+                                    Acessar Painel
                                 </a>
                                 <a href="{% url 'core:company_update' company.pk %}"
                                    class="btn btn-outline-secondary btn-sm">

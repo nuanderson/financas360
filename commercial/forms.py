@@ -1,5 +1,5 @@
 from django import forms
-from .models import Customer, Supplier, Service, Sale, BankAccount
+from .models import Customer, Supplier, Service, Sale, BankAccount, MonthlyGoal
 from core.models import ChartOfAccounts as Account
 from core.models import Transaction
 
@@ -151,3 +151,28 @@ class ExpenseForm(forms.ModelForm):
             )
             self.fields['account'].label = "Categoria de Despesa"
             self.fields['bank_account'].label = "Pagar com (Banco/Caixa)"
+
+# --- FORMULÁRIO DE META MENSAL ---         
+
+class MonthlyGoalForm(forms.ModelForm):
+
+    month = forms.DateField(
+        label="Mês de Referência",
+        widget=forms.DateInput(attrs={'type': 'month', 'class': 'form-control'}),
+        input_formats=['%Y-%m', '%Y-%m-%d']
+    )
+    class Meta:
+        model = MonthlyGoal
+        fields = ['account', 'month', 'target_amount']
+        widgets = {
+            'account': forms.Select(attrs={'class': 'form-select select2-widget'}),
+            'month': forms.DateInput(attrs={'type': 'month', 'class': 'form-control'}), # Input tipo Mês!
+            'target_amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        company_id = kwargs.pop('company_id', None)
+        super().__init__(*args, **kwargs)
+        if company_id:
+            # Mostra todas as contas (Receitas e Despesas)
+            self.fields['account'].queryset = Account.objects.filter(company_id=company_id)

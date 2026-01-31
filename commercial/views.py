@@ -4,13 +4,14 @@ from django.utils import timezone
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView, TemplateView
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, Q
 from django.db.models.functions import TruncMonth
 from dateutil.relativedelta import relativedelta
-from .models import Customer, Supplier, Service, Sale, BankAccount
-from .forms import CustomerForm, SupplierForm, ServiceForm, SaleForm, BankAccountForm, ExpenseForm
+from .models import Customer, Supplier, Service, Sale, BankAccount, MonthlyGoal
+from .forms import CustomerForm, SupplierForm, ServiceForm, SaleForm, BankAccountForm, ExpenseForm, MonthlyGoalForm
 from core.models import Company, Transaction
 import json
+from datetime import datetime
 
 # --- MIXIN DE SEGURANÇA ---
 class CompanyFilteredMixin:
@@ -368,3 +369,170 @@ class DashboardView(LoginRequiredMixin, CompanyFilteredMixin, TemplateView):
         })
         
         return context
+
+# --- DRE GERENCIAL (Report) ---
+
+class DREView(LoginRequiredMixin, CompanyFilteredMixin, TemplateView):
+    template_name = 'commercial/dre_report.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        company_id = self.kwargs['company_id']
+        
+        # Filtro de Data (Padrão: Mês Atual)
+        month_str = self.request.GET.get('month')
+        if month_str:
+            date_ref = datetime.strptime(month_str, '%Y-%m').date()
+        else:
+            date_ref = timezone.now().date().replace(day=1)
+
+        # Função auxiliar para somar por prefixo de código
+        def get_sum(prefix_list, type_filter=None):
+            # Cria filtro OR para múltiplos prefixos
+            query = Q()
+            for prefix in prefix_list:
+                query |= Q(account__code__startswith=prefix)
+            
+            filters = {
+                'company_id': company_id,
+                'status': 'PAID', # DRE é regime de CAIXA (o que realmente aconteceu)
+                'date__year': date_ref.year,
+                'date__month': date_ref.month
+            }
+            if type_filter:
+                filters['account__account_type'] = type_filter
+                
+            return Transaction.objects.filter(query, **filters).aggregate(Sum('amount'))['amount__sum'] or 0
+
+        # --- CÁLCULO DA DRE (Baseado nos seus Prints) ---
+
+        # 1. RECEITAS TOTAIS (Começam com 1)
+        gross_revenue = get_sum(['1.01', '1.03', '1.04']) # Operacional + Outras + Financeiras
+        deductions = get_sum(['1.02']) # Deduções/Impostos
+        net_revenue = gross_revenue - deductions
+
+        # 2. CUSTOS VARIÁVEIS (Começam com 2)
+        variable_costs = get_sum(['2'])
+        
+        # = MARGEM DE CONTRIBUIÇÃO (Lucro Bruto)
+        contribution_margin = net_revenue - variable_costs
+
+        # 3. DESPESAS FIXAS (Começam com 3)
+        fixed_expenses = get_sum(['3'])
+        
+        # = RESULTADO OPERACIONAL (EBITDA aproximado)
+        operating_result = contribution_margin - fixed_expenses
+
+        # 4. NÃO OPERACIONAL (Começam com 4)
+        # Vamos assumir que o grupo 4 inteiro reduz o lucro, exceto se for configurado diferente.
+        non_operating = get_sum(['4']) 
+
+        # = RESULTADO LÍQUIDO (Lucro/Prejuízo Final)
+        net_profit = operating_result - non_operating
+
+        # DETALHAMENTO PARA A TABELA (Drill-down)
+        # Pega todas as contas com movimento no mês para listar
+        details = Transaction.objects.filter(
+            company_id=company_id,
+            status='PAID',
+            date__year=date_ref.year,
+            date__month=date_ref.month
+        ).values('account__code', 'account__name', 'account__account_type').annotate(total=Sum('amount')).order_by('account__code')
+
+        context.update({
+            'current_month': date_ref.strftime('%Y-%m'),
+            
+            # Totais
+            'gross_revenue': gross_revenue,
+            'deductions': deductions,
+            'net_revenue': net_revenue,
+            'variable_costs': variable_costs,
+            'contribution_margin': contribution_margin,
+            'fixed_expenses': fixed_expenses,
+            'operating_result': operating_result,
+            'non_operating': non_operating,
+            'net_profit': net_profit,
+            
+            # Detalhes
+            'details': details
+        })
+
+        return context
+
+# --- QUADRO DE METAS ---
+
+class GoalsDashboardView(LoginRequiredMixin, CompanyFilteredMixin, ListView):
+    model = MonthlyGoal
+    template_name = 'commercial/goals_dashboard.html'
+    context_object_name = 'goals'
+
+    def get_queryset(self):
+        # Pega o mês da URL ou usa o mês atual
+        month_str = self.request.GET.get('month')
+        if month_str:
+            self.reference_date = datetime.strptime(month_str, '%Y-%m').date()
+        else:
+            self.reference_date = timezone.now().date().replace(day=1)
+            
+        return MonthlyGoal.objects.filter(
+            company_id=self.kwargs['company_id'],
+            month__year=self.reference_date.year,
+            month__month=self.reference_date.month
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        goals_data = []
+        
+        for goal in context['goals']:
+            realized = Transaction.objects.filter(
+                company_id=self.kwargs['company_id'],
+                account=goal.account,
+                date__year=self.reference_date.year,
+                date__month=self.reference_date.month,
+                status='PAID'
+            ).aggregate(Sum('amount'))['amount__sum'] or 0
+            
+            # Calcula Porcentagem
+            if goal.target_amount > 0:
+                percent = (realized / goal.target_amount * 100)
+            else:
+                percent = 0
+            
+            # Cálculo do Saldo/Diferença (Para não usar |sub no template)
+            difference = goal.target_amount - realized
+            
+            goals_data.append({
+                'name': goal.account.name,
+                'type': goal.account.account_type,
+                'target': goal.target_amount,
+                'realized': realized,
+                'percent': round(percent), # Arredonda aqui!
+                'difference': difference,  # Manda a diferença pronta
+                'id': goal.id
+            })
+            
+        context['goals_data'] = goals_data
+        context['current_month'] = self.reference_date.strftime('%Y-%m')
+        return context
+
+# View para Criar/Editar Meta
+class GoalCreateView(LoginRequiredMixin, CompanyFilteredMixin, CreateView):
+    model = MonthlyGoal
+    form_class = MonthlyGoalForm
+    template_name = 'commercial/goal_form.html'
+    
+    def form_valid(self, form):
+        form.instance.company_id = self.kwargs['company_id']
+        # Força o dia 1 para padronizar
+        form.instance.month = form.instance.month.replace(day=1)
+        return super().form_valid(form)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['company_id'] = self.kwargs['company_id']
+        return kwargs
+
+    def get_success_url(self):
+        return reverse_lazy('commercial:goals_dashboard', kwargs={'company_id': self.kwargs['company_id']})
