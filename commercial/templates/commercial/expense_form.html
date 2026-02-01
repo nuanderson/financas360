@@ -50,3 +50,26 @@
         </div>
     </div>
 {% endblock %}
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const supplierField = $('#id_supplier'); 
+        const categoryField = $('#id_account'); // O campo de destino (Categoria da Despesa)
+
+        supplierField.on('change', function() {
+            const supplierId = $(this).val();
+            if (!supplierId) return;
+
+            fetch(`{% url 'commercial:api_supplier_details' %}?supplier_id=${supplierId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.category_id) {
+                        categoryField.val(data.category_id);
+                        categoryField.trigger('change'); // Atualiza o visual do Select2
+                    }
+                });
+        });
+    });
+</script>
+{% endblock %}

@@ -22,6 +22,10 @@ urlpatterns = [
     # VENDAS
     path('empresa/<int:company_id>/vendas/', views.SaleListView.as_view(), name='sale_list'),
     path('empresa/<int:company_id>/vendas/novo/', views.SaleCreateView.as_view(), name='sale_create'),
+    # AÇÕES
+    path('empresa/<int:company_id>/vendas/<int:pk>/editar/', views.SaleUpdateView.as_view(), name='sale_edit'),
+    path('empresa/<int:company_id>/vendas/<int:pk>/confirmar/', views.sale_confirm, name='sale_confirm'),
+    path('empresa/<int:company_id>/vendas/<int:pk>/cancelar/', views.sale_cancel, name='sale_cancel'),
 
     # CONTAS BANCÁRIAS
     path('empresa/<int:company_id>/bancos/', views.BankAccountListView.as_view(), name='bank_account_list'),
@@ -29,14 +33,14 @@ urlpatterns = [
     path('empresa/<int:company_id>/bancos/<int:pk>/editar/', views.BankAccountUpdateView.as_view(), name='bank_account_update'),
 
     # FINANCEIRO - CONTAS A RECEBER
-    path('empresa/<int:company_id>/contas-a-receber/', views.ReceivableListView.as_view(), name='receivable_list'),
-    path('empresa/<int:company_id>/contas-a-receber/<int:pk>/baixar/', views.mark_as_paid, name='mark_as_paid'),
+    path('empresa/<int:company_id>/contas-a-receber/', views.AccountReceivableListView.as_view(), name='receivable_list'),
+    path('empresa/<int:company_id>/contas-a-receber/<int:pk>/toggle/', views.account_receivable_toggle, name='account_receivable_toggle'),
 
     # FINANCEIRO - CONTAS A PAGAR
-    path('empresa/<int:company_id>/contas-a-pagar/', views.PayableListView.as_view(), name='payable_list'),
+    path('empresa/<int:company_id>/contas-a-pagar/', views.AccountPayableListView.as_view(), name='payable_list'),
     path('empresa/<int:company_id>/contas-a-pagar/nova/', views.ExpenseCreateView.as_view(), name='expense_create'),
-    path('empresa/<int:company_id>/contas-a-pagar/<int:pk>/pagar/', views.mark_as_paid_expense, name='mark_as_paid_expense'),
-
+    path('empresa/<int:company_id>/contas-a-pagar/<int:pk>/toggle/', views.account_payable_toggle, name='account_payable_toggle'),
+    
     # EXTRATO (Adicione esta linha junto com os outros de banco)
     path('empresa/<int:company_id>/bancos/<int:pk>/extrato/', views.BankAccountDetailView.as_view(), name='bank_account_detail'),
 
@@ -49,4 +53,7 @@ urlpatterns = [
 
     # DRE GERENCIAL
     path('empresa/<int:company_id>/dre/', views.DREView.as_view(), name='dre_report'),
+
+    # API para buscar dados do fornecedor via AJAX
+    path('api/fornecedor-detalhes/', views.get_supplier_details, name='api_supplier_details'),
 ]

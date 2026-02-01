@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.utils import timezone
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView, TemplateView
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Sum, Count, Q
 from django.db.models.functions import TruncMonth
@@ -10,8 +10,10 @@ from dateutil.relativedelta import relativedelta
 from .models import Customer, Supplier, Service, Sale, BankAccount, MonthlyGoal
 from .forms import CustomerForm, SupplierForm, ServiceForm, SaleForm, BankAccountForm, ExpenseForm, MonthlyGoalForm
 from core.models import Company, Transaction
+from django.http import JsonResponse
 import json
-from datetime import datetime
+from datetime import datetime, date
+from dateutil.relativedelta import relativedelta
 
 # --- MIXIN DE SEGURANÇA ---
 class CompanyFilteredMixin:
@@ -116,7 +118,7 @@ class SaleListView(LoginRequiredMixin, CompanyFilteredMixin, ListView):
     model = Sale
     template_name = 'commercial/sale_list.html'
     context_object_name = 'sales'
-    ordering = ['-sale_date'] # Vendas mais recentes primeiro
+    ordering = ['-sale_date', '-id']
 
 class SaleCreateView(LoginRequiredMixin, CompanyFilteredMixin, CreateView):
     model = Sale
@@ -146,6 +148,83 @@ class SaleCreateView(LoginRequiredMixin, CompanyFilteredMixin, CreateView):
 
         return context
 
+# 1. EDITAR VENDA
+class SaleUpdateView(LoginRequiredMixin, CompanyFilteredMixin, UpdateView):
+    model = Sale
+    form_class = SaleForm
+    template_name = 'commercial/sale_form.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Editar Venda / Orçamento'
+        return context
+
+    def get_success_url(self):
+        return reverse_lazy('commercial:sale_list', kwargs={'company_id': self.kwargs['company_id']})
+
+# 2. FECHAR VENDA (Orçamento -> Confirmado)
+def sale_confirm(request, company_id, pk):
+    # Busca a venda garantindo que pertence à empresa atual
+    sale = get_object_or_404(Sale, pk=pk, company_id=company_id)
+    
+    # LÓGICA DE SEGURANÇA: Só executa se ainda não estiver confirmado
+    if sale.status != 'CONFIRMED':
+        
+        # 1. Muda o status para Fechado
+        sale.status = 'CONFIRMED'
+        sale.save()
+        
+        # 2. GERA O FINANCEIRO (CONTAS A RECEBER)
+        # Verifica se já gerou antes para não duplicar se o usuário clicar duas vezes
+        if not Transaction.objects.filter(sale_origin=sale).exists():
+            
+            # Calcula valor da parcela
+            if sale.installments > 0:
+                installment_value = sale.total_amount / sale.installments
+            else:
+                installment_value = sale.total_amount # Caso seja à vista/0 parcelas
+
+            for i in range(sale.installments or 1):
+                # Calcula vencimento (Data da venda + i meses)
+                due_date = sale.sale_date + relativedelta(months=i)
+                
+                # Cria a transação
+                Transaction.objects.create(
+                    company=sale.company,
+                    # Tenta pegar a categoria do serviço. Se não tiver, precisa tratar!
+                    # Assumindo que seu model Service tem um campo 'category' ou 'account'
+                    account=sale.service.category if hasattr(sale.service, 'category') else None, 
+                    amount=installment_value,
+                    date=due_date,
+                    description=f"Venda {sale.id} - {sale.customer.name} ({i+1}/{sale.installments})",
+                    status='PENDING', # A Receber
+                    type='I',         # Income (Receita)
+                    sale_origin=sale, # Link para poder cancelar depois
+                    created_by=request.user
+                )
+        
+        messages.success(request, f"Venda confirmada e financeiro gerado!")
+    else:
+        messages.info(request, "Esta venda já está fechada.")
+    
+    return redirect('commercial:sale_list', company_id=company_id)
+
+# 3. CANCELAR VENDA
+def sale_cancel(request, company_id, pk):
+    # Busca a venda
+    sale = get_object_or_404(Sale, pk=pk, company_id=company_id)
+    
+    # 1. Remove as transações financeiras geradas por essa venda (se houver)
+    # Isso evita "lixo" no financeiro
+    Transaction.objects.filter(sale_origin=sale).delete()
+    
+    # 2. Exclui a venda permanentemente
+    sale.delete()
+    
+    messages.success(request, "Venda/Orçamento excluído com sucesso.")
+    
+    return redirect('commercial:sale_list', company_id=company_id)
+
 # --- CONTAS BANCÁRIAS (TESOURARIA) ---
 
 class BankAccountListView(LoginRequiredMixin, CompanyFilteredMixin, ListView):
@@ -171,35 +250,66 @@ class BankAccountUpdateView(LoginRequiredMixin, CompanyFilteredMixin, UpdateView
 
 # --- FINANCEIRO: CONTAS A RECEBER ---
 
-class ReceivableListView(LoginRequiredMixin, CompanyFilteredMixin, ListView):
-    model = Transaction
-    template_name = 'commercial/receivable_list.html'
-    context_object_name = 'transactions'
-    
-    def get_queryset(self):
-        # Filtra: Da empresa ativa + Tipo Receita + Status Pendente
-        return Transaction.objects.filter(
-            company_id=self.kwargs['company_id'],
-            account__account_type='R',              # Receita
-            status='PENDING'       # Apenas o que não foi pago
-        ).order_by('due_date')     # Ordena por vencimento (mais urgentes primeiro)
+# --- FINANCEIRO: CONTAS A RECEBER (ATUALIZADO) ---
 
-# --- AÇÃO: DAR BAIXA (RECEBER) ---
-def mark_as_paid(request, company_id, pk):
+class AccountReceivableListView(LoginRequiredMixin, CompanyFilteredMixin, ListView):
+    model = Transaction
+    template_name = 'commercial/receivable_list.html' # <--- AJUSTADO PARA O SEU NOME DE ARQUIVO
+    context_object_name = 'transactions'
+
+    def get_queryset(self):
+        company_id = self.kwargs['company_id']
+        
+        # 1. Filtra receitas ('R') desta empresa
+        qs = Transaction.objects.filter(company_id=company_id, account__account_type='R')
+        
+        # 2. FILTRO DE COMPETÊNCIA (MÊS)
+        month_str = self.request.GET.get('month')
+        
+        if month_str:
+            try:
+                year, month = month_str.split('-')
+                qs = qs.filter(date__year=year, date__month=month)
+            except ValueError:
+                pass 
+        else:
+            # Padrão: Mês atual
+            today = date.today()
+            qs = qs.filter(date__year=today.year, date__month=today.month)
+            
+        return qs.order_by('date')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['current_month'] = self.request.GET.get('month', date.today().strftime('%Y-%m'))
+        return context
+
+# --- AÇÃO: ALTERAR STATUS (RECEBER / DESFAZER) ---
+def account_receivable_toggle(request, company_id, pk):
     """
-    Muda o status da transação para PAGO e define a data de pagamento como HOJE.
+    Alterna o status: Se Pendente -> Vira Pago. Se Pago -> Vira Pendente.
     """
     transaction = get_object_or_404(Transaction, pk=pk, company_id=company_id)
     
-    # Atualiza os dados
-    transaction.status = 'PAID'
-    transaction.payment_date = timezone.now().date()
+    if transaction.status == 'PENDING':
+        # BAIXA (Receber)
+        transaction.status = 'PAID'
+        transaction.payment_date = timezone.now().date()
+        messages.success(request, f"Recebimento de '{transaction.description}' confirmado!")
+    else:
+        # ESTORNO (Desfazer)
+        transaction.status = 'PENDING'
+        transaction.payment_date = None # Limpa a data de pagamento
+        messages.warning(request, f"Recebimento de '{transaction.description}' cancelado. Voltou para pendente.")
+        
     transaction.save()
     
-    messages.success(request, f"Recebimento de {transaction.description} confirmado com sucesso!")
+    # Redireciona mantendo o filtro de mês para o usuário não perder a tela que estava
+    # Se a transação for de "2026-02", o filtro volta para "2026-02"
+    month_param = f"?month={transaction.date.strftime('%Y-%m')}"
     
-    # Volta para a lista de contas a receber
-    return redirect('commercial:receivable_list', company_id=company_id)
+    # Usa o 'reverse' para montar a URL com o parametro GET
+    return redirect(reverse('commercial:receivable_list', kwargs={'company_id': company_id}) + month_param)
 
 # --- FINANCEIRO: CONTAS A PAGAR ---
 
@@ -224,29 +334,59 @@ class ExpenseCreateView(LoginRequiredMixin, CompanyFilteredMixin, CreateView):
     def get_success_url(self):
         return reverse_lazy('commercial:payable_list', kwargs={'company_id': self.kwargs['company_id']})
 
-class PayableListView(LoginRequiredMixin, CompanyFilteredMixin, ListView):
+# 1. LISTA COM FILTRO DE MÊS (Substitui PayableListView antiga)
+class AccountPayableListView(LoginRequiredMixin, CompanyFilteredMixin, ListView):
     model = Transaction
-    template_name = 'commercial/payable_list.html'
+    template_name = 'commercial/payable_list.html' # Nome do seu arquivo template
     context_object_name = 'transactions'
-    
-    def get_queryset(self):
-        return Transaction.objects.filter(
-            company_id=self.kwargs['company_id'],
-            # Filtra onde a conta é de DESPESA ('D')
-            account__account_type='D',
-            status='PENDING'
-        ).order_by('due_date')
 
-# --- AÇÃO: PAGAR CONTA ---
-def mark_as_paid_expense(request, company_id, pk):
+    def get_queryset(self):
+        company_id = self.kwargs['company_id']
+        
+        # Filtra DESPESAS ('D') desta empresa
+        qs = Transaction.objects.filter(company_id=company_id, account__account_type='D')
+        
+        # FILTRO DE COMPETÊNCIA (MÊS)
+        month_str = self.request.GET.get('month')
+        
+        if month_str:
+            try:
+                year, month = month_str.split('-')
+                qs = qs.filter(date__year=year, date__month=month)
+            except ValueError:
+                pass 
+        else:
+            # Padrão: Mês atual
+            today = date.today()
+            qs = qs.filter(date__year=today.year, date__month=today.month)
+            
+        return qs.order_by('date')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['current_month'] = self.request.GET.get('month', date.today().strftime('%Y-%m'))
+        return context
+
+# 2. AÇÃO DE PAGAR / DESFAZER (Substitui mark_as_paid_expense antiga)
+def account_payable_toggle(request, company_id, pk):
     transaction = get_object_or_404(Transaction, pk=pk, company_id=company_id)
     
-    transaction.status = 'PAID'
-    transaction.payment_date = timezone.now().date()
+    if transaction.status == 'PENDING':
+        # PAGAR
+        transaction.status = 'PAID'
+        transaction.payment_date = timezone.now().date()
+        messages.success(request, f"Conta '{transaction.description}' paga com sucesso!")
+    else:
+        # ESTORNO (Desfazer)
+        transaction.status = 'PENDING'
+        transaction.payment_date = None
+        messages.warning(request, f"Pagamento de '{transaction.description}' cancelado. Voltou para pendente.")
+        
     transaction.save()
     
-    messages.success(request, f"Conta '{transaction.description}' paga com sucesso!")
-    return redirect('commercial:payable_list', company_id=company_id)
+    # Redireciona mantendo o filtro de mês
+    month_param = f"?month={transaction.date.strftime('%Y-%m')}"
+    return redirect(reverse('commercial:payable_list', kwargs={'company_id': company_id}) + month_param)
 
 # --- EXTRATO BANCÁRIO ---
 
@@ -536,3 +676,22 @@ class GoalCreateView(LoginRequiredMixin, CompanyFilteredMixin, CreateView):
 
     def get_success_url(self):
         return reverse_lazy('commercial:goals_dashboard', kwargs={'company_id': self.kwargs['company_id']})
+
+
+def get_supplier_details(request):
+    supplier_id = request.GET.get('supplier_id')
+    data = {'category_id': None}
+    
+    if supplier_id:
+        try:
+            supplier = Supplier.objects.get(id=supplier_id)
+            
+            # --- CORREÇÃO AQUI ---
+            # Usamos 'default_account' conforme seu Model
+            if supplier.default_account: 
+                data['category_id'] = supplier.default_account.id
+                
+        except Supplier.DoesNotExist:
+            pass
+            
+    return JsonResponse(data)

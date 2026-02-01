@@ -59,6 +59,11 @@
                            href="{% url 'commercial:sale_create' active_company.id %}"> <i class="bi bi-cart-check"></i> Nova Venda
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'commercial:sale_list' active_company.id %}">
+                            <i class="bi bi-receipt"></i> Contratos & Vendas
+                        </a>
+                    </li>
                     <small class="text-white-50 ps-3 mt-3 d-block fw-bold"
                            style="font-size: 0.75rem">FINANCEIRO</small>
                     <li class="nav-item">
