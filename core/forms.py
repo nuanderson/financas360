@@ -27,11 +27,11 @@ class ChartOfAccountsForm(forms.ModelForm):
         instance = self.instance
 
         # 1. Validação para bloquear códigos reservados
-        if code in ['1', '2']:
-            # Levanta um erro de validação que será mostrado para o usuário
-            raise forms.ValidationError(
-                f"O código '{code}' é reservado para as contas principais do sistema e não pode ser cadastrado."
-            )
+        #if code in ['1', '2']:
+        #    # Levanta um erro de validação que será mostrado para o usuário
+        #    raise forms.ValidationError(
+        #        f"O código '{code}' é reservado para as contas principais do sistema e não pode ser cadastrado."
+        #    )
 
         # 2. Validação para bloquear códigos duplicados
         if code:

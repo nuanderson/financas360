@@ -519,86 +519,106 @@ class DREView(LoginRequiredMixin, CompanyFilteredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         company_id = self.kwargs['company_id']
         
-        # Filtro de Data (Padrão: Mês Atual)
+        # 1. Determina as Datas (Mês Atual e Mês Anterior)
         month_str = self.request.GET.get('month')
         if month_str:
             date_ref = datetime.strptime(month_str, '%Y-%m').date()
         else:
             date_ref = timezone.now().date().replace(day=1)
-
-        # Função auxiliar para somar por prefixo de código
-        def get_sum(prefix_list, type_filter=None):
-            # Cria filtro OR para múltiplos prefixos
-            query = Q()
-            for prefix in prefix_list:
-                query |= Q(account__code__startswith=prefix)
             
-            filters = {
-                'company_id': company_id,
-                'status': 'PAID', # DRE é regime de CAIXA (o que realmente aconteceu)
-                'date__year': date_ref.year,
-                'date__month': date_ref.month
-            }
-            if type_filter:
-                filters['account__account_type'] = type_filter
+        # Data do mês anterior
+        prev_date_ref = date_ref - relativedelta(months=1)
+
+        # 2. Função Auxiliar para Calcular os Números de um Mês Específico
+        def calculate_dre_numbers(target_date):
+            # Helper para somar transações PAGAS
+            def get_sum(prefix_list, type_filter=None):
+                query = Q()
+                for prefix in prefix_list:
+                    query |= Q(account__code__startswith=prefix)
                 
-            return Transaction.objects.filter(query, **filters).aggregate(Sum('amount'))['amount__sum'] or 0
+                filters = {
+                    'company_id': company_id,
+                    'status': 'PAID',
+                    # --- CORREÇÃO AQUI: REGIME DE CAIXA REAL ---
+                    # Filtramos pela data do PAGAMENTO, não pela competência
+                    'payment_date__year': target_date.year,
+                    'payment_date__month': target_date.month
+                }
+                if type_filter:
+                    filters['account__account_type'] = type_filter
+                    
+                return Transaction.objects.filter(query, **filters).aggregate(Sum('amount'))['amount__sum'] or 0
 
-        # --- CÁLCULO DA DRE (Baseado nos seus Prints) ---
+            # Cálculos da DRE
+            gross_revenue = get_sum(['1.01', '1.03', '1.04']) 
+            deductions = get_sum(['1.02']) 
+            net_revenue = gross_revenue - deductions
+            variable_costs = get_sum(['2'])
+            contribution_margin = net_revenue - variable_costs
+            fixed_expenses = get_sum(['3'])
+            operating_result = contribution_margin - fixed_expenses
+            non_operating = get_sum(['4'])
+            net_profit = operating_result - non_operating
 
-        # 1. RECEITAS TOTAIS (Começam com 1)
-        gross_revenue = get_sum(['1.01', '1.03', '1.04']) # Operacional + Outras + Financeiras
-        deductions = get_sum(['1.02']) # Deduções/Impostos
-        net_revenue = gross_revenue - deductions
+            return {
+                'gross_revenue': gross_revenue,
+                'deductions': deductions,
+                'net_revenue': net_revenue,
+                'variable_costs': variable_costs,
+                'contribution_margin': contribution_margin,
+                'fixed_expenses': fixed_expenses,
+                'operating_result': operating_result,
+                'non_operating': non_operating,
+                'net_profit': net_profit,
+            }
 
-        # 2. CUSTOS VARIÁVEIS (Começam com 2)
-        variable_costs = get_sum(['2'])
-        
-        # = MARGEM DE CONTRIBUIÇÃO (Lucro Bruto)
-        contribution_margin = net_revenue - variable_costs
+        # 3. Executa o cálculo para os dois períodos
+        current = calculate_dre_numbers(date_ref)
+        previous = calculate_dre_numbers(prev_date_ref)
 
-        # 3. DESPESAS FIXAS (Começam com 3)
-        fixed_expenses = get_sum(['3'])
-        
-        # = RESULTADO OPERACIONAL (EBITDA aproximado)
-        operating_result = contribution_margin - fixed_expenses
+        # 4. Calcula as Variâncias (%)
+        variances = {}
+        for key, value in current.items():
+            prev_val = previous.get(key, 0)
+            if prev_val and prev_val != 0:
+                diff = value - prev_val
+                percent = (diff / abs(prev_val)) * 100
+            else:
+                percent = 0
+            
+            variances[key] = percent
 
-        # 4. NÃO OPERACIONAL (Começam com 4)
-        # Vamos assumir que o grupo 4 inteiro reduz o lucro, exceto se for configurado diferente.
-        non_operating = get_sum(['4']) 
-
-        # = RESULTADO LÍQUIDO (Lucro/Prejuízo Final)
-        net_profit = operating_result - non_operating
-
-        # DETALHAMENTO PARA A TABELA (Drill-down)
-        # Pega todas as contas com movimento no mês para listar
+        # 5. Detalhes para o Drill-down (Corrigido para Payment Date também)
         details = Transaction.objects.filter(
             company_id=company_id,
             status='PAID',
-            date__year=date_ref.year,
-            date__month=date_ref.month
+            # --- CORREÇÃO AQUI TAMBÉM ---
+            payment_date__year=date_ref.year,
+            payment_date__month=date_ref.month
         ).values('account__code', 'account__name', 'account__account_type').annotate(total=Sum('amount')).order_by('account__code')
 
+        # Atualiza contexto
         context.update({
             'current_month': date_ref.strftime('%Y-%m'),
+            'prev_month_label': prev_date_ref.strftime('%b/%Y'),
+            'details': details,
             
-            # Totais
-            'gross_revenue': gross_revenue,
-            'deductions': deductions,
-            'net_revenue': net_revenue,
-            'variable_costs': variable_costs,
-            'contribution_margin': contribution_margin,
-            'fixed_expenses': fixed_expenses,
-            'operating_result': operating_result,
-            'non_operating': non_operating,
-            'net_profit': net_profit,
+            # Dados Atuais
+            **current,
             
-            # Detalhes
-            'details': details
+            # Variâncias
+            'var_gross_revenue': variances['gross_revenue'],
+            'var_net_revenue': variances['net_revenue'],
+            'var_variable_costs': variances['variable_costs'],
+            'var_contribution_margin': variances['contribution_margin'],
+            'var_fixed_expenses': variances['fixed_expenses'],
+            'var_operating_result': variances['operating_result'],
+            'var_non_operating': variances['non_operating'],
+            'var_net_profit': variances['net_profit'],
         })
 
         return context
-
 # --- QUADRO DE METAS ---
 
 class GoalsDashboardView(LoginRequiredMixin, CompanyFilteredMixin, ListView):

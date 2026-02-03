@@ -60,7 +60,8 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white" href="{% url 'commercial:sale_list' active_company.id %}">
+                        <a class="nav-link text-white"
+                           href="{% url 'commercial:sale_list' active_company.id %}">
                             <i class="bi bi-receipt"></i> Contratos & Vendas
                         </a>
                     </li>
@@ -78,7 +79,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{% url 'core:transaction_list' %}">
-                            <i class="bi bi-bank"></i> Caixa Realizado
+                            <i class="bi bi-bank"></i> Lançamentos Financeiros
                         </a>
                     </li>
                     <li class="nav-item">
@@ -88,13 +89,14 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white" href="{% url 'commercial:dre_report' active_company.id %}">
+                        <a class="nav-link text-white"
+                           href="{% url 'commercial:dre_report' active_company.id %}">
                             <i class="bi bi-file-earmark-spreadsheet"></i> DRE Gerencial
                         </a>
                     </li>
-
                     <li class="nav-item">
-                        <a class="nav-link text-white-50" href="{% url 'commercial:goals_dashboard' active_company.id %}">
+                        <a class="nav-link text-white-50"
+                           href="{% url 'commercial:goals_dashboard' active_company.id %}">
                             <i class="bi bi-bullseye"></i> Metas e Limites
                         </a>
                     </li>
