@@ -1,5 +1,6 @@
 from django import forms
-from .models import Especialidade, Turno, UnidadeAssistencia, OrcamentoMensalPlantao, LancamentoPlantao
+from datetime import datetime
+from .models import Especialidade, Turno, UnidadeAssistencia, OrcamentoMensalPlantao, LancamentoPlantao, TransporteLancamento
 
 class EspecialidadeForm(forms.ModelForm):
     class Meta:
@@ -48,3 +49,37 @@ class LancamentoPlantaoForm(forms.ModelForm):
             self.fields['especialidade'].queryset = Especialidade.objects.filter(company=company)
             self.fields['turno'].queryset = Turno.objects.filter(company=company)
             self.fields['unidade_assistencia'].queryset = UnidadeAssistencia.objects.filter(company=company)
+
+
+
+class TransporteForm(forms.ModelForm):
+    # TRUQUE: Definimos como CharField para aceitar a string "2025-01" sem erro imediato
+    competencia = forms.CharField(
+        widget=forms.TextInput(attrs={'type': 'month', 'class': 'form-control'}),
+        label="Mês de Referência"
+    )
+
+    class Meta:
+        model = TransporteLancamento
+        fields = ['competencia', 'descricao', 'quantidade_viagens', 'valor_viagem']
+        widgets = {
+            'descricao': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Ambulância UTI'}),
+            'quantidade_viagens': forms.NumberInput(attrs={'class': 'form-control'}),
+            'valor_viagem': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        }
+
+    def clean_competencia(self):
+        """
+        Recebe a string 'YYYY-MM' do input type='month' e transforma em data 'YYYY-MM-01'
+        """
+        data_str = self.cleaned_data['competencia']
+        
+        if not data_str:
+            raise forms.ValidationError("A data é obrigatória.")
+
+        try:
+            # Pega "2025-01", adiciona "-01" e converte para data real
+            data_formatada = datetime.strptime(f"{data_str}-01", "%Y-%m-%d").date()
+            return data_formatada
+        except ValueError:
+            raise forms.ValidationError("Formato de data inválido.")

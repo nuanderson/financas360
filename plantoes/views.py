@@ -2,7 +2,9 @@ import locale
 import calendar
 from django.core.mail import send_mail
 from decimal import Decimal
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Avg, FloatField
+from django.db.models.functions import Cast
+from django.utils import timezone
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import login_required
@@ -11,10 +13,11 @@ from django.views.generic import CreateView, UpdateView, DeleteView, ListView
 from django.contrib import messages
 from django.forms import modelformset_factory, formset_factory
 from datetime import datetime, date
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
 
-from .models import Especialidade, Turno, UnidadeAssistencia, OrcamentoMensalPlantao, LancamentoPlantao
-from .forms import EspecialidadeForm, TurnoForm, UnidadeAssistenciaForm, OrcamentoMensalPlantaoForm, LancamentoPlantaoForm
+from .models import Especialidade, Turno, UnidadeAssistencia, OrcamentoMensalPlantao, LancamentoPlantao, TransporteLancamento
+from .forms import EspecialidadeForm, TurnoForm, UnidadeAssistenciaForm, OrcamentoMensalPlantaoForm, LancamentoPlantaoForm, TransporteForm
 
 from core.models import Company
 
@@ -290,3 +293,89 @@ def plantoes_report_view(request):
         'months': ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
     }
     return render(request, 'plantoes/plantoes_report.html', context)
+
+
+@login_required
+def transporte_list_view(request):
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        return redirect('core:company_list') 
+    
+    # 1. Listagem Geral
+    lancamentos = TransporteLancamento.objects.filter(
+        company_id=active_company_id
+    ).order_by('-competencia')
+
+    # 2. Dados de Data
+    today = timezone.now().date()
+    current_year = today.year
+    last_year = current_year - 1
+    
+    # --- CÁLCULO DAS MÉDIAS (12 MESES) ---
+    last_12_months_date = today.replace(day=1) - relativedelta(months=12)
+    historico_recente = lancamentos.filter(competencia__gte=last_12_months_date)
+    
+    media_quantidade = 0
+    media_valor_total = 0
+    
+    if historico_recente.exists():
+        avg_qty = historico_recente.aggregate(media=Avg('quantidade_viagens'))['media']
+        media_quantidade = round(avg_qty) if avg_qty else 0
+        
+        avg_val = historico_recente.annotate(
+            total_linha=F('quantidade_viagens') * F('valor_viagem')
+        ).aggregate(media=Avg('total_linha'))['media']
+        media_valor_total = avg_val if avg_val else 0
+
+    # --- NOVO: CÁLCULO DOS TOTAIS ANUAIS ---
+    
+    # Total Ano Atual (Ex: 2026)
+    total_ano_atual = lancamentos.filter(competencia__year=current_year).annotate(
+        total_linha=F('quantidade_viagens') * F('valor_viagem')
+    ).aggregate(soma=Sum('total_linha'))['soma'] or 0
+
+    # Total Ano Anterior (Ex: 2025)
+    total_ano_anterior = lancamentos.filter(competencia__year=last_year).annotate(
+        total_linha=F('quantidade_viagens') * F('valor_viagem')
+    ).aggregate(soma=Sum('total_linha'))['soma'] or 0
+
+    context = {
+        'lancamentos': lancamentos,
+        'media_quantidade': media_quantidade,
+        'media_valor_total': media_valor_total,
+        # Novas variáveis
+        'total_ano_atual': total_ano_atual,
+        'total_ano_anterior': total_ano_anterior,
+        'current_year': current_year,
+        'last_year': last_year,
+    }
+    return render(request, 'plantoes/transporte_list.html', context)
+
+# CRUD Básico
+class TransporteCreateView(LoginRequiredMixin, CreateView):
+    model = TransporteLancamento
+    form_class = TransporteForm
+    template_name = 'plantoes/generic_form.html'
+    success_url = reverse_lazy('plantoes:transporte_list')
+
+    def form_valid(self, form):
+        active_company_id = self.request.session.get('active_company_id')
+        form.instance.company_id = active_company_id
+        # Força dia 1 para padronizar competência
+        form.instance.competencia = form.instance.competencia.replace(day=1)
+        return super().form_valid(form)
+
+class TransporteUpdateView(LoginRequiredMixin, UpdateView):
+    model = TransporteLancamento
+    form_class = TransporteForm
+    template_name = 'plantoes/generic_form.html'
+    success_url = reverse_lazy('plantoes:transporte_list')
+    
+    def get_queryset(self):
+        # Segurança: só edita da empresa ativa
+        return super().get_queryset().filter(company_id=self.request.session.get('active_company_id'))
+
+class TransporteDeleteView(LoginRequiredMixin, DeleteView):
+    model = TransporteLancamento
+    template_name = 'plantoes/generic_confirm_delete.html'
+    success_url = reverse_lazy('plantoes:transporte_list')

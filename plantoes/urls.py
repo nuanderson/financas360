@@ -33,4 +33,10 @@ urlpatterns = [
 
     # Relatórios de Plantões
     path('quadro-de-plantoes/', views.plantoes_report_view, name='plantoes_report'),
+
+    # EQUIPE DE TRANSPORTE
+    path('transporte/', views.transporte_list_view, name='transporte_list'),
+    path('transporte/novo/', views.TransporteCreateView.as_view(), name='transporte_create'),
+    path('transporte/<int:pk>/editar/', views.TransporteUpdateView.as_view(), name='transporte_update'),
+    path('transporte/<int:pk>/excluir/', views.TransporteDeleteView.as_view(), name='transporte_delete'),
 ]

@@ -82,3 +82,27 @@ class LancamentoPlantao(models.Model):
     def get_total_value(self):
         """ Calcula o valor total do lançamento (quantidade * valor unitário). """
         return self.quantidade * self.valor_unitario
+
+
+class TransporteLancamento(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("Empresa"))
+    competencia = models.DateField(_("Mês de Referência")) # Dia 1 do mês
+    
+    quantidade_viagens = models.PositiveIntegerField(_("Qtd. Viagens"))
+    valor_viagem = models.DecimalField(_("Valor por Viagem"), max_digits=10, decimal_places=2)
+    
+    # Campo opcional para descrição (ex: 'Ambulância UTI', 'Transferência Simples')
+    descricao = models.CharField(_("Descrição"), max_length=150, blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("Lançamento de Transporte")
+        verbose_name_plural = _("Lançamentos de Transporte")
+        ordering = ['-competencia'] # Mais recentes primeiro
+        unique_together = ('company', 'competencia', 'descricao') # Evita duplicidade no mesmo mês/tipo
+
+    def __str__(self):
+        return f"Transporte {self.competencia.strftime('%m/%Y')} - {self.quantidade_viagens} viagens"
+
+    @property
+    def total(self):
+        return self.quantidade_viagens * self.valor_viagem

@@ -106,6 +106,64 @@
                             <i class="bi bi-list-check"></i> <small>Plano de Contas</small>
                         </a>
                     </li>
+                {% elif active_company.management_type == 'Pública' %}
+                    <li class="nav-item">
+                        <a class="nav-link text-white"
+                           href="{% url 'core:dashboard' active_company.id %}">
+                            <i class="bi bi-graph-up"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white"
+                           href="{% url 'core:chart_of_accounts_list' active_company.id %}">
+                            <i class="bi bi-journal-text"></i> Plano de Contas
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'core:transaction_list' %}">
+                            <i class="bi bi-arrow-left-right"></i> Lançamentos
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'core:dre_report' %}">
+                            <i class="bi bi-file-earmark-bar-graph"></i> Relatórios
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'core:budget_dashboard' %}">
+                            <i class="bi bi-table"></i> Quadro Orçamentário
+                        </a>
+                    </li>
+                    <small class="text-white-50 ps-3 mt-3 d-block fw-bold"
+                           style="font-size: 0.75rem">GESTÃO DE ESCALAS</small>
+                    <li class="nav-item">
+                        <a class="nav-link text-white collapsed"
+                           href="#"
+                           data-bs-toggle="collapse"
+                           data-bs-target="#collapsePlantoes"
+                           aria-expanded="false"
+                           aria-controls="collapsePlantoes">
+                            <i class="bi bi-hospital-fill"></i>
+                            <span>Plantões & Serviços</span>
+                        </a>
+                        <div id="collapsePlantoes"
+                             class="collapse"
+                             aria-labelledby="headingPlantoes"
+                             data-parent=".nav">
+                            <div class="bg-white py-2 collapse-inner rounded ms-3 me-3 mt-1">
+                                <h6 class="collapse-header small text-muted px-3 text-uppercase fw-bold mb-2">Serviços Médicos</h6>
+                                <a class="collapse-item d-block px-3 py-1 text-dark text-decoration-none small"
+                                   href="{% url 'plantoes:transporte_list' %}">
+                                    <i class="bi bi-truck me-1"></i> Eq. Transporte
+                                </a>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{% url 'core:note_list' %}">
+                            <i class="bi bi-sticky"></i> Bloco de Notas
+                        </a>
+                    </li>
                 {% else %}
                     <li class="nav-item">
                         <a class="nav-link text-white"
@@ -146,9 +204,9 @@
     <div>
         <hr />
         <div class="text-center mb-2">
-            <i class="bi bi-person-circle"></i>
-            <span class="d-block">Logado como:</span>
-            <strong>{{ user.get_full_name|default:user.username }}</strong>
+            <i class="bi bi-person-circle text-white"></i>
+            <span class="d-block text-white">Logado como:</span>
+            <strong class="text-white">{{ user.get_full_name|default:user.username }}</strong>
         </div>
         <form action="{% url 'core:logout' %}" method="post" class="d-grid">
             {% csrf_token %}
