@@ -39,4 +39,20 @@ urlpatterns = [
     path('transporte/novo/', views.TransporteCreateView.as_view(), name='transporte_create'),
     path('transporte/<int:pk>/editar/', views.TransporteUpdateView.as_view(), name='transporte_update'),
     path('transporte/<int:pk>/excluir/', views.TransporteDeleteView.as_view(), name='transporte_delete'),
+
+    # URGÊNCIA E EMERGÊNCIA - CONFIGURAÇÕES
+    path('urgencia/configuracoes/', views.urgencia_settings_view, name='urgencia_settings'),
+    
+    # Setores
+    path('urgencia/setor/novo/', views.UrgenciaSetorCreateView.as_view(), name='urgencia_setor_create'),
+    path('urgencia/setor/<int:pk>/editar/', views.UrgenciaSetorUpdateView.as_view(), name='urgencia_setor_update'),
+    path('urgencia/setor/<int:pk>/excluir/', views.UrgenciaSetorDeleteView.as_view(), name='urgencia_setor_delete'),
+
+    # Configurações (Gabaritos)
+    path('urgencia/gabarito/novo/', views.UrgenciaConfigCreateView.as_view(), name='urgencia_config_create'),
+    path('urgencia/gabarito/<int:pk>/editar/', views.UrgenciaConfigUpdateView.as_view(), name='urgencia_config_update'),
+    path('urgencia/gabarito/<int:pk>/excluir/', views.UrgenciaConfigDeleteView.as_view(), name='urgencia_config_delete'),
+
+    # URGÊNCIA - FOLHA MENSAL
+    path('urgencia/folha/', views.urgencia_folha_view, name='urgencia_folha'),
 ]

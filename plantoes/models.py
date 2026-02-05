@@ -106,3 +106,93 @@ class TransporteLancamento(models.Model):
     @property
     def total(self):
         return self.quantidade_viagens * self.valor_viagem
+
+
+# MÓDULO: URGÊNCIA E EMERGÊNCIA
+
+class UrgenciaSetor(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("Empresa"))
+    name = models.CharField(_("Nome do Setor"), max_length=150, help_text="Ex: Eixo Vermelho, Sala Amarela, UTI")
+
+    class Meta:
+        verbose_name = _("Setor de Urgência")
+        verbose_name_plural = _("Setores de Urgência")
+        unique_together = ('company', 'name')
+
+    def __str__(self):
+        return self.name
+
+
+class UrgenciaConfiguracao(models.Model):
+    """
+    O 'GABARITO'. Define a estrutura padrão de escala para um setor.
+    Isso evita que o usuário tenha que digitar valores e quantidades todo mês.
+    """
+    setor = models.ForeignKey(UrgenciaSetor, on_delete=models.CASCADE, related_name='configuracoes')
+    cargo = models.CharField(_("Cargo/Função"), max_length=100, default="Clínico Geral")
+    
+    # Estrutura DIA
+    qtd_dia = models.PositiveIntegerField(_("Qtd. Plantonistas (Dia)"), default=0)
+    valor_plantao_dia = models.DecimalField(_("Valor Plantão (Dia)"), max_digits=10, decimal_places=2, default=0)
+    
+    # Estrutura NOITE
+    qtd_noite = models.PositiveIntegerField(_("Qtd. Plantonistas (Noite)"), default=0)
+    valor_plantao_noite = models.DecimalField(_("Valor Plantão (Noite)"), max_digits=10, decimal_places=2, default=0)
+    
+    class Meta:
+        verbose_name = _("Configuração de Escala (Urgência)")
+        verbose_name_plural = _("Configurações de Escala")
+
+    def __str__(self):
+        return f"Config {self.setor.name} - {self.cargo}"
+
+
+class UrgenciaLancamento(models.Model):
+    """
+    O REALIZADO. É uma cópia da configuração para um mês específico.
+    Aqui os valores ficam 'congelados' para o histórico não mudar se a configuração mudar depois.
+    """
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    competencia = models.DateField(_("Mês de Referência")) # Dia 1 do mês
+    setor_nome = models.CharField(_("Setor"), max_length=150) # Cópia do nome para histórico
+    cargo_nome = models.CharField(_("Cargo"), max_length=100) # Cópia do nome para histórico
+
+    # Dados copiados da Configuração (mas editáveis neste mês específico)
+    qtd_dia = models.PositiveIntegerField(_("Qtd. Dia"), default=0)
+    valor_plantao_dia = models.DecimalField(_("Valor Dia"), max_digits=10, decimal_places=2, default=0)
+    
+    qtd_noite = models.PositiveIntegerField(_("Qtd. Noite"), default=0)
+    valor_plantao_noite = models.DecimalField(_("Valor Noite"), max_digits=10, decimal_places=2, default=0)
+    
+    dias_mes = models.DecimalField(_("Dias no Mês"), max_digits=5, decimal_places=2, default=30)
+
+    # Valores Variáveis (Digitados mensalmente conforme sua planilha Excel)
+    valor_pega_plantao = models.DecimalField(_("Valor Pega Plantão"), max_digits=12, decimal_places=2, default=0)
+    valor_efetivo = models.DecimalField(_("Valor Efetivo"), max_digits=12, decimal_places=2, default=0)
+    observacoes = models.TextField(_("Obs"), blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("Lançamento Urgência")
+        verbose_name_plural = _("Lançamentos Urgência")
+        ordering = ['setor_nome', 'cargo_nome']
+
+    @property
+    def total_escala_calculada(self):
+        """
+        Reproduz a fórmula da planilha:
+        (Qtd Dia * Valor Dia * Dias) + (Qtd Noite * Valor Noite * Dias)
+        """
+        custo_dia = self.qtd_dia * self.valor_plantao_dia * self.dias_mes
+        custo_noite = self.qtd_noite * self.valor_plantao_noite * self.dias_mes
+        return custo_dia + custo_noite
+
+    @property
+    def total_realizado(self):
+        """
+        O que de fato foi gasto: Efetivo + Pega Plantão
+        Se esses campos estiverem zerados, assume o calculado.
+        """
+        soma_real = self.valor_pega_plantao + self.valor_efetivo
+        if soma_real > 0:
+            return soma_real
+        return self.total_escala_calculada

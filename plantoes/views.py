@@ -16,8 +16,8 @@ from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 
-from .models import Especialidade, Turno, UnidadeAssistencia, OrcamentoMensalPlantao, LancamentoPlantao, TransporteLancamento
-from .forms import EspecialidadeForm, TurnoForm, UnidadeAssistenciaForm, OrcamentoMensalPlantaoForm, LancamentoPlantaoForm, TransporteForm
+from .models import Especialidade, Turno, UnidadeAssistencia, OrcamentoMensalPlantao, LancamentoPlantao, TransporteLancamento, UrgenciaConfiguracao, UrgenciaSetor, UrgenciaLancamento
+from .forms import EspecialidadeForm, TurnoForm, UnidadeAssistenciaForm, OrcamentoMensalPlantaoForm, LancamentoPlantaoForm, TransporteForm, UrgenciaConfiguracaoForm, UrgenciaSetorForm, UrgenciaLancamentoForm
 
 from core.models import Company
 
@@ -379,3 +379,230 @@ class TransporteDeleteView(LoginRequiredMixin, DeleteView):
     model = TransporteLancamento
     template_name = 'plantoes/generic_confirm_delete.html'
     success_url = reverse_lazy('plantoes:transporte_list')
+
+# --- CONFIGURAÇÕES DE URGÊNCIA (GABARITO) ---
+
+@login_required
+def urgencia_settings_view(request):
+    """
+    Tela principal que lista os Setores e suas Configurações de Escala.
+    """
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        return redirect('core:company_list')
+    
+    # Busca os setores da empresa
+    setores = UrgenciaSetor.objects.filter(company_id=active_company_id).prefetch_related('configuracoes')
+    
+    context = {
+        'setores': setores,
+    }
+    return render(request, 'plantoes/urgencia_settings.html', context)
+
+
+# CRUD SETOR
+class UrgenciaSetorCreateView(LoginRequiredMixin, CreateView):
+    model = UrgenciaSetor
+    form_class = UrgenciaSetorForm
+    template_name = 'plantoes/generic_form.html'
+    success_url = reverse_lazy('plantoes:urgencia_settings')
+
+    def form_valid(self, form):
+        form.instance.company_id = self.request.session.get('active_company_id')
+        return super().form_valid(form)
+
+class UrgenciaSetorUpdateView(LoginRequiredMixin, UpdateView):
+    model = UrgenciaSetor
+    form_class = UrgenciaSetorForm
+    template_name = 'plantoes/generic_form.html'
+    success_url = reverse_lazy('plantoes:urgencia_settings')
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(company_id=self.request.session.get('active_company_id'))
+    
+class UrgenciaSetorDeleteView(LoginRequiredMixin, DeleteView):
+    model = UrgenciaSetor
+    template_name = 'plantoes/generic_confirm_delete.html'
+    success_url = reverse_lazy('plantoes:urgencia_settings')
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(company_id=self.request.session.get('active_company_id'))
+
+
+# CRUD CONFIGURAÇÃO (GABARITO)
+class UrgenciaConfigCreateView(LoginRequiredMixin, CreateView):
+    model = UrgenciaConfiguracao
+    form_class = UrgenciaConfiguracaoForm
+    template_name = 'plantoes/urgencia_config_form.html' # Template específico para ficar bonito
+    success_url = reverse_lazy('plantoes:urgencia_settings')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        active_company_id = self.request.session.get('active_company_id')
+        # Passa a empresa para o form filtrar os setores
+        kwargs['company'] = get_object_or_404(Company, pk=active_company_id)
+        return kwargs
+
+class UrgenciaConfigUpdateView(LoginRequiredMixin, UpdateView):
+    model = UrgenciaConfiguracao
+    form_class = UrgenciaConfiguracaoForm
+    template_name = 'plantoes/urgencia_config_form.html'
+    success_url = reverse_lazy('plantoes:urgencia_settings')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        active_company_id = self.request.session.get('active_company_id')
+        kwargs['company'] = get_object_or_404(Company, pk=active_company_id)
+        return kwargs
+        
+class UrgenciaConfigDeleteView(LoginRequiredMixin, DeleteView):
+    model = UrgenciaConfiguracao
+    template_name = 'plantoes/generic_confirm_delete.html'
+    success_url = reverse_lazy('plantoes:urgencia_settings')
+
+# LANÇAMENTO MENSAL (FOLHA DE URGÊNCIA)
+
+@login_required
+def urgencia_folha_view(request):
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        return redirect('core:company_list')
+
+    # 1. Filtros de Data (Mês/Ano)
+    today = timezone.now().date()
+    month_str = request.GET.get('month', today.strftime('%Y-%m')) 
+    
+    try:
+        # Cria a data de competência (Dia 1 do mês selecionado)
+        competencia = datetime.strptime(f"{month_str}-01", "%Y-%m-%d").date()
+    except ValueError:
+        competencia = today.replace(day=1)
+
+    # === CÁLCULO INTELIGENTE DE DIAS DO MÊS ===
+    # A função monthrange retorna uma tupla (dia_semana, numero_dias).
+    # Usamos o índice [1] para pegar quantos dias tem naquele mês/ano específico.
+    _, dias_no_mes_atual = calendar.monthrange(competencia.year, competencia.month)
+
+    # 2. Busca os lançamentos existentes para essa competência
+    queryset = UrgenciaLancamento.objects.filter(
+        company_id=active_company_id,
+        competencia=competencia
+    ).order_by('setor_nome', 'cargo_nome')
+
+    # =========================================================
+    # AÇÃO 1: SINCRONIZAR VALORES (ATUALIZAR COM A MATRIZ)
+    # =========================================================
+    if request.method == 'POST' and 'atualizar_valores' in request.POST:
+        # Busca todas as configurações atuais da empresa
+        configs = UrgenciaConfiguracao.objects.filter(setor__company_id=active_company_id)
+        
+        # Mapa para busca rápida
+        config_map = {
+            (c.setor.name, c.cargo): c for c in configs
+        }
+        
+        count_updated = 0
+        for lancamento in queryset:
+            chave = (lancamento.setor_nome, lancamento.cargo_nome)
+            config = config_map.get(chave)
+            
+            if config:
+                # Atualiza valores fixos
+                lancamento.qtd_dia = config.qtd_dia
+                lancamento.valor_plantao_dia = config.valor_plantao_dia
+                lancamento.qtd_noite = config.qtd_noite
+                lancamento.valor_plantao_noite = config.valor_plantao_noite
+                
+                # ATUALIZAÇÃO INTELIGENTE:
+                # Atualiza o campo "Dias Mês" para o calendário real (ex: Fev = 28)
+                lancamento.dias_mes = dias_no_mes_atual
+                
+                lancamento.save()
+                count_updated += 1
+        
+        if count_updated > 0:
+            messages.success(request, f"{count_updated} linhas atualizadas com valores da Matriz e ajustadas para {dias_no_mes_atual} dias!")
+        else:
+            messages.info(request, "Nenhuma alteração encontrada na Matriz para os itens desta folha.")
+            
+        return redirect(f"{request.path}?month={month_str}")
+
+    # =========================================================
+    # AÇÃO 2: GERAR FOLHA (CRIAR NOVOS LANÇAMENTOS)
+    # =========================================================
+    if request.method == 'POST' and 'gerar_folha' in request.POST:
+        configs = UrgenciaConfiguracao.objects.filter(setor__company_id=active_company_id)
+        
+        if not configs.exists():
+            messages.error(request, "Nenhuma configuração encontrada. Cadastre a Matriz primeiro!")
+        else:
+            novos_lancamentos = []
+            for cfg in configs:
+                # Verifica duplicidade
+                if not queryset.filter(setor_nome=cfg.setor.name, cargo_nome=cfg.cargo).exists():
+                    novos_lancamentos.append(UrgenciaLancamento(
+                        company_id=active_company_id,
+                        competencia=competencia,
+                        setor_nome=cfg.setor.name,
+                        cargo_nome=cfg.cargo,
+                        qtd_dia=cfg.qtd_dia,
+                        valor_plantao_dia=cfg.valor_plantao_dia,
+                        qtd_noite=cfg.qtd_noite,
+                        valor_plantao_noite=cfg.valor_plantao_noite,
+                        
+                        # AQUI ESTÁ A MUDANÇA:
+                        # Usa o cálculo do calendário (dias_no_mes_atual)
+                        dias_mes=dias_no_mes_atual
+                    ))
+            
+            if novos_lancamentos:
+                UrgenciaLancamento.objects.bulk_create(novos_lancamentos)
+                messages.success(request, f"Folha gerada com base em {dias_no_mes_atual} dias!")
+            else:
+                messages.info(request, "A folha já estava completa.")
+            
+            return redirect(f"{request.path}?month={month_str}")
+
+    # =========================================================
+    # AÇÃO 3: SALVAR EDIÇÕES DO GRID (FORMSET)
+    # =========================================================
+    LancamentoFormSet = modelformset_factory(
+        UrgenciaLancamento,
+        form=UrgenciaLancamentoForm,
+        extra=0,
+    )
+
+    if request.method == 'POST' and 'salvar_grid' in request.POST:
+        formset = LancamentoFormSet(request.POST, queryset=queryset)
+        if formset.is_valid():
+            formset.save()
+            messages.success(request, "Valores atualizados com sucesso!")
+            return redirect(f"{request.path}?month={month_str}")
+        else:
+            messages.error(request, "Erro ao salvar. Verifique os valores digitados.")
+    else:
+        formset = LancamentoFormSet(queryset=queryset)
+
+    # 3. CÁLCULOS PARA OS CARDS (DASHBOARD)
+    total_efetivo = sum(item.valor_efetivo for item in queryset)
+    total_pega_plantao = sum(item.valor_pega_plantao for item in queryset)
+    
+    # Total Realizado agora é a soma simples dessas duas origens
+    total_realizado = sum(item.total_realizado for item in queryset)
+
+    # Se você quiser manter o "Orçado/Calculado" apenas para comparação visual (sem exibir no card), pode manter:
+    # total_calculado = sum(item.total_escala_calculada for item in queryset)
+
+    context = {
+        'formset': formset,
+        'month_str': month_str,
+        'competencia': competencia,
+        
+        # Novas Variáveis de Contexto
+        'total_realizado': total_realizado,
+        'total_efetivo': total_efetivo,
+        'total_pega_plantao': total_pega_plantao,
+        
+        'tem_dados': queryset.exists(),
+    }
+    return render(request, 'plantoes/urgencia_folha.html', context)

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Configuração de Escalas (Urgência){% endblock %}
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">Matriz de Urgência e Emergência</h1>
+            <p class="text-muted small mb-0">Defina aqui os setores e a estrutura padrão das equipes.</p>
+        </div>
+        <div>
+            <a href="{% url 'plantoes:urgencia_folha' %}"
+               class="btn btn-success me-2 shadow-sm">
+                <i class="bi bi-calendar-check me-2"></i> Ver Folha Mensal
+            </a>
+            <a href="{% url 'plantoes:urgencia_setor_create' %}"
+               class="btn btn-outline-primary me-2">
+                <i class="bi bi-folder-plus"></i> Novo Setor
+            </a>
+            <a href="{% url 'plantoes:urgencia_config_create' %}"
+               class="btn btn-primary">
+                <i class="bi bi-person-plus-fill"></i> Adicionar Cargo/Escala
+            </a>
+        </div>
+    </div>
+    <div class="row">
+        {% for setor in setores %}
+            <div class="col-12 mb-4">
+                <div class="card shadow border-left-info">
+                    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between bg-white">
+                        <h6 class="m-0 font-weight-bold text-primary text-uppercase">
+                            <i class="bi bi-hospital me-2"></i> {{ setor.name }}
+                        </h6>
+                        <div class="dropdown no-arrow">
+                            <a class="dropdown-toggle"
+                               href="#"
+                               role="button"
+                               id="dropdownMenuLink{{ setor.id }}"
+                               data-bs-toggle="dropdown"
+                               aria-haspopup="true"
+                               aria-expanded="false">
+                                <i class="bi bi-three-dots-vertical text-gray-400"></i>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end shadow animated--fade-in"
+                                 aria-labelledby="dropdownMenuLink{{ setor.id }}">
+                                <div class="dropdown-header">Opções do Setor:</div>
+                                <a class="dropdown-item"
+                                   href="{% url 'plantoes:urgencia_setor_update' setor.id %}">Editar Nome</a>
+                                <a class="dropdown-item text-danger"
+                                   href="{% url 'plantoes:urgencia_setor_delete' setor.id %}">Excluir Setor</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light small text-uppercase">
+                                    <tr>
+                                        <th class="ps-4">Cargo / Função</th>
+                                        <th class="text-center">Qtd Dia</th>
+                                        <th class="text-end">Valor Dia</th>
+                                        <th class="text-center border-start">Qtd Noite</th>
+                                        <th class="text-end">Valor Noite</th>
+                                        <th class="text-end pe-4 border-start">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for config in setor.configuracoes.all %}
+                                        <tr>
+                                            <td class="ps-4 fw-bold text-dark">{{ config.cargo }}</td>
+                                            <td class="text-center">{{ config.qtd_dia }}</td>
+                                            <td class="text-end text-muted">R$ {{ config.valor_plantao_dia|intcomma }}</td>
+                                            <td class="text-center border-start">{{ config.qtd_noite }}</td>
+                                            <td class="text-end text-muted">R$ {{ config.valor_plantao_noite|intcomma }}</td>
+                                            <td class="text-end pe-4 border-start">
+                                                <a href="{% url 'plantoes:urgencia_config_update' config.id %}"
+                                                   class="text-primary me-2"
+                                                   title="Editar">
+                                                    <i class="bi bi-pencil-square"></i>
+                                                </a>
+                                                <a href="{% url 'plantoes:urgencia_config_delete' config.id %}"
+                                                   class="text-danger"
+                                                   title="Excluir">
+                                                    <i class="bi bi-trash"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4 text-muted small">
+                                                <em>Nenhuma escala configurada para este setor ainda.</em>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-12 text-center py-5">
+                <i class="bi bi-layout-text-window-reverse display-1 text-gray-300"></i>
+                <p class="mt-3 text-gray-500">Nenhum setor cadastrado. Comece criando um Setor (ex: Eixo Vermelho).</p>
+                <a href="{% url 'plantoes:urgencia_setor_create' %}"
+                   class="btn btn-primary mt-2">Criar Primeiro Setor</a>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}
