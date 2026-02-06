@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load humanize %}
 {% load crispy_forms_tags %}
-{% block title %}Folha de Urgência (Controladoria){% endblock %}
+{% block title %}Folha de Cirurgia (Controladoria){% endblock %}
 {% block content %}
     <style>
     /* Remove setas do input number */
@@ -13,19 +13,17 @@
     input[type=number] {
         -moz-appearance: textfield;
     }
-    
-    /* Estilo para linha selecionada */
     .table-hover tbody tr:hover td, .table-hover tbody tr:hover th {
         background-color: #f8f9fc;
     }
     </style>
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="h3 mb-0 text-gray-800">Folha de Urgência e Emergência</h1>
+            <h1 class="h3 mb-0 text-gray-800">Folha de Cirurgia Geral</h1>
             <p class="text-muted small mb-0">Gestão Orçamentária e Escalas</p>
         </div>
         <div class="d-flex align-items-center">
-            <a href="{% url 'plantoes:urgencia_settings' %}"
+            <a href="{% url 'plantoes:cirurgia_settings' %}"
                class="btn btn-primary shadow-sm me-3">
                 <i class="bi bi-arrow-left me-2"></i> Voltar para Matriz
             </a>
@@ -48,6 +46,7 @@
                         <div class="col me-2">
                             <div class="text-xs fw-bold text-primary text-uppercase mb-1">Orçamento Previsto (Meta)</div>
                             <div class="h4 mb-0 fw-bold text-gray-800">R$ {{ total_orcado|floatformat:2|intcomma }}</div>
+                            <div class="small text-muted mt-1">Baseado na Matriz</div>
                         </div>
                         <div class="col-auto">
                             <i class="bi bi-calculator display-6 text-gray-300"></i>
@@ -64,8 +63,8 @@
                             <div class="text-xs fw-bold text-warning text-uppercase mb-1">Custo Realizado (Execução)</div>
                             <div class="h4 mb-0 fw-bold text-gray-800">R$ {{ total_realizado|floatformat:2|intcomma }}</div>
                             <div class="small text-muted mt-1">
-                                <span class="text-info fw-bold">Valor Efetivo: R${{ total_efetivo|floatformat:0|intcomma }}</span> +
-                                <span class="text-warning fw-bold">Valor Pega Plantão: R${{ total_pega_plantao|floatformat:0|intcomma }}</span>
+                                <span class="text-info fw-bold">Ef: {{ total_efetivo|floatformat:0|intcomma }}</span> +
+                                <span class="text-warning fw-bold">PP: {{ total_pega_plantao|floatformat:0|intcomma }}</span>
                             </div>
                         </div>
                         <div class="col-auto">
@@ -122,7 +121,7 @@
             {{ formset.management_form }}
             <div class="card shadow mb-4">
                 <div class="card-header py-3 d-flex justify-content-between align-items-center bg-white">
-                    <h6 class="m-0 font-weight-bold text-primary">Detalhamento e Controladoria</h6>
+                    <h6 class="m-0 font-weight-bold text-primary">Detalhamento e Controladoria (Cirurgia)</h6>
                     <div>
                         <button type="submit"
                                 name="atualizar_valores"
@@ -218,7 +217,7 @@
         <div class="row mt-4">
             <div class="col-12">
                 <h5 class="text-gray-800 border-bottom pb-2 mb-3">
-                    <i class="bi bi-list-check me-2"></i>Observações Registradas nesta Competência
+                    <i class="bi bi-list-check me-2"></i>Observações Registradas
                 </h5>
             </div>
             {% for form in formset %}
@@ -241,12 +240,7 @@
                         </div>
                     </div>
                 {% endif %}
-            {% empty %}
             {% endfor %}
-            <div class="col-12 text-muted small fst-italic ps-3 empty-obs-msg"
-                 style="display: none">
-                Nenhuma observação registrada. Clique no ícone "+" na tabela para adicionar.
-            </div>
         </div>
     {% endif %}
     <div class="modal fade" id="obsModal" tabindex="-1" aria-hidden="true">
@@ -268,7 +262,7 @@
                         <textarea class="form-control"
                                   id="modalObsText"
                                   rows="4"
-                                  placeholder="Digite aqui o motivo da alteração de valor ou detalhe do plantão..."></textarea>
+                                  placeholder="Detalhes..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -287,35 +281,24 @@
 
     function openObsModal(inputId, setorNome) {
         currentInputId = inputId;
-        // Pega o valor atual do input hidden
         let currentVal = document.getElementById(inputId).value;
-        
-        // Preenche o modal
         document.getElementById('modalObsText').value = currentVal;
         document.getElementById('modalSetorName').textContent = setorNome;
-        
-        // Abre o modal
         var myModal = new bootstrap.Modal(document.getElementById('obsModal'));
         myModal.show();
     }
 
     function saveObsFromModal() {
         if (currentInputId) {
-            // Pega o valor digitado
             let newVal = document.getElementById('modalObsText').value;
-            
-            // Joga para o input hidden da tabela
             document.getElementById(currentInputId).value = newVal;
             
-            // Fecha modal
             var myModalEl = document.getElementById('obsModal');
             var modal = bootstrap.Modal.getInstance(myModalEl);
             modal.hide();
 
-            // Atualiza o ícone do botão visualmente para dar feedback
-            // (Opcional: Busca o botão pai do input e muda a classe)
             let inputEl = document.getElementById(currentInputId);
-            let btnEl = inputEl.nextElementSibling; // O botão está logo depois do input hidden
+            let btnEl = inputEl.nextElementSibling;
             
             if (newVal.trim() !== "") {
                 btnEl.classList.remove('btn-outline-secondary');
@@ -328,13 +311,5 @@
             }
         }
     }
-    
-    // Script simples para esconder a msg de "nenhuma obs" se tiver obs
-    document.addEventListener("DOMContentLoaded", function() {
-        let obsCards = document.querySelectorAll('.border-left-info');
-        if (obsCards.length === 0) {
-            document.querySelector('.empty-obs-msg').style.display = 'block';
-        }
-    });
     </script>
 {% endblock %}

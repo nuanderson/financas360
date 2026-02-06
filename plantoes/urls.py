@@ -55,4 +55,24 @@ urlpatterns = [
 
     # URGÊNCIA - FOLHA MENSAL
     path('urgencia/folha/', views.urgencia_folha_view, name='urgencia_folha'),
+
+    # ==========================================
+    # CIRURGIA GERAL
+    # ==========================================
+    
+    # 1. Configurações (Matriz)
+    path('cirurgia/configuracoes/', views.cirurgia_settings_view, name='cirurgia_settings'),
+    
+    # Setores
+    path('cirurgia/setor/novo/', views.CirurgiaSetorCreateView.as_view(), name='cirurgia_setor_create'),
+    path('cirurgia/setor/<int:pk>/editar/', views.CirurgiaSetorUpdateView.as_view(), name='cirurgia_setor_update'),
+    path('cirurgia/setor/<int:pk>/excluir/', views.CirurgiaSetorDeleteView.as_view(), name='cirurgia_setor_delete'),
+
+    # Cargos/Gabarito
+    path('cirurgia/gabarito/novo/', views.CirurgiaConfigCreateView.as_view(), name='cirurgia_config_create'),
+    path('cirurgia/gabarito/<int:pk>/editar/', views.CirurgiaConfigUpdateView.as_view(), name='cirurgia_config_update'),
+    path('cirurgia/gabarito/<int:pk>/excluir/', views.CirurgiaConfigDeleteView.as_view(), name='cirurgia_config_delete'),
+
+    # 2. Folha Mensal
+    path('cirurgia/folha/', views.cirurgia_folha_view, name='cirurgia_folha'),
 ]

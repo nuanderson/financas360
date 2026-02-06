@@ -1,6 +1,6 @@
 from django import forms
 from datetime import datetime
-from .models import Especialidade, Turno, UnidadeAssistencia, OrcamentoMensalPlantao, LancamentoPlantao, TransporteLancamento, UrgenciaConfiguracao, UrgenciaSetor, UrgenciaLancamento
+from .models import Especialidade, Turno, UnidadeAssistencia, OrcamentoMensalPlantao, LancamentoPlantao, TransporteLancamento, UrgenciaConfiguracao, UrgenciaSetor, UrgenciaLancamento, CirurgiaConfiguracao, CirurgiaLancamento, CirurgiaSetor
 
 class EspecialidadeForm(forms.ModelForm):
     class Meta:
@@ -127,4 +127,45 @@ class UrgenciaLancamentoForm(forms.ModelForm):
             'valor_pega_plantao': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end', 'step': '0.01'}),
             'valor_efetivo': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end', 'step': '0.01'}),
             'observacoes': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Obs...'}),
+        }
+
+# --- FORMS CIRURGIA GERAL ---
+
+class CirurgiaSetorForm(forms.ModelForm):
+    class Meta:
+        model = CirurgiaSetor
+        fields = ['name']
+        labels = {'name': 'Nome do Setor (ex: Cirurgia Geral Eletiva)'}
+
+class CirurgiaConfiguracaoForm(forms.ModelForm):
+    class Meta:
+        model = CirurgiaConfiguracao
+        # Lembre-se: removemos dias_base_mensal
+        fields = ['setor', 'cargo', 'qtd_dia', 'valor_plantao_dia', 'qtd_noite', 'valor_plantao_noite']
+        widgets = {
+            'setor': forms.Select(attrs={'class': 'form-select'}),
+            'cargo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Cirurgião, Anestesista'}),
+            
+            'qtd_dia': forms.NumberInput(attrs={'class': 'form-control'}),
+            'valor_plantao_dia': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            
+            'qtd_noite': forms.NumberInput(attrs={'class': 'form-control'}),
+            'valor_plantao_noite': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        company = kwargs.pop('company', None)
+        super().__init__(*args, **kwargs)
+        if company:
+            self.fields['setor'].queryset = CirurgiaSetor.objects.filter(company=company)
+
+class CirurgiaLancamentoForm(forms.ModelForm):
+    class Meta:
+        model = CirurgiaLancamento
+        fields = ['dias_mes', 'valor_pega_plantao', 'valor_efetivo', 'observacoes']
+        widgets = {
+            'dias_mes': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'style': 'width: 70px;'}),
+            'valor_pega_plantao': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end', 'step': '0.01'}),
+            'valor_efetivo': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end', 'step': '0.01'}),
+            'observacoes': forms.TextInput(attrs={'class': 'form-control form-control-sm'}), 
         }

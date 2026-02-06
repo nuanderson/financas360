@@ -186,13 +186,140 @@ class UrgenciaLancamento(models.Model):
         custo_noite = self.qtd_noite * self.valor_plantao_noite * self.dias_mes
         return custo_dia + custo_noite
 
+
+    @property
+    def custo_real_soma(self):
+        """
+        Soma pura do que foi digitado nos inputs.
+        """
+        return self.valor_pega_plantao + self.valor_efetivo
+
     @property
     def total_realizado(self):
         """
-        O que de fato foi gasto: Efetivo + Pega Plantão
-        Se esses campos estiverem zerados, assume o calculado.
+        Mantemos essa lógica para exibição visual do 'Custo Final':
+        Se não digitou nada (0), assume-se que o custo será igual ao orçado (Previsão).
+        Se digitou algo, assume-se a soma real.
         """
-        soma_real = self.valor_pega_plantao + self.valor_efetivo
-        if soma_real > 0:
-            return soma_real
-        return self.total_escala_calculada
+        soma = self.custo_real_soma
+        if soma == 0:
+            return self.total_escala_calculada
+        return soma
+
+    @property
+    def saldo_orcamentario(self):
+        """
+        A LÓGICA DE CONTROLADORIA:
+        Orçado (Teto) - Realizado (Execução).
+        
+        Se inputs forem zero: Consideramos que o Saldo é 0 (está na meta),
+        para não gerar uma 'falsa economia' antes de preencher.
+        """
+        if self.custo_real_soma == 0:
+            return 0
+            
+        # Ex: Orçado 100 - Real 120 = -20 (Prejuízo/Vermelho)
+        return self.total_escala_calculada - self.custo_real_soma
+
+# ==========================================
+# MÓDULO: CIRURGIA GERAL
+# ==========================================
+
+class CirurgiaSetor(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("Empresa"))
+    name = models.CharField(_("Nome do Setor"), max_length=150, help_text="Ex: Cirurgia Geral Eletiva, Ortopedia Cirúrgica")
+
+    class Meta:
+        verbose_name = _("Setor de Cirurgia")
+        verbose_name_plural = _("Setores de Cirurgia")
+        unique_together = ('company', 'name')
+
+    def __str__(self):
+        return self.name
+
+
+class CirurgiaConfiguracao(models.Model):
+    """
+    O 'GABARITO' da Cirurgia.
+    """
+    setor = models.ForeignKey(CirurgiaSetor, on_delete=models.CASCADE, related_name='configuracoes')
+    cargo = models.CharField(_("Cargo/Função"), max_length=100, default="Cirurgião")
+    
+    # Estrutura DIA
+    qtd_dia = models.PositiveIntegerField(_("Qtd. Plantonistas (Dia)"), default=0)
+    valor_plantao_dia = models.DecimalField(_("Valor Plantão (Dia)"), max_digits=10, decimal_places=2, default=0)
+    
+    # Estrutura NOITE
+    qtd_noite = models.PositiveIntegerField(_("Qtd. Plantonistas (Noite)"), default=0)
+    valor_plantao_noite = models.DecimalField(_("Valor Plantão (Noite)"), max_digits=10, decimal_places=2, default=0)
+    
+    # OBS: O campo dias_base_mensal foi removido aqui também, seguindo a melhoria que fizemos.
+
+    class Meta:
+        verbose_name = _("Configuração de Escala (Cirurgia)")
+        verbose_name_plural = _("Configurações de Escala (Cirurgia)")
+
+    def __str__(self):
+        return f"Config {self.setor.name} - {self.cargo}"
+
+
+class CirurgiaLancamento(models.Model):
+    """
+    A FOLHA MENSAL da Cirurgia.
+    """
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    competencia = models.DateField(_("Mês de Referência"))
+    setor_nome = models.CharField(_("Setor"), max_length=150)
+    cargo_nome = models.CharField(_("Cargo"), max_length=100)
+
+    # Dados copiados da Configuração (Valores de Referência)
+    qtd_dia = models.PositiveIntegerField(_("Qtd. Dia"), default=0)
+    valor_plantao_dia = models.DecimalField(_("Valor Dia"), max_digits=10, decimal_places=2, default=0)
+    
+    qtd_noite = models.PositiveIntegerField(_("Qtd. Noite"), default=0)
+    valor_plantao_noite = models.DecimalField(_("Valor Noite"), max_digits=10, decimal_places=2, default=0)
+    
+    dias_mes = models.DecimalField(_("Dias no Mês"), max_digits=5, decimal_places=2, default=30)
+
+    # Valores Variáveis (Controladoria)
+    valor_pega_plantao = models.DecimalField(_("Valor Pega Plantão"), max_digits=12, decimal_places=2, default=0)
+    valor_efetivo = models.DecimalField(_("Valor Efetivo"), max_digits=12, decimal_places=2, default=0)
+    observacoes = models.TextField(_("Obs"), blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("Lançamento Cirurgia")
+        verbose_name_plural = _("Lançamentos Cirurgia")
+        ordering = ['setor_nome', 'cargo_nome']
+
+    @property
+    def total_escala_calculada(self):
+        """META (Orçamento)"""
+        custo_dia = self.qtd_dia * self.valor_plantao_dia * self.dias_mes
+        custo_noite = self.qtd_noite * self.valor_plantao_noite * self.dias_mes
+        return custo_dia + custo_noite
+
+    @property
+    def custo_real_soma(self):
+        """Soma pura dos inputs"""
+        return self.valor_pega_plantao + self.valor_efetivo
+
+    @property
+    def total_realizado(self):
+        """
+        Visualização Inteligente:
+        Se inputs == 0, mostra a Meta.
+        Se inputs > 0, mostra a Realidade.
+        """
+        soma = self.custo_real_soma
+        if soma == 0:
+            return self.total_escala_calculada
+        return soma
+
+    @property
+    def saldo_orcamentario(self):
+        """
+        CONTROLADORIA: Meta - Realizado
+        """
+        if self.custo_real_soma == 0:
+            return 0
+        return self.total_escala_calculada - self.custo_real_soma

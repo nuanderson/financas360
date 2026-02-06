@@ -16,8 +16,8 @@ from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 
-from .models import Especialidade, Turno, UnidadeAssistencia, OrcamentoMensalPlantao, LancamentoPlantao, TransporteLancamento, UrgenciaConfiguracao, UrgenciaSetor, UrgenciaLancamento
-from .forms import EspecialidadeForm, TurnoForm, UnidadeAssistenciaForm, OrcamentoMensalPlantaoForm, LancamentoPlantaoForm, TransporteForm, UrgenciaConfiguracaoForm, UrgenciaSetorForm, UrgenciaLancamentoForm
+from .models import Especialidade, Turno, UnidadeAssistencia, OrcamentoMensalPlantao, LancamentoPlantao, TransporteLancamento, UrgenciaConfiguracao, UrgenciaSetor, UrgenciaLancamento, CirurgiaConfiguracao, CirurgiaLancamento, CirurgiaSetor 
+from .forms import EspecialidadeForm, TurnoForm, UnidadeAssistenciaForm, OrcamentoMensalPlantaoForm, LancamentoPlantaoForm, TransporteForm, UrgenciaConfiguracaoForm, UrgenciaSetorForm, UrgenciaLancamentoForm, CirurgiaConfiguracaoForm, CirurgiaSetorForm, CirurgiaLancamentoForm
 
 from core.models import Company
 
@@ -587,22 +587,204 @@ def urgencia_folha_view(request):
     total_efetivo = sum(item.valor_efetivo for item in queryset)
     total_pega_plantao = sum(item.valor_pega_plantao for item in queryset)
     
-    # Total Realizado agora é a soma simples dessas duas origens
+    # Total Orçado (A soma de todas as metas)
+    total_orcado = sum(item.total_escala_calculada for item in queryset)
+    
+    # Total Realizado (Com a lógica inteligente de fallback)
     total_realizado = sum(item.total_realizado for item in queryset)
-
-    # Se você quiser manter o "Orçado/Calculado" apenas para comparação visual (sem exibir no card), pode manter:
-    # total_calculado = sum(item.total_escala_calculada for item in queryset)
+    
+    # Total do Saldo (A soma das diferenças)
+    # Se negativo = Estourou o orçamento geral
+    total_saldo = sum(item.saldo_orcamentario for item in queryset)
 
     context = {
         'formset': formset,
         'month_str': month_str,
         'competencia': competencia,
         
-        # Novas Variáveis de Contexto
+        # Variáveis para os Cards
+        'total_orcado': total_orcado,       # Novo: Para saber a Meta Global
         'total_realizado': total_realizado,
+        'total_saldo': total_saldo,         # Novo: O Veredito
+        
         'total_efetivo': total_efetivo,
         'total_pega_plantao': total_pega_plantao,
         
         'tem_dados': queryset.exists(),
     }
     return render(request, 'plantoes/urgencia_folha.html', context)
+
+# ==========================================
+# MÓDULO: CIRURGIA GERAL
+# ==========================================
+
+# --- 1. CONFIGURAÇÕES (MATRIZ) ---
+
+@login_required
+def cirurgia_settings_view(request):
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        return redirect('core:company_list')
+    
+    setores = CirurgiaSetor.objects.filter(company_id=active_company_id).prefetch_related('configuracoes')
+    
+    context = {'setores': setores}
+    return render(request, 'plantoes/cirurgia_settings.html', context)
+
+# CRUD SETOR
+class CirurgiaSetorCreateView(LoginRequiredMixin, CreateView):
+    model = CirurgiaSetor
+    form_class = CirurgiaSetorForm
+    template_name = 'plantoes/generic_form.html'
+    success_url = reverse_lazy('plantoes:cirurgia_settings')
+
+    def form_valid(self, form):
+        form.instance.company_id = self.request.session.get('active_company_id')
+        return super().form_valid(form)
+
+class CirurgiaSetorUpdateView(LoginRequiredMixin, UpdateView):
+    model = CirurgiaSetor
+    form_class = CirurgiaSetorForm
+    template_name = 'plantoes/generic_form.html'
+    success_url = reverse_lazy('plantoes:cirurgia_settings')
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(company_id=self.request.session.get('active_company_id'))
+
+class CirurgiaSetorDeleteView(LoginRequiredMixin, DeleteView):
+    model = CirurgiaSetor
+    template_name = 'plantoes/generic_confirm_delete.html'
+    success_url = reverse_lazy('plantoes:cirurgia_settings')
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(company_id=self.request.session.get('active_company_id'))
+
+# CRUD CONFIGURAÇÃO (GABARITO)
+class CirurgiaConfigCreateView(LoginRequiredMixin, CreateView):
+    model = CirurgiaConfiguracao
+    form_class = CirurgiaConfiguracaoForm
+    template_name = 'plantoes/cirurgia_config_form.html'
+    success_url = reverse_lazy('plantoes:cirurgia_settings')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['company'] = get_object_or_404(Company, pk=self.request.session.get('active_company_id'))
+        return kwargs
+
+class CirurgiaConfigUpdateView(LoginRequiredMixin, UpdateView):
+    model = CirurgiaConfiguracao
+    form_class = CirurgiaConfiguracaoForm
+    template_name = 'plantoes/cirurgia_config_form.html'
+    success_url = reverse_lazy('plantoes:cirurgia_settings')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['company'] = get_object_or_404(Company, pk=self.request.session.get('active_company_id'))
+        return kwargs
+        
+class CirurgiaConfigDeleteView(LoginRequiredMixin, DeleteView):
+    model = CirurgiaConfiguracao
+    template_name = 'plantoes/generic_confirm_delete.html'
+    success_url = reverse_lazy('plantoes:cirurgia_settings')
+
+
+# --- 2. FOLHA MENSAL (CONTROLADORIA) ---
+
+@login_required
+def cirurgia_folha_view(request):
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        return redirect('core:company_list')
+
+    # Filtros de Data
+    today = timezone.now().date()
+    month_str = request.GET.get('month', today.strftime('%Y-%m')) 
+    try:
+        competencia = datetime.strptime(f"{month_str}-01", "%Y-%m-%d").date()
+    except ValueError:
+        competencia = today.replace(day=1)
+
+    # Cálculo dias do mês
+    _, dias_no_mes_atual = calendar.monthrange(competencia.year, competencia.month)
+
+    # Queryset
+    queryset = CirurgiaLancamento.objects.filter(
+        company_id=active_company_id,
+        competencia=competencia
+    ).order_by('setor_nome', 'cargo_nome')
+
+    # AÇÃO: SINCRONIZAR
+    if request.method == 'POST' and 'atualizar_valores' in request.POST:
+        configs = CirurgiaConfiguracao.objects.filter(setor__company_id=active_company_id)
+        config_map = {(c.setor.name, c.cargo): c for c in configs}
+        
+        count = 0
+        for item in queryset:
+            cfg = config_map.get((item.setor_nome, item.cargo_nome))
+            if cfg:
+                item.qtd_dia = cfg.qtd_dia
+                item.valor_plantao_dia = cfg.valor_plantao_dia
+                item.qtd_noite = cfg.qtd_noite
+                item.valor_plantao_noite = cfg.valor_plantao_noite
+                item.dias_mes = dias_no_mes_atual # Atualiza dias do mês
+                item.save()
+                count += 1
+        messages.success(request, f"{count} itens sincronizados com a Matriz!")
+        return redirect(f"{request.path}?month={month_str}")
+
+    # AÇÃO: GERAR FOLHA
+    if request.method == 'POST' and 'gerar_folha' in request.POST:
+        configs = CirurgiaConfiguracao.objects.filter(setor__company_id=active_company_id)
+        if not configs.exists():
+            messages.error(request, "Cadastre a Matriz de Cirurgia primeiro!")
+        else:
+            novos = []
+            for cfg in configs:
+                if not queryset.filter(setor_nome=cfg.setor.name, cargo_nome=cfg.cargo).exists():
+                    novos.append(CirurgiaLancamento(
+                        company_id=active_company_id,
+                        competencia=competencia,
+                        setor_nome=cfg.setor.name,
+                        cargo_nome=cfg.cargo,
+                        qtd_dia=cfg.qtd_dia,
+                        valor_plantao_dia=cfg.valor_plantao_dia,
+                        qtd_noite=cfg.qtd_noite,
+                        valor_plantao_noite=cfg.valor_plantao_noite,
+                        dias_mes=dias_no_mes_atual
+                    ))
+            if novos:
+                CirurgiaLancamento.objects.bulk_create(novos)
+                messages.success(request, "Folha de Cirurgia gerada!")
+            return redirect(f"{request.path}?month={month_str}")
+
+    # AÇÃO: SALVAR GRID
+    LancamentoFormSet = modelformset_factory(CirurgiaLancamento, form=CirurgiaLancamentoForm, extra=0)
+    if request.method == 'POST' and 'salvar_grid' in request.POST:
+        formset = LancamentoFormSet(request.POST, queryset=queryset)
+        if formset.is_valid():
+            formset.save()
+            messages.success(request, "Alterações salvas!")
+            return redirect(f"{request.path}?month={month_str}")
+    else:
+        formset = LancamentoFormSet(queryset=queryset)
+
+    # CÁLCULOS CONTROLADORIA
+    total_orcado = sum(item.total_escala_calculada for item in queryset)
+    total_realizado = sum(item.total_realizado for item in queryset)
+    total_saldo = sum(item.saldo_orcamentario for item in queryset)
+    total_efetivo = sum(item.valor_efetivo for item in queryset)
+    total_pega_plantao = sum(item.valor_pega_plantao for item in queryset)
+
+    context = {
+        'formset': formset,
+        'month_str': month_str,
+        'competencia': competencia,
+        'tem_dados': queryset.exists(),
+        # Cards
+        'total_orcado': total_orcado,
+        'total_realizado': total_realizado,
+        'total_saldo': total_saldo,
+        'total_efetivo': total_efetivo,
+        'total_pega_plantao': total_pega_plantao,
+    }
+    return render(request, 'plantoes/cirurgia_folha.html', context)

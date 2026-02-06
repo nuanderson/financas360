@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}Configurar Escala (Cirurgia){% endblock %}
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Configurar Escala Padrão (Cirurgia)</h6>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Setor</label>
+                                {{ form.setor }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Cargo / Função</label>
+                                {{ form.cargo }}
+                            </div>
+                        </div>
+                        <hr>
+                        <h6 class="text-warning fw-bold mb-3">
+                            <i class="bi bi-sun-fill me-2"></i>Escala DIURNA
+                        </h6>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">Qtd. Plantonistas (Dia)</label>
+                                {{ form.qtd_dia }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">Valor Plantão (Dia)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">R$</span>
+                                    {{ form.valor_plantao_dia }}
+                                </div>
+                            </div>
+                        </div>
+                        <h6 class="text-secondary fw-bold mb-3">
+                            <i class="bi bi-moon-stars-fill me-2"></i>Escala NOTURNA
+                        </h6>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">Qtd. Plantonistas (Noite)</label>
+                                {{ form.qtd_noite }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">Valor Plantão (Noite)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">R$</span>
+                                    {{ form.valor_plantao_noite }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{% url 'plantoes:cirurgia_settings' %}"
+                               class="btn btn-secondary me-md-2">Cancelar</a>
+                            <button type="submit" class="btn btn-primary px-4">Salvar Configuração</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
