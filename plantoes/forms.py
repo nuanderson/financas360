@@ -1,6 +1,6 @@
 from django import forms
 from datetime import datetime
-from .models import Especialidade, Turno, UnidadeAssistencia, OrcamentoMensalPlantao, LancamentoPlantao, TransporteLancamento, UrgenciaConfiguracao, UrgenciaSetor, UrgenciaLancamento, CirurgiaConfiguracao, CirurgiaLancamento, CirurgiaSetor
+from .models import Especialidade, Turno, UnidadeAssistencia, OrcamentoMensalPlantao, LancamentoPlantao, TransporteLancamento, UrgenciaConfiguracao, UrgenciaSetor, UrgenciaLancamento, CirurgiaConfiguracao, CirurgiaLancamento, CirurgiaSetor, NefrologiaConfiguracao, NefrologiaLancamento, BucomaxiloConfiguracao, BucomaxiloLancamento, ResidenciaConfiguracao, ResidenciaLancamento, CoordenacaoConfiguracao, CoordenacaoLancamento
 
 class EspecialidadeForm(forms.ModelForm):
     class Meta:
@@ -168,4 +168,104 @@ class CirurgiaLancamentoForm(forms.ModelForm):
             'valor_pega_plantao': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end', 'step': '0.01'}),
             'valor_efetivo': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end', 'step': '0.01'}),
             'observacoes': forms.TextInput(attrs={'class': 'form-control form-control-sm'}), 
+        }
+
+# --- FORMS NEFROLOGIA ---
+
+class NefrologiaConfigForm(forms.ModelForm):
+    class Meta:
+        model = NefrologiaConfiguracao
+        fields = ['nome_procedimento', 'valor_unitario', 'meta_mensal_qtd']
+        widgets = {
+            'nome_procedimento': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Hemodiálise Com CDL'}),
+            'valor_unitario': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'meta_mensal_qtd': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Média esperada por mês'}),
+        }
+
+class NefrologiaLancamentoForm(forms.ModelForm):
+    class Meta:
+        model = NefrologiaLancamento
+        fields = ['qtd_realizada', 'observacoes']
+        widgets = {
+            'qtd_realizada': forms.NumberInput(attrs={'class': 'form-control text-center fw-bold text-primary'}),
+            'observacoes': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
+        }
+
+# Adicione os imports no topo:
+from .models import (
+    # ... outros ...
+    BucomaxiloConfiguracao, BucomaxiloLancamento
+)
+
+# --- FORMS BUCOMAXILO ---
+
+class BucomaxiloConfigForm(forms.ModelForm):
+    class Meta:
+        model = BucomaxiloConfiguracao
+        fields = ['nome_profissional', 'descricao_servico', 'valor_mensal']
+        widgets = {
+            'nome_profissional': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Dr. Alan ou Clare Odonto'}),
+            'descricao_servico': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Sobreaviso 24h'}),
+            'valor_mensal': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        }
+
+class BucomaxiloLancamentoForm(forms.ModelForm):
+    class Meta:
+        model = BucomaxiloLancamento
+        # O usuário edita os dias trabalhados e o valor final
+        fields = ['dias_trabalhados', 'valor_pagar', 'observacoes']
+        widgets = {
+            'dias_trabalhados': forms.NumberInput(attrs={'class': 'form-control text-center', 'style': 'width: 80px;'}),
+            'valor_pagar': forms.NumberInput(attrs={'class': 'form-control text-end fw-bold text-success', 'step': '0.01'}),
+            'observacoes': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
+        }
+
+# --- FORMS RESIDÊNCIA ---
+
+class ResidenciaConfigForm(forms.ModelForm):
+    class Meta:
+        model = ResidenciaConfiguracao
+        fields = ['nome_medico', 'valor_aula', 'meta_aulas']
+        widgets = {
+            'nome_medico': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Angelo Padua Reis'}),
+            'valor_aula': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'meta_aulas': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Qtd média esperada'}),
+        }
+
+class ResidenciaLancamentoForm(forms.ModelForm):
+    class Meta:
+        model = ResidenciaLancamento
+        fields = ['qtd_aulas', 'observacoes']
+        widgets = {
+            'qtd_aulas': forms.NumberInput(attrs={'class': 'form-control text-center fw-bold text-primary', 'style': 'width: 80px;'}),
+            'observacoes': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
+        }
+
+# Imports no topo:
+from .models import (
+    # ... outros ...
+    CoordenacaoConfiguracao, CoordenacaoLancamento
+)
+
+# --- FORMS COORDENAÇÃO ---
+
+class CoordenacaoConfigForm(forms.ModelForm):
+    class Meta:
+        model = CoordenacaoConfiguracao
+        fields = ['nome_funcionario', 'matricula', 'conselho', 'setor', 'valor_mensal']
+        widgets = {
+            'nome_funcionario': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nome Completo'}),
+            'matricula': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Diretor ou Nº Matrícula'}),
+            'conselho': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: CRM 1234'}),
+            'setor': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: UTI, Administrativo'}),
+            'valor_mensal': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        }
+
+class CoordenacaoLancamentoForm(forms.ModelForm):
+    class Meta:
+        model = CoordenacaoLancamento
+        fields = ['valor_pagar', 'observacoes']
+        widgets = {
+            'valor_pagar': forms.NumberInput(attrs={'class': 'form-control text-end fw-bold text-success', 'step': '0.01'}),
+            'observacoes': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
         }

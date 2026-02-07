@@ -323,3 +323,262 @@ class CirurgiaLancamento(models.Model):
         if self.custo_real_soma == 0:
             return 0
         return self.total_escala_calculada - self.custo_real_soma
+
+# ==========================================
+# MÓDULO: NEFROLOGIA (PRODUÇÃO)
+# ==========================================
+
+class NefrologiaConfiguracao(models.Model):
+    """
+    TABELA DE PREÇOS E METAS (Gabarito)
+    Ex: Hemodiálise S/CDL | R$ 600,00 | Meta: 105
+    """
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("Empresa"))
+    nome_procedimento = models.CharField(_("Nome do Procedimento"), max_length=150, help_text="Ex: Hemodiálise S/CDL")
+    
+    valor_unitario = models.DecimalField(_("Valor Unitário"), max_digits=10, decimal_places=2, default=0)
+    meta_mensal_qtd = models.IntegerField(_("Meta/Média Mensal (Qtd)"), default=0, help_text="Quantidade estimada para previsão orçamentária")
+
+    class Meta:
+        verbose_name = _("Configuração Nefrologia")
+        verbose_name_plural = _("Configurações Nefrologia")
+
+    def __str__(self):
+        return f"{self.nome_procedimento} - R$ {self.valor_unitario}"
+
+    @property
+    def total_meta_financeira(self):
+        return self.valor_unitario * self.meta_mensal_qtd
+
+
+class NefrologiaLancamento(models.Model):
+    """
+    PRODUÇÃO MENSAL
+    O usuário preenche apenas a 'qtd_realizada'.
+    """
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    competencia = models.DateField(_("Mês de Referência"))
+    
+    # Dados copiados da Configuração (Snapshot)
+    nome_procedimento = models.CharField(_("Procedimento"), max_length=150)
+    valor_unitario = models.DecimalField(_("Valor Unitário"), max_digits=10, decimal_places=2, default=0)
+    meta_qtd = models.IntegerField(_("Meta (Qtd)"), default=0)
+
+    # O Campo Editável
+    qtd_realizada = models.IntegerField(_("Qtd. Realizada"), default=0)
+    observacoes = models.TextField(_("Obs"), blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("Lançamento Nefrologia")
+        verbose_name_plural = _("Lançamentos Nefrologia")
+        ordering = ['nome_procedimento']
+
+    @property
+    def total_orcado(self):
+        """Valor da Meta (Previsão)"""
+        return self.valor_unitario * self.meta_qtd
+
+    @property
+    def total_realizado(self):
+        """Valor Final (O que vai pagar)"""
+        return self.valor_unitario * self.qtd_realizada
+
+    @property
+    def saldo_orcamentario(self):
+        """
+        CONTROLADORIA:
+        Se realizou MENOS que a meta, sobrou dinheiro (Positivo).
+        Se realizou MAIS que a meta, gastou mais (Negativo).
+        """
+        if self.qtd_realizada == 0:
+            return 0 # Não calcula saldo se ainda não preencheu
+        return self.total_orcado - self.total_realizado
+
+# ==========================================
+# MÓDULO: BUCOMAXILO (CONTRATOS FIXOS)
+# ==========================================
+
+class BucomaxiloConfiguracao(models.Model):
+    """
+    CONTRATOS FIXOS (Gabarito)
+    Ex: Dr. Diógenes | Sobreaviso | R$ 8.000,00
+    Ex: Clare Odonto | Serviço PJ  | R$ 6.243,32
+    """
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("Empresa"))
+    nome_profissional = models.CharField(_("Profissional / Empresa"), max_length=150)
+    descricao_servico = models.CharField(_("Descrição do Serviço"), max_length=150, default="Sobreaviso 24h", help_text="Ex: Sobreaviso, Plantão Fixo, Aluguel Equipamento")
+    
+    valor_mensal = models.DecimalField(_("Valor Mensal Fixo"), max_digits=10, decimal_places=2, default=0)
+
+    class Meta:
+        verbose_name = _("Configuração Bucomaxilo")
+        verbose_name_plural = _("Configurações Bucomaxilo")
+
+    def __str__(self):
+        return f"{self.nome_profissional} - R$ {self.valor_mensal}"
+
+
+class BucomaxiloLancamento(models.Model):
+    """
+    FOLHA MENSAL BUCOMAXILO
+    """
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    competencia = models.DateField(_("Mês de Referência"))
+    
+    # Snapshot do Contrato
+    nome_profissional = models.CharField(_("Profissional"), max_length=150)
+    descricao_servico = models.CharField(_("Descrição"), max_length=150)
+    valor_contrato = models.DecimalField(_("Valor Contrato"), max_digits=10, decimal_places=2, default=0)
+
+    # Variáveis do Mês (Para cálculo Pro-rata)
+    dias_no_mes = models.IntegerField(_("Dias no Mês"), default=30)
+    dias_trabalhados = models.IntegerField(_("Dias Trabalhados"), default=30)
+    
+    # Valor Final (Pode ser calculado ou sobrescrito)
+    valor_pagar = models.DecimalField(_("Valor a Pagar"), max_digits=10, decimal_places=2, default=0)
+    observacoes = models.TextField(_("Obs"), blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("Lançamento Bucomaxilo")
+        verbose_name_plural = _("Lançamentos Bucomaxilo")
+        ordering = ['nome_profissional']
+
+    @property
+    def saldo_orcamentario(self):
+        """
+        CONTROLADORIA:
+        Contrato (Meta) - Valor a Pagar (Real).
+        Se pagar menos que o contrato (falta), fica positivo (Economia).
+        Se pagar mais (extra), fica negativo.
+        """
+        if self.valor_pagar == 0:
+            return 0
+        return self.valor_contrato - self.valor_pagar
+
+# ==========================================
+# MÓDULO: RESIDÊNCIA DE CIRURGIA (AULAS)
+# ==========================================
+
+class ResidenciaConfiguracao(models.Model):
+    """
+    CADASTRO DE MÉDICOS/PRECEPTORES
+    Ex: Dr. Angelo | R$ 250,00 | Meta: 4 aulas/mês
+    """
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("Empresa"))
+    nome_medico = models.CharField(_("Nome do Médico"), max_length=150)
+    
+    valor_aula = models.DecimalField(_("Valor por Aula"), max_digits=10, decimal_places=2, default=250.00)
+    meta_aulas = models.IntegerField(_("Meta de Aulas (Mensal)"), default=0, help_text="Quantidade esperada para previsão orçamentária")
+
+    class Meta:
+        verbose_name = _("Configuração Residência")
+        verbose_name_plural = _("Configurações Residência")
+
+    def __str__(self):
+        return f"{self.nome_medico} - R$ {self.valor_aula}"
+
+    @property
+    def total_meta_financeira(self):
+        return self.valor_aula * self.meta_aulas
+
+
+class ResidenciaLancamento(models.Model):
+    """
+    FOLHA MENSAL (AULAS DADAS)
+    """
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    competencia = models.DateField(_("Mês de Referência"))
+    
+    # Snapshot (Cópia da Config)
+    nome_medico = models.CharField(_("Médico"), max_length=150)
+    valor_aula = models.DecimalField(_("Valor Aula"), max_digits=10, decimal_places=2, default=0)
+    meta_aulas = models.IntegerField(_("Meta Aulas"), default=0)
+
+    # O Campo Editável (Produção)
+    qtd_aulas = models.IntegerField(_("Qtd. Aulas Realizadas"), default=0)
+    observacoes = models.TextField(_("Obs"), blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("Lançamento Residência")
+        verbose_name_plural = _("Lançamentos Residência")
+        ordering = ['nome_medico']
+
+    @property
+    def total_orcado(self):
+        """Valor da Meta (Previsão)"""
+        return self.valor_aula * self.meta_aulas
+
+    @property
+    def total_realizado(self):
+        """Valor Final (O que vai pagar)"""
+        return self.valor_aula * self.qtd_aulas
+
+    @property
+    def saldo_orcamentario(self):
+        """
+        CONTROLADORIA:
+        Meta - Realizado.
+        """
+        if self.qtd_aulas == 0:
+            return 0 
+        return self.total_orcado - self.total_realizado
+
+# ==========================================
+# MÓDULO: COORDENAÇÕES (FIXO MENSAL)
+# ==========================================
+
+class CoordenacaoConfiguracao(models.Model):
+    """
+    CADASTRO DE COORDENADORES (Gabarito)
+    Campos baseados na imagem: Funcionário, Matrícula, Conselho, Setor, Valor.
+    """
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("Empresa"))
+    nome_funcionario = models.CharField(_("Nome do Funcionário"), max_length=150)
+    matricula = models.CharField(_("Matrícula / Função"), max_length=100, blank=True, null=True, help_text="Ex: Diretor, Vascular, etc.")
+    conselho = models.CharField(_("Conselho"), max_length=50, blank=True, null=True, help_text="Ex: CRM, COREN")
+    setor = models.CharField(_("Setor"), max_length=100, blank=True, null=True)
+    
+    valor_mensal = models.DecimalField(_("Valor Mensal"), max_digits=10, decimal_places=2, default=0)
+
+    class Meta:
+        verbose_name = _("Configuração Coordenação")
+        verbose_name_plural = _("Configurações Coordenação")
+
+    def __str__(self):
+        return f"{self.nome_funcionario} - {self.setor}"
+
+
+class CoordenacaoLancamento(models.Model):
+    """
+    FOLHA MENSAL COORDENAÇÃO
+    """
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    competencia = models.DateField(_("Mês de Referência"))
+    
+    # Snapshot (Cópia da Config)
+    nome_funcionario = models.CharField(_("Funcionário"), max_length=150)
+    matricula = models.CharField(_("Matrícula"), max_length=100, blank=True, null=True)
+    conselho = models.CharField(_("Conselho"), max_length=50, blank=True, null=True)
+    setor = models.CharField(_("Setor"), max_length=100, blank=True, null=True)
+    
+    # Valores
+    valor_contrato = models.DecimalField(_("Valor Contrato (Fixo)"), max_digits=10, decimal_places=2, default=0)
+    valor_pagar = models.DecimalField(_("Valor a Pagar (Real)"), max_digits=10, decimal_places=2, default=0)
+    
+    observacoes = models.TextField(_("Obs"), blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("Lançamento Coordenação")
+        verbose_name_plural = _("Lançamentos Coordenação")
+        ordering = ['nome_funcionario']
+
+    @property
+    def saldo_orcamentario(self):
+        """
+        Meta (Contrato) - Real (Pago)
+        Positivo = Economia (Pagou menos)
+        Negativo = Extra (Pagou a mais)
+        """
+        if self.valor_pagar == 0:
+            return 0
+        return self.valor_contrato - self.valor_pagar

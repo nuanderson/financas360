@@ -75,4 +75,53 @@ urlpatterns = [
 
     # 2. Folha Mensal
     path('cirurgia/folha/', views.cirurgia_folha_view, name='cirurgia_folha'),
+
+    # ==========================================
+    # NEFROLOGIA
+    # ==========================================
+    
+    # Configurações
+    path('nefrologia/configuracoes/', views.nefrologia_settings_view, name='nefrologia_settings'),
+    path('nefrologia/novo/', views.NefrologiaConfigCreateView.as_view(), name='nefrologia_config_create'),
+    path('nefrologia/<int:pk>/editar/', views.NefrologiaConfigUpdateView.as_view(), name='nefrologia_config_update'),
+    path('nefrologia/<int:pk>/excluir/', views.NefrologiaConfigDeleteView.as_view(), name='nefrologia_config_delete'),
+
+    # Folha Mensal
+    path('nefrologia/folha/', views.nefrologia_folha_view, name='nefrologia_folha'),
+
+    # ==========================================
+    # BUCOMAXILO
+    # ==========================================
+    path('bucomaxilo/configuracoes/', views.bucomaxilo_settings_view, name='bucomaxilo_settings'),
+    path('bucomaxilo/novo/', views.BucomaxiloConfigCreateView.as_view(), name='bucomaxilo_config_create'),
+    path('bucomaxilo/<int:pk>/editar/', views.BucomaxiloConfigUpdateView.as_view(), name='bucomaxilo_config_update'),
+    path('bucomaxilo/<int:pk>/excluir/', views.BucomaxiloConfigDeleteView.as_view(), name='bucomaxilo_config_delete'),
+    
+    path('bucomaxilo/folha/', views.bucomaxilo_folha_view, name='bucomaxilo_folha'),
+
+    # ==========================================
+    # RESIDÊNCIA (AULAS)
+    # ==========================================
+    path('residencia/configuracoes/', views.residencia_settings_view, name='residencia_settings'),
+    path('residencia/novo/', views.ResidenciaConfigCreateView.as_view(), name='residencia_config_create'),
+    path('residencia/<int:pk>/editar/', views.ResidenciaConfigUpdateView.as_view(), name='residencia_config_update'),
+    path('residencia/<int:pk>/excluir/', views.ResidenciaConfigDeleteView.as_view(), name='residencia_config_delete'),
+    
+    path('residencia/folha/', views.residencia_folha_view, name='residencia_folha'),
+
+    # ==========================================
+    # COORDENAÇÕES
+    # ==========================================
+    path('coordenacao/configuracoes/', views.coordenacao_settings_view, name='coordenacao_settings'),
+    path('coordenacao/novo/', views.CoordenacaoConfigCreateView.as_view(), name='coordenacao_config_create'),
+    path('coordenacao/<int:pk>/editar/', views.CoordenacaoConfigUpdateView.as_view(), name='coordenacao_config_update'),
+    path('coordenacao/<int:pk>/excluir/', views.CoordenacaoConfigDeleteView.as_view(), name='coordenacao_config_delete'),
+    
+    path('coordenacao/folha/', views.coordenacao_folha_view, name='coordenacao_folha'),
+
+    # DASHBOARD (CONSOLIDAÇÃO)
+    path('', views.plantoes_dashboard_view, name='dashboard'), 
+
+    # Relatório Anual
+    path('relatorio-anual/', views.plantoes_annual_report_view, name='annual_report'),
 ]

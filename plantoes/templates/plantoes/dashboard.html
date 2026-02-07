@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Consolidação Financeira{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0 text-gray-800">Consolidação de Plantões e Serviços</h1>
+        <p class="text-muted small mb-0">Visão geral dos custos realizados por competência.</p>
+    </div>
+    
+    <div class="d-flex align-items-center">
+        <a href="{% url 'plantoes:annual_report' %}" class="btn btn-info btn-sm shadow-sm me-3 text-white">
+            <i class="bi bi-table me-2"></i> Visão Anual
+        </a>
+
+        <form method="get" class="d-flex align-items-center bg-white p-2 rounded shadow-sm border">
+            <label class="me-2 fw-bold text-muted small mb-0">Competência:</label>
+            <input type="month" name="month" class="form-control form-control-sm border-0 bg-light fw-bold" 
+                   value="{{ month_str }}" onchange="this.form.submit()">
+        </form>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-bottom-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Total Realizado (Geral)
+                        </div>
+                        <div class="h1 mb-0 font-weight-bold text-gray-800">
+                            R$ {{ total_geral|floatformat:2|intcomma }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-bank display-4 text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3 bg-white">
+        <h6 class="m-0 font-weight-bold text-primary">Detalhamento por Serviço (Curva ABC)</h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Serviço / Setor</th>
+                        <th class="text-end" style="width: 200px;">Valor Realizado</th>
+                        <th class="px-4" style="width: 30%;">Representatividade (%)</th>
+                        <th class="text-end pe-4" style="width: 100px;">Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-circle bg-light text-primary me-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                    <i class="bi {{ item.icon }}"></i>
+                                </div>
+                                <div>
+                                    <span class="fw-bold text-dark d-block">{{ item.nome }}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-end fw-bold text-dark">
+                            R$ {{ item.valor|floatformat:2|intcomma }}
+                        </td>
+                        <td class="px-4">
+                            <div class="d-flex align-items-center">
+                                <span class="small me-2 fw-bold text-muted">{{ item.percent|floatformat:1 }}%</span>
+                                <div class="progress flex-grow-1" style="height: 8px;">
+                                    <div class="progress-bar bg-primary" role="progressbar" 
+                                         style="width: {{ item.percent|stringformat:'f' }}%"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-end pe-4">
+                            <a href="{% url item.url %}" class="btn btn-sm btn-outline-primary shadow-sm">
+                                <i class="bi bi-eye"></i> Detalhes
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center py-5 text-muted">
+                            Nenhum dado financeiro encontrado para esta competência.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th class="ps-4 fw-bold text-uppercase">Total Geral</th>
+                        <th class="text-end fw-bold text-success">R$ {{ total_geral|floatformat:2|intcomma }}</th>
+                        <th colspan="2"></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 text-center text-muted small">
+        <i class="bi bi-info-circle me-1"></i>
+        Os valores exibidos correspondem ao somatório dos lançamentos realizados em cada módulo individual.
+    </div>
+</div>
+{% endblock %}

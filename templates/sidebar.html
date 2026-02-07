@@ -32,49 +32,42 @@
                             <i class="bi bi-graph-up"></i> Dashboard
                         </a>
                     </li>
-                    <small class="text-white-50 ps-3 mt-3 d-block fw-bold"
-                           style="font-size: 0.75rem">CADASTROS</small>
+                    <small class="text-white-50 ps-3 mt-3 d-block fw-bold" style="font-size: 0.75rem">CADASTROS</small>
                     <li class="nav-item">
-                        <a class="nav-link text-white"
-                           href="{% url 'commercial:customer_list' active_company.id %}">
+                        <a class="nav-link text-white" href="{% url 'commercial:customer_list' active_company.id %}">
                             <i class="bi bi-people"></i> Clientes
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white"
-                           href="{% url 'commercial:supplier_list' active_company.id %}">
+                        <a class="nav-link text-white" href="{% url 'commercial:supplier_list' active_company.id %}">
                             <i class="bi bi-truck"></i> Fornecedores
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white"
-                           href="{% url 'commercial:service_list' active_company.id %}">
+                        <a class="nav-link text-white" href="{% url 'commercial:service_list' active_company.id %}">
                             <i class="bi bi-bandaid"></i> Serviços
                         </a>
                     </li>
-                    <small class="text-white-50 ps-3 mt-3 d-block fw-bold"
-                           style="font-size: 0.75rem">COMERCIAL</small>
+                    <small class="text-white-50 ps-3 mt-3 d-block fw-bold" style="font-size: 0.75rem">COMERCIAL</small>
                     <li class="nav-item">
-                        <a class="nav-link text-white"
-                           href="{% url 'commercial:sale_create' active_company.id %}"> <i class="bi bi-cart-check"></i> Nova Venda
+                        <a class="nav-link text-white" href="{% url 'commercial:sale_create' active_company.id %}">
+                            <i class="bi bi-cart-check"></i> Nova Venda
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white"
-                           href="{% url 'commercial:sale_list' active_company.id %}">
+                        <a class="nav-link text-white" href="{% url 'commercial:sale_list' active_company.id %}">
                             <i class="bi bi-receipt"></i> Contratos & Vendas
                         </a>
                     </li>
-                    <small class="text-white-50 ps-3 mt-3 d-block fw-bold"
-                           style="font-size: 0.75rem">FINANCEIRO</small>
+                    <small class="text-white-50 ps-3 mt-3 d-block fw-bold" style="font-size: 0.75rem">FINANCEIRO</small>
                     <li class="nav-item">
-                        <a class="nav-link text-white"
-                           href="{% url 'commercial:payable_list' active_company.id %}"> <i class="bi bi-arrow-down-circle"></i> Contas a Pagar
+                        <a class="nav-link text-white" href="{% url 'commercial:payable_list' active_company.id %}">
+                            <i class="bi bi-arrow-down-circle"></i> Contas a Pagar
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white"
-                           href="{% url 'commercial:receivable_list' active_company.id %}"> <i class="bi bi-arrow-up-circle"></i> Contas a Receber
+                        <a class="nav-link text-white" href="{% url 'commercial:receivable_list' active_company.id %}">
+                            <i class="bi bi-arrow-up-circle"></i> Contas a Receber
                         </a>
                     </li>
                     <li class="nav-item">
@@ -83,39 +76,34 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white"
-                           href="{% url 'commercial:bank_account_list' active_company.id %}">
+                        <a class="nav-link text-white" href="{% url 'commercial:bank_account_list' active_company.id %}">
                             <i class="bi bi-wallet2"></i> Contas Bancárias
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white"
-                           href="{% url 'commercial:dre_report' active_company.id %}">
+                        <a class="nav-link text-white" href="{% url 'commercial:dre_report' active_company.id %}">
                             <i class="bi bi-file-earmark-spreadsheet"></i> DRE Gerencial
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white-50"
-                           href="{% url 'commercial:goals_dashboard' active_company.id %}">
+                        <a class="nav-link text-white-50" href="{% url 'commercial:goals_dashboard' active_company.id %}">
                             <i class="bi bi-bullseye"></i> Metas e Limites
                         </a>
                     </li>
                     <li class="nav-item mt-2">
-                        <a class="nav-link text-white-50"
-                           href="{% url 'core:chart_of_accounts_list' active_company.id %}">
+                        <a class="nav-link text-white-50" href="{% url 'core:chart_of_accounts_list' active_company.id %}">
                             <i class="bi bi-list-check"></i> <small>Plano de Contas</small>
                         </a>
                     </li>
+
                 {% elif active_company.management_type == 'Pública' %}
                     <li class="nav-item">
-                        <a class="nav-link text-white"
-                           href="{% url 'core:dashboard' active_company.id %}">
+                        <a class="nav-link text-white" href="{% url 'core:dashboard' active_company.id %}">
                             <i class="bi bi-graph-up"></i> Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white"
-                           href="{% url 'core:chart_of_accounts_list' active_company.id %}">
+                        <a class="nav-link text-white" href="{% url 'core:chart_of_accounts_list' active_company.id %}">
                             <i class="bi bi-journal-text"></i> Plano de Contas
                         </a>
                     </li>
@@ -134,8 +122,9 @@
                             <i class="bi bi-table"></i> Quadro Orçamentário
                         </a>
                     </li>
-                    <small class="text-white-50 ps-3 mt-3 d-block fw-bold"
-                           style="font-size: 0.75rem">GESTÃO DE ESCALAS</small>
+                    
+                    <small class="text-white-50 ps-3 mt-3 d-block fw-bold" style="font-size: 0.75rem">GESTÃO DE ESCALAS</small>
+                    
                     <li class="nav-item">
                         <a class="nav-link text-white collapsed"
                            href="#"
@@ -151,37 +140,60 @@
                              aria-labelledby="headingPlantoes"
                              data-parent=".nav">
                             <div class="bg-white py-2 collapse-inner rounded ms-3 me-3 mt-1">
-                                <h6 class="collapse-header small text-muted px-3 text-uppercase fw-bold mb-2">Serviços Médicos</h6>
+                                <h6 class="collapse-header small text-muted px-3 text-uppercase fw-bold mb-2">Módulos</h6>
+                                
+                                <a class="collapse-item d-block px-3 py-1 text-primary fw-bold text-decoration-none small"
+                                   href="{% url 'plantoes:dashboard' %}">
+                                    <i class="bi bi-speedometer2 me-1"></i> Visão Geral
+                                </a>
+                                <div class="dropdown-divider"></div>
+
                                 <a class="collapse-item d-block px-3 py-1 text-dark text-decoration-none small"
                                    href="{% url 'plantoes:transporte_list' %}">
                                     <i class="bi bi-truck me-1"></i> Equipe Transporte
                                 </a>
                                 <a class="collapse-item d-block px-3 py-1 text-dark text-decoration-none small"
-                                   href="{% url 'plantoes:urgencia_settings' %}">
+                                   href="{% url 'plantoes:urgencia_folha' %}">
                                     <i class="bi bi-heart-pulse-fill me-1"></i> Urgência e Emergência
                                 </a>
                                 <a class="collapse-item d-block px-3 py-1 text-dark text-decoration-none small"
-                                   href="{% url 'plantoes:cirurgia_settings' %}">
+                                   href="{% url 'plantoes:cirurgia_folha' %}">
                                     <i class="bi bi-bandaid-fill me-1"></i> Cirurgia Geral
+                                </a>
+                                <a class="collapse-item d-block px-3 py-1 text-dark text-decoration-none small" 
+                                   href="{% url 'plantoes:nefrologia_folha' %}">
+                                    <i class="bi bi-droplet-half me-1"></i> Serviço de Nefrologia
+                                </a>
+                                <a class="collapse-item d-block px-3 py-1 text-dark text-decoration-none small" 
+                                   href="{% url 'plantoes:bucomaxilo_folha' %}">
+                                    <i class="bi bi-person-lines-fill me-1"></i> Bucomaxilo
+                                </a>
+                                <a class="collapse-item d-block px-3 py-1 text-dark text-decoration-none small" 
+                                   href="{% url 'plantoes:residencia_folha' %}">
+                                    <i class="bi bi-mortarboard-fill me-1"></i> Residência de Cirurgia
+                                </a>
+                                <a class="collapse-item d-block px-3 py-1 text-dark text-decoration-none small" 
+                                   href="{% url 'plantoes:coordenacao_folha' %}">
+                                    <i class="bi bi-people-fill me-1"></i> Coordenações
                                 </a>
                             </div>
                         </div>
                     </li>
-                    <li class="nav-item">
+
+                    <li class="nav-item mt-2">
                         <a class="nav-link text-white" href="{% url 'core:note_list' %}">
                             <i class="bi bi-sticky"></i> Bloco de Notas
                         </a>
                     </li>
+
                 {% else %}
                     <li class="nav-item">
-                        <a class="nav-link text-white"
-                           href="{% url 'core:dashboard' active_company.id %}">
+                        <a class="nav-link text-white" href="{% url 'core:dashboard' active_company.id %}">
                             <i class="bi bi-graph-up"></i> Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white"
-                           href="{% url 'core:chart_of_accounts_list' active_company.id %}">
+                        <a class="nav-link text-white" href="{% url 'core:chart_of_accounts_list' active_company.id %}">
                             <i class="bi bi-journal-text"></i> Plano de Contas
                         </a>
                     </li>
@@ -200,7 +212,65 @@
                             <i class="bi bi-table"></i> Quadro Orçamentário
                         </a>
                     </li>
+
+                    <small class="text-white-50 ps-3 mt-3 d-block fw-bold" style="font-size: 0.75rem">GESTÃO DE ESCALAS</small>
+                    
                     <li class="nav-item">
+                        <a class="nav-link text-white collapsed"
+                           href="#"
+                           data-bs-toggle="collapse"
+                           data-bs-target="#collapsePlantoesDef"
+                           aria-expanded="false"
+                           aria-controls="collapsePlantoesDef">
+                            <i class="bi bi-hospital-fill"></i>
+                            <span>Plantões & Serviços</span>
+                        </a>
+                        <div id="collapsePlantoesDef"
+                             class="collapse"
+                             aria-labelledby="headingPlantoes"
+                             data-parent=".nav">
+                            <div class="bg-white py-2 collapse-inner rounded ms-3 me-3 mt-1">
+                                <h6 class="collapse-header small text-muted px-3 text-uppercase fw-bold mb-2">Módulos</h6>
+                                
+                                <a class="collapse-item d-block px-3 py-1 text-primary fw-bold text-decoration-none small"
+                                   href="{% url 'plantoes:dashboard' %}">
+                                    <i class="bi bi-speedometer2 me-1"></i> Visão Geral
+                                </a>
+                                <div class="dropdown-divider"></div>
+                                
+                                <a class="collapse-item d-block px-3 py-1 text-dark text-decoration-none small"
+                                   href="{% url 'plantoes:transporte_list' %}">
+                                    <i class="bi bi-truck me-1"></i> Equipe Transporte
+                                </a>
+                                <a class="collapse-item d-block px-3 py-1 text-dark text-decoration-none small"
+                                   href="{% url 'plantoes:urgencia_folha' %}">
+                                    <i class="bi bi-heart-pulse-fill me-1"></i> Urgência e Emergência
+                                </a>
+                                <a class="collapse-item d-block px-3 py-1 text-dark text-decoration-none small"
+                                   href="{% url 'plantoes:cirurgia_folha' %}">
+                                    <i class="bi bi-bandaid-fill me-1"></i> Cirurgia Geral
+                                </a>
+                                <a class="collapse-item d-block px-3 py-1 text-dark text-decoration-none small" 
+                                   href="{% url 'plantoes:nefrologia_folha' %}">
+                                    <i class="bi bi-droplet-half me-1"></i> Serviço de Nefrologia
+                                </a>
+                                <a class="collapse-item d-block px-3 py-1 text-dark text-decoration-none small" 
+                                   href="{% url 'plantoes:bucomaxilo_folha' %}">
+                                    <i class="bi bi-person-lines-fill me-1"></i> Bucomaxilo
+                                </a>
+                                <a class="collapse-item d-block px-3 py-1 text-dark text-decoration-none small" 
+                                   href="{% url 'plantoes:residencia_folha' %}">
+                                    <i class="bi bi-mortarboard-fill me-1"></i> Residência de Cirurgia
+                                </a>
+                                <a class="collapse-item d-block px-3 py-1 text-dark text-decoration-none small" 
+                                   href="{% url 'plantoes:coordenacao_folha' %}">
+                                    <i class="bi bi-people-fill me-1"></i> Coordenações
+                                </a>
+                            </div>
+                        </div>
+                    </li>
+
+                    <li class="nav-item mt-2">
                         <a class="nav-link text-white" href="{% url 'core:note_list' %}">
                             <i class="bi bi-sticky"></i> Bloco de Notas
                         </a>

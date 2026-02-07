@@ -2,7 +2,7 @@ import locale
 import calendar
 from django.core.mail import send_mail
 from decimal import Decimal
-from django.db.models import Sum, F, Avg, FloatField
+from django.db.models import Sum, F, Avg, FloatField, DecimalField
 from django.db.models.functions import Cast
 from django.utils import timezone
 from django.shortcuts import render, redirect, get_object_or_404
@@ -15,9 +15,10 @@ from django.forms import modelformset_factory, formset_factory
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from decimal import Decimal
 
-from .models import Especialidade, Turno, UnidadeAssistencia, OrcamentoMensalPlantao, LancamentoPlantao, TransporteLancamento, UrgenciaConfiguracao, UrgenciaSetor, UrgenciaLancamento, CirurgiaConfiguracao, CirurgiaLancamento, CirurgiaSetor 
-from .forms import EspecialidadeForm, TurnoForm, UnidadeAssistenciaForm, OrcamentoMensalPlantaoForm, LancamentoPlantaoForm, TransporteForm, UrgenciaConfiguracaoForm, UrgenciaSetorForm, UrgenciaLancamentoForm, CirurgiaConfiguracaoForm, CirurgiaSetorForm, CirurgiaLancamentoForm
+from .models import Especialidade, Turno, UnidadeAssistencia, OrcamentoMensalPlantao, LancamentoPlantao, TransporteLancamento, UrgenciaConfiguracao, UrgenciaSetor, UrgenciaLancamento, CirurgiaConfiguracao, CirurgiaLancamento, CirurgiaSetor, NefrologiaConfiguracao, NefrologiaLancamento, BucomaxiloConfiguracao, BucomaxiloLancamento, ResidenciaConfiguracao, ResidenciaLancamento, CoordenacaoConfiguracao, CoordenacaoLancamento
+from .forms import EspecialidadeForm, TurnoForm, UnidadeAssistenciaForm, OrcamentoMensalPlantaoForm, LancamentoPlantaoForm, TransporteForm, UrgenciaConfiguracaoForm, UrgenciaSetorForm, UrgenciaLancamentoForm, CirurgiaConfiguracaoForm, CirurgiaSetorForm, CirurgiaLancamentoForm, NefrologiaConfigForm, NefrologiaLancamentoForm, BucomaxiloConfigForm, BucomaxiloLancamentoForm, ResidenciaConfigForm, ResidenciaLancamentoForm, CoordenacaoConfigForm, CoordenacaoLancamentoForm
 
 from core.models import Company
 
@@ -788,3 +789,784 @@ def cirurgia_folha_view(request):
         'total_pega_plantao': total_pega_plantao,
     }
     return render(request, 'plantoes/cirurgia_folha.html', context)
+
+# ==========================================
+# MÓDULO: NEFROLOGIA (PRODUÇÃO)
+# ==========================================
+
+# --- 1. CONFIGURAÇÕES (TABELA DE PREÇOS) ---
+
+@login_required
+def nefrologia_settings_view(request):
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        return redirect('core:company_list')
+    
+    # Lista todos os procedimentos cadastrados
+    configs = NefrologiaConfiguracao.objects.filter(company_id=active_company_id)
+    
+    context = {'configs': configs}
+    return render(request, 'plantoes/nefrologia_settings.html', context)
+
+class NefrologiaConfigCreateView(LoginRequiredMixin, CreateView):
+    model = NefrologiaConfiguracao
+    form_class = NefrologiaConfigForm
+    template_name = 'plantoes/generic_form.html' # Podemos reusar o genérico ou criar um específico
+    success_url = reverse_lazy('plantoes:nefrologia_settings')
+
+    def form_valid(self, form):
+        form.instance.company_id = self.request.session.get('active_company_id')
+        return super().form_valid(form)
+
+class NefrologiaConfigUpdateView(LoginRequiredMixin, UpdateView):
+    model = NefrologiaConfiguracao
+    form_class = NefrologiaConfigForm
+    template_name = 'plantoes/generic_form.html'
+    success_url = reverse_lazy('plantoes:nefrologia_settings')
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(company_id=self.request.session.get('active_company_id'))
+
+class NefrologiaConfigDeleteView(LoginRequiredMixin, DeleteView):
+    model = NefrologiaConfiguracao
+    template_name = 'plantoes/generic_confirm_delete.html'
+    success_url = reverse_lazy('plantoes:nefrologia_settings')
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(company_id=self.request.session.get('active_company_id'))
+
+
+# --- 2. FOLHA MENSAL (PRODUÇÃO) ---
+
+@login_required
+def nefrologia_folha_view(request):
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        return redirect('core:company_list')
+
+    # Filtros de Data
+    today = timezone.now().date()
+    month_str = request.GET.get('month', today.strftime('%Y-%m')) 
+    try:
+        competencia = datetime.strptime(f"{month_str}-01", "%Y-%m-%d").date()
+    except ValueError:
+        competencia = today.replace(day=1)
+
+    queryset = NefrologiaLancamento.objects.filter(
+        company_id=active_company_id,
+        competencia=competencia
+    ).order_by('nome_procedimento')
+
+    # AÇÃO: GERAR FOLHA (Copia a Tabela de Preços para o Mês)
+    if request.method == 'POST' and 'gerar_folha' in request.POST:
+        configs = NefrologiaConfiguracao.objects.filter(company_id=active_company_id)
+        if not configs.exists():
+            messages.error(request, "Cadastre a Tabela de Preços da Nefrologia primeiro!")
+        else:
+            novos = []
+            for cfg in configs:
+                # Verifica se já existe para não duplicar
+                if not queryset.filter(nome_procedimento=cfg.nome_procedimento).exists():
+                    novos.append(NefrologiaLancamento(
+                        company_id=active_company_id,
+                        competencia=competencia,
+                        nome_procedimento=cfg.nome_procedimento,
+                        valor_unitario=cfg.valor_unitario,
+                        meta_qtd=cfg.meta_mensal_qtd,
+                        qtd_realizada=0 # Começa zerado para o usuário preencher
+                    ))
+            if novos:
+                NefrologiaLancamento.objects.bulk_create(novos)
+                messages.success(request, "Folha de Produção gerada!")
+            return redirect(f"{request.path}?month={month_str}")
+
+    # AÇÃO: SINCRONIZAR (Atualiza preços/metas mas mantém a produção lançada)
+    if request.method == 'POST' and 'atualizar_valores' in request.POST:
+        configs = NefrologiaConfiguracao.objects.filter(company_id=active_company_id)
+        config_map = {c.nome_procedimento: c for c in configs}
+        
+        count = 0
+        for item in queryset:
+            cfg = config_map.get(item.nome_procedimento)
+            if cfg:
+                item.valor_unitario = cfg.valor_unitario
+                item.meta_qtd = cfg.meta_mensal_qtd
+                item.save()
+                count += 1
+        messages.success(request, f"{count} itens atualizados com a tabela de preços vigente!")
+        return redirect(f"{request.path}?month={month_str}")
+
+    # AÇÃO: SALVAR GRID
+    LancamentoFormSet = modelformset_factory(NefrologiaLancamento, form=NefrologiaLancamentoForm, extra=0)
+    if request.method == 'POST' and 'salvar_grid' in request.POST:
+        formset = LancamentoFormSet(request.POST, queryset=queryset)
+        if formset.is_valid():
+            formset.save()
+            messages.success(request, "Produção salva com sucesso!")
+            return redirect(f"{request.path}?month={month_str}")
+    else:
+        formset = LancamentoFormSet(queryset=queryset)
+
+    # CÁLCULOS (TOTAIS)
+    total_orcado = sum(item.total_orcado for item in queryset)
+    total_realizado = sum(item.total_realizado for item in queryset)
+    total_saldo = sum(item.saldo_orcamentario for item in queryset)
+
+    context = {
+        'formset': formset,
+        'month_str': month_str,
+        'competencia': competencia,
+        'tem_dados': queryset.exists(),
+        'total_orcado': total_orcado,
+        'total_realizado': total_realizado,
+        'total_saldo': total_saldo,
+    }
+    return render(request, 'plantoes/nefrologia_folha.html', context)
+
+# ==========================================
+# MÓDULO: BUCOMAXILO (CONTRATOS)
+# ==========================================
+
+# --- 1. CONFIGURAÇÕES (CONTRATOS) ---
+
+@login_required
+def bucomaxilo_settings_view(request):
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        return redirect('core:company_list')
+    
+    configs = BucomaxiloConfiguracao.objects.filter(company_id=active_company_id)
+    return render(request, 'plantoes/bucomaxilo_settings.html', {'configs': configs})
+
+class BucomaxiloConfigCreateView(LoginRequiredMixin, CreateView):
+    model = BucomaxiloConfiguracao
+    form_class = BucomaxiloConfigForm
+    template_name = 'plantoes/generic_form.html'
+    success_url = reverse_lazy('plantoes:bucomaxilo_settings')
+
+    def form_valid(self, form):
+        form.instance.company_id = self.request.session.get('active_company_id')
+        return super().form_valid(form)
+
+class BucomaxiloConfigUpdateView(LoginRequiredMixin, UpdateView):
+    model = BucomaxiloConfiguracao
+    form_class = BucomaxiloConfigForm
+    template_name = 'plantoes/generic_form.html'
+    success_url = reverse_lazy('plantoes:bucomaxilo_settings')
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(company_id=self.request.session.get('active_company_id'))
+
+class BucomaxiloConfigDeleteView(LoginRequiredMixin, DeleteView):
+    model = BucomaxiloConfiguracao
+    template_name = 'plantoes/generic_confirm_delete.html'
+    success_url = reverse_lazy('plantoes:bucomaxilo_settings')
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(company_id=self.request.session.get('active_company_id'))
+
+
+# --- 2. FOLHA MENSAL (PAGAMENTOS) ---
+
+@login_required
+def bucomaxilo_folha_view(request):
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        return redirect('core:company_list')
+
+    # Filtros de Data
+    today = timezone.now().date()
+    month_str = request.GET.get('month', today.strftime('%Y-%m')) 
+    try:
+        competencia = datetime.strptime(f"{month_str}-01", "%Y-%m-%d").date()
+    except ValueError:
+        competencia = today.replace(day=1)
+
+    # Dias no Mês (para cálculo pro-rata se necessário)
+    _, dias_no_mes = calendar.monthrange(competencia.year, competencia.month)
+
+    queryset = BucomaxiloLancamento.objects.filter(
+        company_id=active_company_id,
+        competencia=competencia
+    ).order_by('nome_profissional')
+
+    # AÇÃO: GERAR FOLHA (Copia Contratos)
+    if request.method == 'POST' and 'gerar_folha' in request.POST:
+        configs = BucomaxiloConfiguracao.objects.filter(company_id=active_company_id)
+        if not configs.exists():
+            messages.error(request, "Cadastre os Contratos/Profissionais primeiro!")
+        else:
+            novos = []
+            for cfg in configs:
+                if not queryset.filter(nome_profissional=cfg.nome_profissional).exists():
+                    novos.append(BucomaxiloLancamento(
+                        company_id=active_company_id,
+                        competencia=competencia,
+                        nome_profissional=cfg.nome_profissional,
+                        descricao_servico=cfg.descricao_servico,
+                        valor_contrato=cfg.valor_mensal,
+                        dias_no_mes=dias_no_mes,
+                        dias_trabalhados=dias_no_mes, # Assume mês cheio por padrão
+                        valor_pagar=cfg.valor_mensal # Paga integral por padrão
+                    ))
+            if novos:
+                BucomaxiloLancamento.objects.bulk_create(novos)
+                messages.success(request, "Folha gerada com os contratos ativos!")
+            return redirect(f"{request.path}?month={month_str}")
+
+    # AÇÃO: SINCRONIZAR (Atualiza Valor do Contrato mas mantem o Valor a Pagar editado)
+    if request.method == 'POST' and 'atualizar_valores' in request.POST:
+        configs = BucomaxiloConfiguracao.objects.filter(company_id=active_company_id)
+        config_map = {c.nome_profissional: c for c in configs}
+        
+        count = 0
+        for item in queryset:
+            cfg = config_map.get(item.nome_profissional)
+            if cfg:
+                item.valor_contrato = cfg.valor_mensal
+                # Opcional: Recalcular o valor a pagar se quiser resetar
+                # item.valor_pagar = cfg.valor_mensal 
+                item.save()
+                count += 1
+        messages.success(request, f"{count} contratos sincronizados!")
+        return redirect(f"{request.path}?month={month_str}")
+
+    # AÇÃO: SALVAR GRID
+    LancamentoFormSet = modelformset_factory(BucomaxiloLancamento, form=BucomaxiloLancamentoForm, extra=0)
+    if request.method == 'POST' and 'salvar_grid' in request.POST:
+        formset = LancamentoFormSet(request.POST, queryset=queryset)
+        if formset.is_valid():
+            formset.save()
+            messages.success(request, "Pagamentos salvos!")
+            return redirect(f"{request.path}?month={month_str}")
+    else:
+        formset = LancamentoFormSet(queryset=queryset)
+
+    # TOTAIS
+    total_contratos = sum(item.valor_contrato for item in queryset)
+    total_pagar = sum(item.valor_pagar for item in queryset)
+    total_saldo = sum(item.saldo_orcamentario for item in queryset)
+
+    context = {
+        'formset': formset,
+        'month_str': month_str,
+        'competencia': competencia,
+        'tem_dados': queryset.exists(),
+        'total_contratos': total_contratos,
+        'total_pagar': total_pagar,
+        'total_saldo': total_saldo,
+    }
+    return render(request, 'plantoes/bucomaxilo_folha.html', context)
+
+# ==========================================
+# MÓDULO: RESIDÊNCIA CIRURGIA (AULAS)
+# ==========================================
+
+# --- 1. CONFIGURAÇÕES (MÉDICOS) ---
+
+@login_required
+def residencia_settings_view(request):
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        return redirect('core:company_list')
+    
+    configs = ResidenciaConfiguracao.objects.filter(company_id=active_company_id)
+    return render(request, 'plantoes/residencia_settings.html', {'configs': configs})
+
+class ResidenciaConfigCreateView(LoginRequiredMixin, CreateView):
+    model = ResidenciaConfiguracao
+    form_class = ResidenciaConfigForm
+    template_name = 'plantoes/generic_form.html'
+    success_url = reverse_lazy('plantoes:residencia_settings')
+
+    def form_valid(self, form):
+        form.instance.company_id = self.request.session.get('active_company_id')
+        return super().form_valid(form)
+
+class ResidenciaConfigUpdateView(LoginRequiredMixin, UpdateView):
+    model = ResidenciaConfiguracao
+    form_class = ResidenciaConfigForm
+    template_name = 'plantoes/generic_form.html'
+    success_url = reverse_lazy('plantoes:residencia_settings')
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(company_id=self.request.session.get('active_company_id'))
+
+class ResidenciaConfigDeleteView(LoginRequiredMixin, DeleteView):
+    model = ResidenciaConfiguracao
+    template_name = 'plantoes/generic_confirm_delete.html'
+    success_url = reverse_lazy('plantoes:residencia_settings')
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(company_id=self.request.session.get('active_company_id'))
+
+
+# --- 2. FOLHA MENSAL (PRODUÇÃO AULAS) ---
+
+@login_required
+def residencia_folha_view(request):
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        return redirect('core:company_list')
+
+    # Filtros de Data
+    today = timezone.now().date()
+    month_str = request.GET.get('month', today.strftime('%Y-%m')) 
+    try:
+        competencia = datetime.strptime(f"{month_str}-01", "%Y-%m-%d").date()
+    except ValueError:
+        competencia = today.replace(day=1)
+
+    queryset = ResidenciaLancamento.objects.filter(
+        company_id=active_company_id,
+        competencia=competencia
+    ).order_by('nome_medico')
+
+    # AÇÃO: GERAR FOLHA (Copia Médicos)
+    if request.method == 'POST' and 'gerar_folha' in request.POST:
+        configs = ResidenciaConfiguracao.objects.filter(company_id=active_company_id)
+        if not configs.exists():
+            messages.error(request, "Cadastre os Médicos da Residência primeiro!")
+        else:
+            novos = []
+            for cfg in configs:
+                if not queryset.filter(nome_medico=cfg.nome_medico).exists():
+                    novos.append(ResidenciaLancamento(
+                        company_id=active_company_id,
+                        competencia=competencia,
+                        nome_medico=cfg.nome_medico,
+                        valor_aula=cfg.valor_aula,
+                        meta_aulas=cfg.meta_aulas,
+                        qtd_aulas=0 # Começa zerado
+                    ))
+            if novos:
+                ResidenciaLancamento.objects.bulk_create(novos)
+                messages.success(request, "Folha de aulas gerada!")
+            return redirect(f"{request.path}?month={month_str}")
+
+    # AÇÃO: SINCRONIZAR (Atualiza preços/metas)
+    if request.method == 'POST' and 'atualizar_valores' in request.POST:
+        configs = ResidenciaConfiguracao.objects.filter(company_id=active_company_id)
+        config_map = {c.nome_medico: c for c in configs}
+        
+        count = 0
+        for item in queryset:
+            cfg = config_map.get(item.nome_medico)
+            if cfg:
+                item.valor_aula = cfg.valor_aula
+                item.meta_aulas = cfg.meta_aulas
+                item.save()
+                count += 1
+        messages.success(request, f"{count} registros sincronizados!")
+        return redirect(f"{request.path}?month={month_str}")
+
+    # AÇÃO: SALVAR GRID
+    LancamentoFormSet = modelformset_factory(ResidenciaLancamento, form=ResidenciaLancamentoForm, extra=0)
+    if request.method == 'POST' and 'salvar_grid' in request.POST:
+        formset = LancamentoFormSet(request.POST, queryset=queryset)
+        if formset.is_valid():
+            formset.save()
+            messages.success(request, "Produção salva com sucesso!")
+            return redirect(f"{request.path}?month={month_str}")
+    else:
+        formset = LancamentoFormSet(queryset=queryset)
+
+    # TOTAIS
+    total_orcado = sum(item.total_orcado for item in queryset)
+    total_realizado = sum(item.total_realizado for item in queryset)
+    total_saldo = sum(item.saldo_orcamentario for item in queryset)
+
+    context = {
+        'formset': formset,
+        'month_str': month_str,
+        'competencia': competencia,
+        'tem_dados': queryset.exists(),
+        'total_orcado': total_orcado,
+        'total_realizado': total_realizado,
+        'total_saldo': total_saldo,
+    }
+    return render(request, 'plantoes/residencia_folha.html', context)
+
+# ==========================================
+# MÓDULO: COORDENAÇÕES
+# ==========================================
+
+# --- 1. CONFIGURAÇÕES ---
+@login_required
+def coordenacao_settings_view(request):
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        return redirect('core:company_list')
+    
+    configs = CoordenacaoConfiguracao.objects.filter(company_id=active_company_id)
+    return render(request, 'plantoes/coordenacao_settings.html', {'configs': configs})
+
+class CoordenacaoConfigCreateView(LoginRequiredMixin, CreateView):
+    model = CoordenacaoConfiguracao
+    form_class = CoordenacaoConfigForm
+    template_name = 'plantoes/generic_form.html'
+    success_url = reverse_lazy('plantoes:coordenacao_settings')
+
+    def form_valid(self, form):
+        form.instance.company_id = self.request.session.get('active_company_id')
+        return super().form_valid(form)
+
+class CoordenacaoConfigUpdateView(LoginRequiredMixin, UpdateView):
+    model = CoordenacaoConfiguracao
+    form_class = CoordenacaoConfigForm
+    template_name = 'plantoes/generic_form.html'
+    success_url = reverse_lazy('plantoes:coordenacao_settings')
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(company_id=self.request.session.get('active_company_id'))
+
+class CoordenacaoConfigDeleteView(LoginRequiredMixin, DeleteView):
+    model = CoordenacaoConfiguracao
+    template_name = 'plantoes/generic_confirm_delete.html'
+    success_url = reverse_lazy('plantoes:coordenacao_settings')
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(company_id=self.request.session.get('active_company_id'))
+
+
+# --- 2. FOLHA MENSAL ---
+@login_required
+def coordenacao_folha_view(request):
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        return redirect('core:company_list')
+
+    today = timezone.now().date()
+    month_str = request.GET.get('month', today.strftime('%Y-%m')) 
+    try:
+        competencia = datetime.strptime(f"{month_str}-01", "%Y-%m-%d").date()
+    except ValueError:
+        competencia = today.replace(day=1)
+
+    queryset = CoordenacaoLancamento.objects.filter(
+        company_id=active_company_id,
+        competencia=competencia
+    ).order_by('nome_funcionario')
+
+    # AÇÃO: GERAR FOLHA
+    if request.method == 'POST' and 'gerar_folha' in request.POST:
+        configs = CoordenacaoConfiguracao.objects.filter(company_id=active_company_id)
+        if not configs.exists():
+            messages.error(request, "Cadastre os Coordenadores primeiro!")
+        else:
+            novos = []
+            for cfg in configs:
+                if not queryset.filter(nome_funcionario=cfg.nome_funcionario).exists():
+                    novos.append(CoordenacaoLancamento(
+                        company_id=active_company_id,
+                        competencia=competencia,
+                        nome_funcionario=cfg.nome_funcionario,
+                        matricula=cfg.matricula,
+                        conselho=cfg.conselho,
+                        setor=cfg.setor,
+                        valor_contrato=cfg.valor_mensal,
+                        valor_pagar=cfg.valor_mensal # Padrão: Paga o combinado
+                    ))
+            if novos:
+                CoordenacaoLancamento.objects.bulk_create(novos)
+                messages.success(request, "Folha de Coordenação gerada!")
+            return redirect(f"{request.path}?month={month_str}")
+
+    # AÇÃO: SINCRONIZAR
+    if request.method == 'POST' and 'atualizar_valores' in request.POST:
+        configs = CoordenacaoConfiguracao.objects.filter(company_id=active_company_id)
+        config_map = {c.nome_funcionario: c for c in configs}
+        count = 0
+        for item in queryset:
+            cfg = config_map.get(item.nome_funcionario)
+            if cfg:
+                item.valor_contrato = cfg.valor_mensal
+                item.matricula = cfg.matricula
+                item.setor = cfg.setor
+                item.save()
+                count += 1
+        messages.success(request, f"{count} registros atualizados!")
+        return redirect(f"{request.path}?month={month_str}")
+
+    # AÇÃO: SALVAR
+    LancamentoFormSet = modelformset_factory(CoordenacaoLancamento, form=CoordenacaoLancamentoForm, extra=0)
+    if request.method == 'POST' and 'salvar_grid' in request.POST:
+        formset = LancamentoFormSet(request.POST, queryset=queryset)
+        if formset.is_valid():
+            formset.save()
+            messages.success(request, "Dados salvos com sucesso!")
+            return redirect(f"{request.path}?month={month_str}")
+    else:
+        formset = LancamentoFormSet(queryset=queryset)
+
+    # TOTAIS
+    total_contratos = sum(item.valor_contrato for item in queryset)
+    total_pagar = sum(item.valor_pagar for item in queryset)
+    total_saldo = sum(item.saldo_orcamentario for item in queryset)
+
+    context = {
+        'formset': formset,
+        'month_str': month_str,
+        'competencia': competencia,
+        'tem_dados': queryset.exists(),
+        'total_contratos': total_contratos,
+        'total_pagar': total_pagar,
+        'total_saldo': total_saldo,
+    }
+    return render(request, 'plantoes/coordenacao_folha.html', context)
+
+# ==========================================
+# DASHBOARD CONSOLIDADO (HOME)
+# ==========================================
+
+@login_required
+def plantoes_dashboard_view(request):
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        return redirect('core:company_list')
+
+    # 1. Filtro de Competência
+    today = timezone.now().date()
+    month_str = request.GET.get('month', today.strftime('%Y-%m'))
+    try:
+        competencia = datetime.strptime(f"{month_str}-01", "%Y-%m-%d").date()
+    except ValueError:
+        competencia = today.replace(day=1)
+
+    # 2. Coleta de Dados e Somas (Realizado)
+    
+    # A. Urgência e Emergência
+    urg_qs = UrgenciaLancamento.objects.filter(company_id=active_company_id, competencia=competencia)
+    total_urgencia = sum(item.total_realizado for item in urg_qs)
+
+    # B. Cirurgia Geral
+    cir_qs = CirurgiaLancamento.objects.filter(company_id=active_company_id, competencia=competencia)
+    total_cirurgia = sum(item.total_realizado for item in cir_qs)
+
+    # C. Nefrologia
+    nefro_qs = NefrologiaLancamento.objects.filter(company_id=active_company_id, competencia=competencia)
+    total_nefrologia = sum(item.total_realizado for item in nefro_qs)
+
+    # D. Bucomaxilo (Campo valor_pagar)
+    buco_qs = BucomaxiloLancamento.objects.filter(company_id=active_company_id, competencia=competencia)
+    total_bucomaxilo = sum(item.valor_pagar for item in buco_qs)
+
+    # E. Residência Cirurgia
+    resid_qs = ResidenciaLancamento.objects.filter(company_id=active_company_id, competencia=competencia)
+    total_residencia = sum(item.total_realizado for item in resid_qs)
+
+    # F. Coordenações
+    coord_qs = CoordenacaoLancamento.objects.filter(company_id=active_company_id, competencia=competencia)
+    total_coordenacao = sum(item.valor_pagar for item in coord_qs)
+
+    # G. Equipe de Transporte (NOVO)
+    # Lógica: Filtrar por competência (precisamos filtrar por mês/ano pois o campo é Data completa)
+    transp_qs = TransporteLancamento.objects.filter(
+        company_id=active_company_id, 
+        competencia__year=competencia.year,
+        competencia__month=competencia.month
+    )
+    # Cálculo manual: Quantidade * Valor Viagem (pois não tem campo total salvo)
+    total_transporte = sum((item.quantidade_viagens * item.valor_viagem) for item in transp_qs)
+
+    # 3. Consolidação
+    # Lista de dicionários para facilitar o template
+    items = [
+        {
+            'nome': 'Urgência e Emergência', 
+            'valor': total_urgencia, 
+            'url': 'plantoes:urgencia_folha', 
+            'icon': 'bi-heart-pulse'
+        },
+        {
+            'nome': 'Cirurgia Geral', 
+            'valor': total_cirurgia, 
+            'url': 'plantoes:cirurgia_folha', 
+            'icon': 'bi-bandaid'
+        },
+        {
+            'nome': 'Serviço de Nefrologia', 
+            'valor': total_nefrologia, 
+            'url': 'plantoes:nefrologia_folha', 
+            'icon': 'bi-droplet'
+        },
+        {
+            'nome': 'Bucomaxilo', 
+            'valor': total_bucomaxilo, 
+            'url': 'plantoes:bucomaxilo_folha', 
+            'icon': 'bi-person-lines-fill'
+        },
+        {
+            'nome': 'Residência Cirurgia', 
+            'valor': total_residencia, 
+            'url': 'plantoes:residencia_folha', 
+            'icon': 'bi-mortarboard'
+        },
+        {
+            'nome': 'Coordenações', 
+            'valor': total_coordenacao, 
+            'url': 'plantoes:coordenacao_folha', 
+            'icon': 'bi-people'
+        },
+        {
+            'nome': 'Equipe de Transporte', 
+            'valor': total_transporte, 
+            'url': 'plantoes:transporte_list', # Link aponta para a listagem
+            'icon': 'bi-ambulance' # Ícone de ambulância/transporte
+        },
+    ]
+
+    # Ordenar do maior valor para o menor (Curva ABC)
+    items.sort(key=lambda x: x['valor'], reverse=True)
+
+    # 4. Total Geral e Cálculo de Porcentagem
+    total_geral = sum(item['valor'] for item in items)
+
+    for item in items:
+        if total_geral > 0:
+            item['percent'] = (item['valor'] / total_geral) * 100
+        else:
+            item['percent'] = 0
+
+    context = {
+        'month_str': month_str,
+        'competencia': competencia,
+        'items': items,
+        'total_geral': total_geral,
+    }
+    return render(request, 'plantoes/dashboard.html', context)
+
+# ==========================================
+# RELATÓRIO ANUAL (CONSOLIDADO)
+# ==========================================
+
+@login_required
+def plantoes_annual_report_view(request):
+    active_company_id = request.session.get('active_company_id')
+    if not active_company_id:
+        return redirect('core:company_list')
+
+    # 1. Filtro de Ano
+    today = timezone.now().date()
+    try:
+        current_year = int(request.GET.get('year', today.year))
+    except ValueError:
+        current_year = today.year
+    
+    years_list = [today.year - 1, today.year, today.year + 1]
+
+    # 2. Estrutura de Dados
+    services_data = [
+        {'id': 'urgencia', 'name': 'Urgência e Emergência', 'months': []},
+        {'id': 'cirurgia', 'name': 'Cirurgia Geral', 'months': []},
+        {'id': 'nefrologia', 'name': 'Serviço de Nefrologia', 'months': []},
+        {'id': 'bucomaxilo', 'name': 'Bucomaxilo', 'months': []},
+        {'id': 'residencia', 'name': 'Residência Cirurgia', 'months': []},
+        {'id': 'coordenacao', 'name': 'Coordenações', 'months': []},
+        {'id': 'transporte', 'name': 'Equipe de Transporte', 'months': []},
+    ]
+    
+    total_row = [{'valor': Decimal('0.00'), 'var_pct': Decimal('0.00')} for _ in range(12)]
+    last_month_values = {s['id']: Decimal('0.00') for s in services_data}
+    last_month_total = Decimal('0.00')
+
+    # 3. Loop pelos 12 meses
+    for month in range(1, 13):
+        ref_date = datetime(current_year, month, 1).date()
+        month_idx = month - 1 
+        
+        # --- BUSCAS ---
+
+        # A. Urgência
+        qs_urg = UrgenciaLancamento.objects.filter(company_id=active_company_id, competencia=ref_date)
+        val_urg = sum((i.total_realizado for i in qs_urg), start=Decimal('0.00'))
+
+        # B. Cirurgia
+        qs_cir = CirurgiaLancamento.objects.filter(company_id=active_company_id, competencia=ref_date)
+        val_cir = sum((i.total_realizado for i in qs_cir), start=Decimal('0.00'))
+
+        # C. Nefro
+        qs_nef = NefrologiaLancamento.objects.filter(company_id=active_company_id, competencia=ref_date)
+        val_nef = sum((i.total_realizado for i in qs_nef), start=Decimal('0.00'))
+
+        # D. Bucomaxilo
+        qs_buc = BucomaxiloLancamento.objects.filter(company_id=active_company_id, competencia=ref_date)
+        val_buc = sum((i.valor_pagar for i in qs_buc), start=Decimal('0.00'))
+
+        # E. Residência
+        qs_res = ResidenciaLancamento.objects.filter(company_id=active_company_id, competencia=ref_date)
+        val_res = sum((i.total_realizado for i in qs_res), start=Decimal('0.00'))
+
+        # F. Coordenação
+        qs_coor = CoordenacaoLancamento.objects.filter(company_id=active_company_id, competencia=ref_date)
+        val_coor = sum((i.valor_pagar for i in qs_coor), start=Decimal('0.00'))
+
+        # G. Transporte (CORREÇÃO AQUI)
+        # Filtramos pelo ano e mês da competência
+        qs_trans = TransporteLancamento.objects.filter(
+            company_id=active_company_id, 
+            competencia__year=current_year, 
+            competencia__month=month
+        )
+        
+        # Usamos o aggregate do banco para multiplicar Qtd * Valor e somar tudo
+        agg_trans = qs_trans.aggregate(
+            total=Sum(F('quantidade_viagens') * F('valor_viagem'), output_field=DecimalField())
+        )
+        
+        # Se retornar None (sem lançamentos), usamos 0.00
+        val_trans = agg_trans['total'] if agg_trans['total'] is not None else Decimal('0.00')
+
+
+        current_values = {
+            'urgencia': val_urg,
+            'cirurgia': val_cir,
+            'nefrologia': val_nef,
+            'bucomaxilo': val_buc,
+            'residencia': val_res,
+            'coordenacao': val_coor,
+            'transporte': val_trans
+        }
+
+        monthly_total_sum = Decimal('0.00')
+
+        for service in services_data:
+            s_id = service['id']
+            val = current_values[s_id]
+            prev_val = last_month_values[s_id]
+            
+            var_pct = Decimal('0.00')
+            if prev_val > 0:
+                var_pct = ((val - prev_val) / prev_val) * 100
+            elif prev_val == 0 and val > 0:
+                var_pct = Decimal('100.00')
+            
+            service['months'].append({
+                'valor': val,
+                'var_pct': var_pct,
+                'has_data': (val > 0 or prev_val > 0)
+            })
+            
+            last_month_values[s_id] = val
+            monthly_total_sum += val
+
+        # Totais da Linha Inferior
+        total_var_pct = Decimal('0.00')
+        if last_month_total > 0:
+            total_var_pct = ((monthly_total_sum - last_month_total) / last_month_total) * 100
+        elif last_month_total == 0 and monthly_total_sum > 0:
+            total_var_pct = Decimal('100.00')
+
+        total_row[month_idx] = {
+            'valor': monthly_total_sum,
+            'var_pct': total_var_pct
+        }
+        last_month_total = monthly_total_sum
+
+    return render(request, 'plantoes/annual_report.html', {
+        'current_year': current_year,
+        'years_list': years_list,
+        'services_data': services_data,
+        'total_row': total_row,
+        'months_names': ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+    })
