@@ -1,18 +1,24 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% block title %}Confirmar Exclusão{% endblock %}
-
 {% block content %}
-<div class="card border-danger">
-    <div class="card-header bg-danger text-white"><h2>Tem certeza?</h2></div>
-    <div class="card-body">
-        <p>Você está prestes a excluir o item: <strong>{{ object.name }}</strong>.</p>
-        <p class="text-danger">Esta ação não pode ser desfeita.</p>
-        <hr>
-        <form method="post">
-            {% csrf_token %}
-            <a href="{% url 'plantoes:plantoes_settings' %}" class="btn btn-secondary">Cancelar</a>
-            <button type="submit" class="btn btn-danger">Sim, quero excluir</button>
-        </form>
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 mb-4 border-left-danger">
+                <div class="card-header py-3 bg-white border-bottom">
+                    <h6 class="m-0 font-weight-bold text-danger">Atenção!</h6>
+                </div>
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-exclamation-triangle-fill text-danger display-1 mb-3"></i>
+                    <h5 class="text-gray-800 mb-4">Tem certeza que deseja excluir este item?</h5>
+                    <p class="text-dark fw-bold fs-5">{{ object }}</p>
+                    <p class="text-muted small">Esta ação não poderá ser desfeita e os dados serão perdidos para sempre.</p>
+                    <form method="post" class="mt-4">
+                        {% csrf_token %}
+                        <a href="javascript:history.back()" class="btn btn-secondary px-4 me-2">Cancelar</a>
+                        <button type="submit" class="btn btn-danger px-4">Sim, Excluir</button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
 {% endblock %}

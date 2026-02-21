@@ -1,41 +1,28 @@
 {% extends "base.html" %}
-{% load form_filters %}
-{% block title %}
-  {% if object %}
-    Editar Item
-  {% else %}
-    Adicionar Item
-  {% endif %}
-{% endblock title %}
+{% load crispy_forms_tags %}
+{% block title %}Formulário{% endblock %}
 {% block content %}
-  <h1 class="mb-4">
-    {% if object %}
-      Editar Item
-    {% else %}
-      Adicionar Item
-    {% endif %}
-  </h1>
-  <div class="card shadow-sm">
-    <div class="card-body">
-      <form method="post">
-        {% csrf_token %}
-        {% for field in form %}
-          <div class="mb-3">
-            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-            {% if "Select" in field.widget_type %}
-              {{ field|add_class:"form-select" }}
-            {% else %}
-              {{ field|add_class:"form-control" }}
-            {% endif %}
-            {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
-          </div>
-        {% endfor %}
-        <div class="d-flex justify-content-end mt-4">
-          {# Use the configured success_url directly to avoid calling get_success_url during GET #}
-          <a href="{{ view.success_url }}" class="btn btn-secondary me-2">Cancelar</a>
-          <button type="submit" class="btn btn-primary">Salvar</button>
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-4 text-gray-800">
+                {% if object %}
+                    Editar Item
+                {% else %}
+                    Adicionar Item
+                {% endif %}
+            </h1>
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="javascript:history.back()" class="btn btn-secondary me-2">Cancelar</a>
+                            <button type="submit" class="btn btn-primary">Salvar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
-      </form>
     </div>
-  </div>
-{% endblock content %}
+{% endblock %}
