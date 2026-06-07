@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% load l10n humanize %}
+{% block title %}DRE Mensal {{ year }} - {{ company.name }}{% endblock %}
+{% block extra_css %}
+<style>
+.table-mensal th, .table-mensal td { font-size:.78rem; white-space:nowrap; }
+.table-mensal .col-account { min-width:220px; max-width:300px; white-space:normal; }
+.level-0 .col-account { font-weight:700; background:#f8f9fa; }
+.level-1 .col-account { padding-left:1.2rem !important; font-weight:600; }
+.level-2 .col-account { padding-left:2.2rem !important; color:#444; }
+.level-3 .col-account { padding-left:3.2rem !important; color:#666; font-size:.75rem; }
+.val-negative { color:#dc3545; }
+.val-positive { color:#198754; }
+.total-row td { font-weight:700; background:#f0f4ff; }
+.result-row td { font-weight:800; font-size:.85rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+  <div>
+    <h1 class="fw-bold text-primary mb-0">DRE Mensal</h1>
+    <span class="text-muted">{{ company.name }}</span>
+  </div>
+  <a href="{% url 'core:reports_hub' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-grid me-1"></i> Todos os Relatórios
+  </a>
+</div>
+
+<!-- Seletor de ano -->
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body">
+    {% load l10n %}
+    <form method="GET" class="row g-3 align-items-end">
+      <div class="col-auto">
+        <label class="form-label fw-semibold">Ano</label>
+        <input type="text" inputmode="numeric" pattern="[0-9]{4}"
+               class="form-control" name="year"
+               value="{% localize off %}{{ year }}{% endlocalize %}"
+               placeholder="AAAA" style="width:110px;">
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-primary px-4">
+          <i class="bi bi-search me-1"></i> Gerar
+        </button>
+      </div>
+      <div class="col-auto">
+        {% localize off %}
+        <a href="?year={{ prev_year }}" class="btn btn-outline-secondary">‹ {{ prev_year }}</a>
+        <a href="?year={{ next_year }}" class="btn btn-outline-secondary">{{ next_year }} ›</a>
+        {% endlocalize %}
+      </div>
+      <div class="col-auto ms-auto">
+        {% localize off %}
+        <a href="{% url 'core:dre_mensal_pdf' %}?year={{ year }}" class="btn btn-danger px-4">
+          <i class="bi bi-file-earmark-pdf me-1"></i> PDF Paisagem
+        </a>
+        {% endlocalize %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Tabela -->
+<div class="card shadow-sm border-0">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover table-mensal mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="col-account">Conta</th>
+            {% for m in month_names %}<th class="text-end">{{ m }}</th>{% endfor %}
+            <th class="text-end" style="background:#e9ecef;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- RECEITAS -->
+          <tr class="table-success">
+            <td colspan="{{ month_names|length|add:2 }}" class="fw-bold text-success py-2">
+              <i class="bi bi-arrow-up-circle-fill me-1"></i> RECEITAS
+            </td>
+          </tr>
+          {% for line in revenue_lines %}
+          <tr class="level-{{ line.level }}">
+            <td class="col-account level-{{ line.level }}">{{ line.account.code }} — {{ line.account.name }}</td>
+            {% for val in line.month_totals %}
+              <td class="text-end {% if val > 0 %}val-positive{% elif val < 0 %}val-negative{% endif %}">
+                {% if val %}{{ val|floatformat:0|intcomma }}{% else %}—{% endif %}
+              </td>
+            {% endfor %}
+            <td class="text-end fw-semibold">{{ line.annual_total|floatformat:0|intcomma }}</td>
+          </tr>
+          {% endfor %}
+          <tr class="total-row">
+            <td class="text-end">TOTAL RECEITAS</td>
+            {% for val in month_totals_revenue %}
+              <td class="text-end text-success">{{ val|floatformat:0|intcomma }}</td>
+            {% endfor %}
+            <td class="text-end text-success">{{ total_revenue|floatformat:0|intcomma }}</td>
+          </tr>
+
+          <!-- DESPESAS -->
+          <tr class="table-danger">
+            <td colspan="{{ month_names|length|add:2 }}" class="fw-bold text-danger py-2">
+              <i class="bi bi-arrow-down-circle-fill me-1"></i> DESPESAS
+            </td>
+          </tr>
+          {% for line in expense_lines %}
+          <tr class="level-{{ line.level }}">
+            <td class="col-account level-{{ line.level }}">{{ line.account.code }} — {{ line.account.name }}</td>
+            {% for val in line.month_totals %}
+              <td class="text-end {% if val > 0 %}val-negative{% endif %}">
+                {% if val %}{{ val|floatformat:0|intcomma }}{% else %}—{% endif %}
+              </td>
+            {% endfor %}
+            <td class="text-end fw-semibold">{{ line.annual_total|floatformat:0|intcomma }}</td>
+          </tr>
+          {% endfor %}
+          <tr class="total-row">
+            <td class="text-end">TOTAL DESPESAS</td>
+            {% for val in month_totals_expense %}
+              <td class="text-end text-danger">{{ val|floatformat:0|intcomma }}</td>
+            {% endfor %}
+            <td class="text-end text-danger">{{ total_expense|floatformat:0|intcomma }}</td>
+          </tr>
+
+          <!-- RESULTADO -->
+          <tr class="result-row {% if net_result >= 0 %}table-primary{% else %}table-warning{% endif %}">
+            <td class="text-end fw-bold">RESULTADO</td>
+            {% for val in month_totals_result %}
+              <td class="text-end {% if val >= 0 %}text-success{% else %}text-danger{% endif %}">
+                {{ val|floatformat:0|intcomma }}
+              </td>
+            {% endfor %}
+            <td class="text-end {% if net_result >= 0 %}text-success{% else %}text-danger{% endif %}">
+              {{ net_result|floatformat:0|intcomma }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Extrato Analítico - {{ company.name }}</title>
+{% load humanize %}
+<style>
+@page { size: A4; margin: 1.8cm 1.5cm; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: #222; }
+.header { border-bottom: 3px solid #1a56db; padding-bottom: 10px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: flex-end; }
+.header-left h1 { font-size: 17px; color: #1a56db; font-weight: 800; }
+.header-left h2 { font-size: 12px; color: #444; font-weight: 600; margin-top: 2px; }
+.header-right { text-align: right; font-size: 9px; color: #777; }
+.period { background: #f0f4ff; border-radius: 4px; padding: 5px 10px; margin-bottom: 12px; font-size: 10px; }
+.summary { display: flex; gap: 12px; margin-bottom: 14px; }
+.summary-card { flex: 1; border-radius: 5px; padding: 8px 10px; text-align: center; }
+.summary-card .label { font-size: 8px; text-transform: uppercase; color: #888; margin-bottom: 3px; }
+.summary-card .value { font-size: 12px; font-weight: 700; }
+.card-count    { background: #f0f4ff; }
+.card-receitas { background: #d4edda; }
+.card-despesas { background: #f8d7da; }
+.card-saldo    { background: #e2e3e5; }
+.card-saldo.positive { background: #cce5ff; }
+.card-saldo.negative { background: #ffeeba; }
+table { width: 100%; border-collapse: collapse; }
+th { background: #1a56db; color: #fff; padding: 5px 6px; font-size: 9px; text-align: left; }
+th.right { text-align: right; }
+td { padding: 4px 6px; border-bottom: 1px solid #eee; vertical-align: middle; font-size: 9.5px; }
+tr:nth-child(even) td { background: #fafbff; }
+.badge-receita { background: #d4edda; color: #155724; padding: 1px 5px; border-radius: 3px; font-size: 8px; font-weight: 600; }
+.badge-despesa { background: #f8d7da; color: #721c24; padding: 1px 5px; border-radius: 3px; font-size: 8px; font-weight: 600; }
+.badge-pago    { background: #d4edda; color: #155724; padding: 1px 5px; border-radius: 3px; font-size: 8px; font-weight: 600; }
+.badge-pend    { background: #fff3cd; color: #856404; padding: 1px 5px; border-radius: 3px; font-size: 8px; font-weight: 600; }
+.amount-receita { color: #198754; font-weight: 700; text-align: right; white-space: nowrap; }
+.amount-despesa { color: #c0392b; font-weight: 700; text-align: right; white-space: nowrap; }
+.total-row td { font-weight: 700; border-top: 2px solid #bbb; background: #f5f5f5; }
+.footer { margin-top: 18px; border-top: 1px solid #ddd; padding-top: 7px; font-size: 8.5px; color: #999; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-left">
+    <h1>Extrato Analítico de Lançamentos</h1>
+    <h2>{{ company.name }}</h2>
+  </div>
+  <div class="header-right">
+    Emitido em: {{ generated_at }}<br>
+    Documento confidencial
+  </div>
+</div>
+
+<div class="period">
+  <strong>Período:</strong> {{ start_date_str }} a {{ end_date_str }}
+</div>
+
+<div class="summary">
+  <div class="summary-card card-count">
+    <div class="label">Lançamentos</div>
+    <div class="value" style="color:#1a56db;">{{ transactions|length }}</div>
+  </div>
+  <div class="summary-card card-receitas">
+    <div class="label">Receitas</div>
+    <div class="value" style="color:#155724;">R$ {{ total_receitas|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="summary-card card-despesas">
+    <div class="label">Despesas</div>
+    <div class="value" style="color:#721c24;">R$ {{ total_despesas|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="summary-card card-saldo {% if saldo >= 0 %}positive{% else %}negative{% endif %}">
+    <div class="label">Saldo</div>
+    <div class="value" style="color:{% if saldo >= 0 %}#0c5460{% else %}#856404{% endif %};">
+      R$ {{ saldo|floatformat:2|intcomma }}
+    </div>
+  </div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width:70px;">Data</th>
+      <th style="width:55px;">Tipo</th>
+      <th>Conta</th>
+      <th>Descrição</th>
+      <th style="width:60px;">Status</th>
+      <th style="width:90px;">Lançado por</th>
+      <th class="right" style="width:90px;">Valor (R$)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in transactions %}
+    <tr>
+      <td>{{ t.date|date:"d/m/Y" }}</td>
+      <td>
+        {% if t.account.account_type == 'R' %}
+          <span class="badge-receita">Receita</span>
+        {% else %}
+          <span class="badge-despesa">Despesa</span>
+        {% endif %}
+      </td>
+      <td style="font-size:8.5px;">
+        <span style="font-family:monospace;font-size:8px;color:#555;">{{ t.account.code }}</span>
+        {{ t.account.name }}
+      </td>
+      <td style="color:#555;">{{ t.description|default:"—"|truncatechars:45 }}</td>
+      <td>
+        {% if t.status == 'PAID' %}
+          <span class="badge-pago">Realizado</span>
+        {% else %}
+          <span class="badge-pend">Pendente</span>
+        {% endif %}
+      </td>
+      <td style="color:#666;">
+        {% if t.created_by %}{{ t.created_by.get_full_name|default:t.created_by.username }}{% else %}—{% endif %}
+      </td>
+      <td class="{% if t.account.account_type == 'R' %}amount-receita{% else %}amount-despesa{% endif %}">
+        {% if t.account.account_type == 'R' %}+{% else %}−{% endif %}{{ t.amount|floatformat:2|intcomma }}
+      </td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="7" style="text-align:center; color:#888; padding:20px;">
+        Nenhum lançamento encontrado para o período selecionado.
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  {% if transactions %}
+  <tfoot>
+    <tr class="total-row">
+      <td colspan="6" style="text-align:right;">SALDO DO PERÍODO</td>
+      <td class="{% if saldo >= 0 %}amount-receita{% else %}amount-despesa{% endif %}">
+        R$ {{ saldo|floatformat:2|intcomma }}
+      </td>
+    </tr>
+  </tfoot>
+  {% endif %}
+</table>
+
+<div class="footer">
+  <span>Finanças 360 — Relatório gerado automaticamente</span>
+  <span>{{ company.name }} · {{ generated_at }}</span>
+</div>
+</body>
+</html>

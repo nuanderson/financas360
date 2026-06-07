@@ -1,345 +1,539 @@
 {% extends "base.html" %}
-{% load l10n humanize custom_filters %}
-{% block title %}
-    Quadro Orçamentário - {{ company.name }}
-{% endblock title %}
+{% load l10n humanize %}
+{% block title %}Quadro Orçamentário {{ year }} — {{ company.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ══ FIX: forçar main-content a não expandir pela tabela larga ═══ */
+/* Sem isto, o scroll acontece no body e não no .bq-scroll,
+   quebrando position: sticky                                       */
+body > .main-content { min-width: 0; overflow-x: clip; }
+
+/* ══ CONTAINER DE SCROLL ════════════════════════════════════════ */
+.bq-wrap {
+  width: 100%;           /* nunca ultrapassa o pai */
+  overflow-x: auto;
+  overflow-y: visible;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+
+/* ══ TABELA BASE ════════════════════════════════════════════════ */
+.bq-table {
+  font-size: 0.78rem;
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: auto;
+}
+.bq-table th,
+.bq-table td {
+  padding: 4px 7px;
+  border: 1px solid #dee2e6;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* ══ CABEÇALHO STICKY (vertical) ════════════════════════════════ */
+.bq-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+}
+
+/* ══ COLUNA CONTA: STICKY (horizontal) ══════════════════════════ */
+.col-conta {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  width: 250px;
+  min-width: 220px;
+  max-width: 260px;
+  white-space: normal !important;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.35;
+  border-right: 2px solid #888 !important;
+}
+/* thead: sticky top+left combinados */
+thead th.col-conta { z-index: 25; }
+
+/* ══ HIERARQUIA DE LINHAS (cor em toda a linha) ══════════════════ */
+tr.level-0 > td           { background: #adb5bd; color: #000; font-weight: 800; }
+tr.level-0 > td.col-conta { background: #adb5bd !important; }
+tr.level-1 > td           { background: #ced4da; font-weight: 700; }
+tr.level-1 > td.col-conta { background: #ced4da !important; padding-left: 1.2rem; }
+tr.level-2 > td           { background: #e9ecef; font-weight: 600; }
+tr.level-2 > td.col-conta { background: #e9ecef !important; padding-left: 2.2rem; }
+tr.level-3 > td           { background: #fff; }
+tr.level-3 > td.col-conta { background: #fff !important; padding-left: 3.2rem; }
+tr.level-4 > td           { background: #fafafa; color: #555; font-size: .74rem; }
+tr.level-4 > td.col-conta { background: #fafafa !important; padding-left: 4.2rem; }
+
+/* ══ CÉLULA ORÇADO (azul) ═══════════════════════════════════════ */
+td.cell-budget {
+  background: #eef3ff !important;
+  color: #1a56db !important;
+  text-align: right;
+}
+
+/* ══ STATUS REALIZADO ════════════════════════════════════════════ */
+td.st-ok    { background: #d4edda !important; color: #155724 !important; font-weight: 700; }
+td.st-over  { background: #f8d7da !important; color: #721c24 !important; font-weight: 700; }
+td.st-under { background: #fff3cd !important; color: #856404 !important; font-weight: 600; }
+td.cell-actual { text-align: right; font-weight: 600; }
+
+/* ══ VARIAÇÃO ════════════════════════════════════════════════════ */
+td.cell-var { text-align: center; font-size: .72rem; min-width: 44px; }
+.var-up   { color: #198754; font-weight: 700; }
+.var-down { color: #dc3545; font-weight: 700; }
+
+/* ══ TOTAIS ANUAIS ══════════════════════════════════════════════ */
+td.col-total {
+  background: #e2e8f0 !important;
+  font-weight: 700;
+  text-align: right;
+  min-width: 100px;
+  color: #1e293b;
+}
+
+/* ══ CABEÇALHOS ═════════════════════════════════════════════════ */
+.th-conta   { background: #f1f5f9; text-align: left; }
+.th-month   { text-align: center; background: #1a56db; color: #fff;
+              font-size: .72rem; padding: 4px 5px; }
+.th-sub     { text-align: center; font-size: .68rem; color: #444;
+              padding: 3px 4px; background: #f1f5f9; min-width: 56px; }
+.th-var-sub { min-width: 44px; }
+.th-anual   { text-align: center; background: #0f3d9e; color: #fff; font-size: .72rem; }
+.th-anual-sub { text-align: center; font-size: .68rem; color: #1a56db;
+                background: #dce5ff; min-width: 100px; }
+
+/* ══ RESUMO ═════════════════════════════════════════════════════ */
+.sum-rev td           { background: #d1e7dd !important; color: #0a3622 !important; font-weight: 700; }
+.sum-rev td.col-conta { background: #d1e7dd !important; }
+.sum-exp td           { background: #f8d7da !important; color: #58151c !important; font-weight: 700; }
+.sum-exp td.col-conta { background: #f8d7da !important; }
+
+/* ══ SEPARADOR ══════════════════════════════════════════════════ */
+.row-sep > td { background: #475569 !important; height: 4px; padding: 0; border: none; }
+
+/* ══ SUB-CABEÇALHO STICKY (repetição dos meses antes do detalhe) ═ */
+tr.detail-subheader > td {
+  background: #1a56db;
+  color: #fff;
+  font-weight: 700;
+  font-size: .72rem;
+  text-align: center;
+  padding: 4px 5px;
+  border-color: #0d47a1 !important;
+  position: sticky;
+  z-index: 12;
+  /* top: calculado via JS após DOM pronto */
+}
+tr.detail-subheader > td.col-conta {
+  background: #0f3d9e !important;
+  text-align: left;
+  z-index: 22;   /* canto: sticky left + top juntos */
+}
+tr.detail-subheader > td.sub-anual {
+  background: #0f3d9e;
+}
+
+/* ══ FILTRO ════════════════════════════════════════════════════ */
+.row-hidden { display: none !important; }
+</style>
+{% endblock %}
+
 {% block content %}
-    <h1 class="fw-bold text-primary mb-3">
-        Quadro Orçamentário <span class="text-muted fs-5">{{ company.name }}</span>
-    </h1>
-    <style>
-    .budget-table { font-size: 0.85em; }
 
-    .col-conta-header { 
-        width: 350px; 
-        min-width: 350px; 
-        max-width: 350px; 
-    }
-    .col-orcamento-header { 
-        width: 120px; 
-        min-width: 120px;
-        max-width: 120px;
-    }
-    .col-resumo-header { 
-        width: 470px; 
-        min-width: 470px; 
-        max-width: 470px;
-    }
+<!-- Título -->
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+  <div>
+    <h1 class="fw-bold text-primary mb-0">Quadro Orçamentário</h1>
+    <span class="text-muted">{{ company.name }}</span>
+  </div>
+  {% if user.is_staff %}
+  {% localize off %}
+  <a href="{% url 'core:budget_entry' %}?year={{ year }}"
+     class="btn btn-warning btn-sm fw-bold">
+    <i class="bi bi-pencil-square me-1"></i> Lançar Orçamento
+  </a>
+  {% endlocalize %}
+  {% endif %}
+</div>
 
-    /* Coluna Fixa (Sticky) */
-    .sticky-col {
-        position: -webkit-sticky; /* Safari */
-        position: sticky;
-        left: 0;
-        z-index: 10;
-        border-right: 2px solid #dee2e6;
-    }
-
-    thead th.sticky-col {
-        z-index: 20; 
-        background-color: #f8f9fa;
-    }
-
-    tbody td.sticky-col {
-        background-color: #fff;
-        z-index: 10;
-    }
-
-    .table-responsive {
-        overflow-x: auto;
-    }
-
-    /* --- HIERARQUIA VISUAL (Degradê de Cinza) --- */
-
-    /* Nível 0 (Ex: 1 - RECEITAS): Cinza Escuro */
-    tr.level-0 td {
-        background-color: #adb5bd !important; 
-        color: #000;
-        font-weight: 800;
-    }
-    /* Garante que a coluna fixa pegue a cor */
-    tr.level-0 td.sticky-col {
-        background-color: #adb5bd !important;
-    }
-
-    /* Nível 1 (Ex: 1.01 - CONTRATO): Cinza Médio */
-    tr.level-1 td {
-        background-color: #ced4da !important;
-        color: #212529;
-        font-weight: 700;
-    }
-    tr.level-1 td.sticky-col {
-        background-color: #ced4da !important;
-    }
-
-    /* Nível 2 (Ex: 1.01.01 - FIXO): Cinza Claro */
-    tr.level-2 td {
-        background-color: #e9ecef !important;
-        color: #495057;
-        font-weight: 600;
-    }
-    tr.level-2 td.sticky-col {
-        background-color: #e9ecef !important;
-    }
-
-    /* Nível 3 (Padrão): Branco */
-    tr.level-3 td {
-        background-color: #fff !important;
-        font-weight: 400;
-    }
-    tr.level-3 td.sticky-col {
-        background-color: #fff !important;
-    }
-
-    /* --- CORES DE STATUS (Vermelho/Azul/Verde) --- */
-    /* Usamos 'tr td.bg-...' para aumentar a especificidade e ganhar do '!important' das linhas acima */
-
-    tr td.bg-danger {
-        background-color: #dc3545 !important;
-        color: #fff !important;
-        font-weight: bold;
-    }
-
-    tr td.bg-primary {
-        background-color: #0d6efd !important;
-        color: #fff !important;
-        font-weight: bold;
-    }
-
-    tr td.bg-success {
-        background-color: #198754 !important;
-        color: #fff !important;
-        font-weight: bold;
-    }
-
-    tr td.bg-warning {
-        background-color: #ffc107 !important;
-        color: #000 !important;
-        font-weight: bold;
-    }
-    
-    /* Garante que links dentro de células coloridas fiquem brancos */
-    tr td.bg-danger a, 
-    tr td.bg-primary a, 
-    tr td.bg-success a {
-        color: #fff !important;
-        text-decoration: none;
-    }
-
-    /* Badge com fundo transparente e texto cinza */
-    .badge-transparent-secondary {
-        background: transparent !important;
-        color: #aaa !important;
-    }
-    </style>
-    <div class="card shadow-sm mb-3">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-sm table-bordered table-hover align-middle mb-0 budget-table">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="align-middle col-resumo-header">Ano: {{ year }}</th>
-                            {% for month in months %}<th colspan="2" class="text-center">{{ month }}</th>{% endfor %}
-                        </tr>
-                        <tr>
-                            <th></th>
-                            {% for month in months %}
-                                <th class="text-end">Realizado</th>
-                                <th class="text-center">Var(%)</th>
-                            {% endfor %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td class="fw-bold table-primary">RECEITA</td>
-                            {% for i in summary_data.revenue.monthly_actuals %}
-                                <td class="text-end fw-bold table-primary">{{ i|floatformat:2|intcomma }}</td>
-                                <td class="text-center table-primary">
-                                    {% with variation=summary_data.revenue.monthly_variations|index:forloop.counter0 %}
-                                        {% if forloop.counter0 > 0 and variation != 0 %}
-                                            <span class="badge {% if variation > 0 %}bg-success{% else %}bg-danger{% endif %}">
-                                                {% if variation > 0 %}
-                                                    ▲
-                                                {% else %}
-                                                    ▼
-                                                {% endif %}
-                                                {{ variation|floatformat:0|intcomma|cut:"-" }}%
-                                            </span>
-                                        {% endif %}
-                                    {% endwith %}
-                                </td>
-                            {% endfor %}
-                        </tr>
-                        <tr>
-                            <td class="fw-bold table-danger">DESPESA</td>
-                            {% for i in summary_data.expense.monthly_actuals %}
-                                <td class="text-end fw-bold table-danger">{{ i|floatformat:2|intcomma }}</td>
-                                <td class="text-center table-danger">
-                                    {% with variation=summary_data.expense.monthly_variations|index:forloop.counter0 %}
-                                        {% if forloop.counter0 > 0 and variation != 0 %}
-                                            <span class="badge {% if variation > 0 %}bg-danger{% else %}bg-success{% endif %}">
-                                                {% if variation > 0 %}
-                                                    ▲
-                                                {% else %}
-                                                    ▼
-                                                {% endif %}
-                                                {{ variation|floatformat:0|intcomma|cut:"-" }}%
-                                            </span>
-                                        {% endif %}
-                                    {% endwith %}
-                                </td>
-                            {% endfor %}
-                        </tr>
-                        <tr>
-                            <td class="fw-bold table-dark">RESULTADO LÍQUIDO</td>
-                            {% for i in summary_data.net_result.monthly_actuals %}
-                                <td class="text-end fw-bold table-dark">{{ i|floatformat:2|intcomma }}</td>
-                                <td class="text-center table-dark">
-                                    {% with variation=summary_data.net_result.monthly_variations|index:forloop.counter0 %}
-                                        {% if forloop.counter0 > 0 and variation != 0 %}
-                                            <span class="badge {% if variation > 0 %}bg-success{% else %}bg-danger{% endif %}">
-                                                {% if variation > 0 %}
-                                                    ▲
-                                                {% else %}
-                                                    ▼
-                                                {% endif %}
-                                                {{ variation|floatformat:0|intcomma|cut:"-" }}%
-                                            </span>
-                                        {% endif %}
-                                    {% endwith %}
-                                </td>
-                            {% endfor %}
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+<!-- Filtros -->
+<div class="card shadow-sm border-0 mb-3">
+  <div class="card-body py-2">
+    <div class="row g-2 align-items-center flex-wrap">
+      <div class="col-auto">
+        <form method="GET" class="d-flex align-items-center gap-2">
+          <label class="fw-semibold text-muted small mb-0">Ano</label>
+          <select name="year" class="form-select form-select-sm"
+                  onchange="this.form.submit()" style="width:90px;">
+            {% for y in available_years %}
+              <option value="{{ y|unlocalize }}"
+                      {% if y == year %}selected{% endif %}>{{ y }}</option>
+            {% empty %}
+              <option value="{{ year|unlocalize }}" selected>{{ year }}</option>
+            {% endfor %}
+          </select>
+        </form>
+      </div>
+      <div class="col-auto">
+        <div class="btn-group btn-group-sm" id="typeFilter">
+          <button type="button" class="btn btn-primary active"
+                  data-filter="all">Todos</button>
+          <button type="button" class="btn btn-outline-success"
+                  data-filter="R">Receitas</button>
+          <button type="button" class="btn btn-outline-danger"
+                  data-filter="D">Despesas</button>
         </div>
-    </div>
-    <div class="card shadow-sm border-0 mb-3">
-        <div class="card-body py-2">
-            <div class="row g-2 align-items-center">
-                <div class="col-md-3">
-                    <form method="get" action="">
-                        <div class="input-group">
-                            <span class="input-group-text fw-bold"><i class="bi bi-calendar-event"></i> &nbsp;Ano</span>
-                            <select name="year" class="form-select" onchange="this.form.submit()">
-                                {% for y in available_years %}
-                                    <option value="{{ y|unlocalize }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
-                                {% empty %}
-                                    <option value="{{ year }}" selected>{{ year }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </form>
-                </div>
-                <div class="col-auto">
-                    <a href="{% url 'core:export_budget_xls' %}?year={{ year|unlocalize }}"
-                       class="btn btn-success text-white shadow-sm"
-                       title="Exportar para Excel">
-                        <i class="fas fa-file-excel"></i> Exportar para Excel
-                    </a>
-                </div>
-                <div class="col">
-                    <div class="input-group">
-                        <span class="input-group-text">🔍 Buscar Conta</span>
-                        <input type="text"
-                               id="accountFilter"
-                               class="form-control"
-                               placeholder="Digite o nome ou código da conta...">
-                    </div>
-                </div>
-            </div>
+      </div>
+      <div class="col">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="text" id="accountSearch"
+                 class="form-control" placeholder="Buscar conta…">
         </div>
+      </div>
+      <div class="col-auto">
+        {% localize off %}
+        <a href="{% url 'core:export_budget_xls' %}?year={{ year }}"
+           class="btn btn-success btn-sm">
+          <i class="bi bi-file-earmark-excel me-1"></i> Excel
+        </a>
+        {% endlocalize %}
+      </div>
     </div>
-    <div class="card shadow-sm border-0">
-        <table id="budgetTable"
-               class="table table-sm table-bordered table-hover align-middle mb-0 budget-table">
-            <thead class="table-light sticky-top">
-                <tr>
-                    <th rowspan="2" class="align-middle col-conta-header sticky-col">Conta</th>
-                    <th rowspan="2" class="align-middle text-center col-orcamento-header">Orçamento Anual</th>
-                    {% for month in months %}<th colspan="2" class="text-center">{{ month }}</th>{% endfor %}
-                </tr>
-                <tr>
-                    {% for month in months %}
-                        <th class="text-end">Realizado</th>
-                        <th class="text-center">Var(%)</th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in report_data %}
-                    <tr class="budget-row level-{{ row.level }}">
-                        <td class="sticky-col" style="padding-left: {{ row.level|add:1 }}rem;">
-                            {{ row.account.code }} - {{ row.account.name }}
-                        </td>
-                        <td class="text-center">
-                            {% if row.annual_budget != 0 %}
-                                {{ row.annual_budget|floatformat:2|intcomma }}
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
-                        {% for month_data in row.monthly_data %}
-                            <td class="text-center {% if month_data.actual != 0 %}{{ month_data.realizado_css_class }}{% endif %}">
-                                {{ month_data.actual|floatformat:2|intcomma }}
-                            </td>
-                            <td class="text-center">
-                                {% if forloop.counter0 > 0 %}
-                                    {% with variation=month_data.variation %}
-                                        {% with variation_float=variation|floatformat:0 %}
-                                            {% if variation_float == "0.0" %}
-                                                <span class="badge bg-secondary text-white-50"
-                                                      style="background: transparent !important;
-                                                             color: #aaa !important">-</span>
-                                            {% else %}
-                                                <span class="{{ month_data.variacao_css_class }}">
-                                                    {% if variation > 0 %}
-                                                        ▲
-                                                    {% else %}
-                                                        ▼
-                                                    {% endif %}
-                                                    {{ variation_float|cut:"-" }}%
-                                                </span>
-                                            {% endif %}
-                                        {% endwith %}
-                                    {% endwith %}
-                                {% endif %}
-                            </td>
-                        {% endfor %}
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-{% endblock content %}
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TABELA — scroll horizontal único, colunas alinhadas
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="bq-wrap" id="bqWrap">
+  <table id="mainTable" class="bq-table">
+
+    <thead>
+      <tr>
+        <th rowspan="2" class="col-conta th-conta align-middle">
+          Conta
+          <span class="badge bg-secondary ms-1"
+                style="font-size:.62rem;font-weight:400;">
+            {{ report_data|length }}
+          </span>
+        </th>
+        {% for m in month_names %}
+          <th colspan="3" class="th-month">{{ m }}</th>
+        {% endfor %}
+        <th colspan="2" class="th-anual">Anual</th>
+      </tr>
+      <tr>
+        {% for m in month_names %}
+          <th class="th-sub">Meta</th>
+          <th class="th-sub">Real</th>
+          <th class="th-sub th-var-sub">Var%</th>
+        {% endfor %}
+        <th class="th-anual-sub">Total Real</th>
+        <th class="th-anual-sub">Méd. Meta</th>
+      </tr>
+    </thead>
+
+    <tbody>
+
+      <!-- ══ RESUMO ══════════════════════════════════════════════ -->
+      <tr class="sum-rev" data-fullname="RECEITAS">
+        <td class="col-conta">▲ RECEITAS</td>
+        {% for val in summary.revenue %}
+          <td class="text-end fw-bold bq-tip" colspan="2"
+              data-mi="{{ forloop.counter }}" data-kind="Resumo">
+            {{ val|floatformat:2|intcomma }}
+          </td>
+          <td class="cell-var text-muted">—</td>
+        {% endfor %}
+        <td class="col-total text-success">
+          {{ summary.total_revenue|floatformat:2|intcomma }}
+        </td>
+        <td class="col-total">—</td>
+      </tr>
+
+      <tr class="sum-exp" data-fullname="DESPESAS">
+        <td class="col-conta">▼ DESPESAS</td>
+        {% for val in summary.expense %}
+          <td class="text-end fw-bold bq-tip" colspan="2"
+              data-mi="{{ forloop.counter }}" data-kind="Resumo">
+            {{ val|floatformat:2|intcomma }}
+          </td>
+          <td class="cell-var text-muted">—</td>
+        {% endfor %}
+        <td class="col-total text-danger">
+          {{ summary.total_expense|floatformat:2|intcomma }}
+        </td>
+        <td class="col-total">—</td>
+      </tr>
+
+      <!-- Resultado: célula por célula (verde/vermelho por mês) -->
+      <tr data-fullname="RESULTADO">
+        <td class="col-conta fw-bold text-white"
+            style="background:#475569 !important;">= RESULTADO</td>
+        {% for val in summary.result %}
+          <td class="text-end fw-bold bq-tip" colspan="2"
+              data-mi="{{ forloop.counter }}" data-kind="Resultado"
+              style="{% if val >= 0 %}background:#d1e7dd;color:#0a3622;
+                     {% else %}background:#f8d7da;color:#58151c;{% endif %}">
+            {{ val|floatformat:2|intcomma }}
+          </td>
+          <td class="cell-var text-muted">—</td>
+        {% endfor %}
+        <td class="col-total fw-bold
+            {% if summary.total_result >= 0 %}text-success{% else %}text-danger{% endif %}">
+          {{ summary.total_result|floatformat:2|intcomma }}
+        </td>
+        <td class="col-total">—</td>
+      </tr>
+
+      <!-- Separador -->
+      <tr class="row-sep"><td colspan="999"></td></tr>
+
+      <!-- Sub-cabeçalho repetido: congela logo abaixo do thead principal -->
+      <tr class="detail-subheader">
+        <td class="col-conta">Conta</td>
+        {% for m in month_names %}
+          <td colspan="3">{{ m }}</td>
+        {% endfor %}
+        <td colspan="2" class="sub-anual">Anual</td>
+      </tr>
+
+      <!-- ══ DETALHE POR CONTA ════════════════════════════════════ -->
+      {% for row in report_data %}
+      <tr class="level-{{ row.level }} bq-row"
+          data-type="{{ row.account.account_type }}"
+          data-name="{{ row.account.code|lower }} {{ row.account.name|lower }}"
+          data-fullname="{{ row.account.code }} — {{ row.account.name }}">
+
+        <td class="col-conta">
+          <span style="font-size:.66rem;font-weight:800;
+            {% if row.account.account_type == 'R' %}color:#198754;
+            {% else %}color:#dc3545;{% endif %}">
+            {% if row.account.account_type == 'R' %}▲{% else %}▼{% endif %}
+          </span>
+          {{ row.account.code }} — {{ row.account.name }}
+        </td>
+
+        {% for md in row.monthly %}
+        <td class="cell-budget bq-tip" data-mi="{{ forloop.counter }}" data-kind="Meta">
+          {% if md.budget %}{{ md.budget|floatformat:2|intcomma }}{% else %}—{% endif %}
+        </td>
+        <td class="cell-actual bq-tip {% if md.actual %}st-{{ md.status }}{% endif %}"
+            data-mi="{{ forloop.counter }}" data-kind="Realizado">
+          {% if md.actual %}{{ md.actual|floatformat:2|intcomma }}{% else %}—{% endif %}
+        </td>
+        <td class="cell-var bq-tip" data-mi="{{ forloop.counter }}" data-kind="Var%">
+          {% if md.var_pct is not None and md.var_pct != 0 %}
+            <span class="{% if md.var_pct > 0 %}var-up{% else %}var-down{% endif %}">
+              {% if md.var_pct > 0 %}▲{% else %}▼{% endif %}{{ md.var_pct|floatformat:0|cut:"-" }}%
+            </span>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        {% endfor %}
+
+        <td class="col-total bq-tip" data-mi="0" data-kind="Total Anual">
+          {% if row.total_actual %}{{ row.total_actual|floatformat:2|intcomma }}{% else %}—{% endif %}
+        </td>
+        <td class="col-total bq-tip" data-mi="0" data-kind="Méd. Meta" style="color:#1a56db;">
+          {% if row.avg_budget %}{{ row.avg_budget|floatformat:2|intcomma }}{% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+
+    </tbody>
+  </table>
+</div>
+
+<!-- ══ TOOLTIP DE CÉLULA ═══════════════════════════════════════════ -->
+<div id="bqTooltip" style="
+  display:none;
+  position:fixed;
+  z-index:99999;
+  background:#1e293b;
+  color:#fff;
+  border-radius:8px;
+  padding:10px 14px;
+  font-size:.78rem;
+  box-shadow:0 4px 16px rgba(0,0,0,.35);
+  pointer-events:none;
+  min-width:180px;
+  max-width:280px;
+  line-height:1.6;
+">
+  <div id="bqTipAccount" style="font-weight:700;font-size:.82rem;margin-bottom:2px;"></div>
+  <div id="bqTipMonth"   style="color:#93c5fd;font-size:.74rem;"></div>
+  <div id="bqTipKind"    style="color:#d1d5db;font-size:.72rem;"></div>
+  <div id="bqTipValue"   style="font-weight:700;font-size:.84rem;margin-top:4px;"></div>
+</div>
+
+{% endblock %}
+
 {% block extra_js %}
-    <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const filterInput = document.getElementById('accountFilter');
-        const table = document.getElementById('budgetTable');
-        const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+<script>
+document.addEventListener('DOMContentLoaded', function () {
 
-        filterInput.addEventListener('keyup', function () {
-            const filterText = filterInput.value.toLowerCase();
+  // ── Tooltip de célula ────────────────────────────────────────────
+  var MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                     'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var tooltip        = document.getElementById('bqTooltip');
+  var tipAccount     = document.getElementById('bqTipAccount');
+  var tipMonth       = document.getElementById('bqTipMonth');
+  var tipKind        = document.getElementById('bqTipKind');
+  var tipValue       = document.getElementById('bqTipValue');
+  var activeCell     = null;
 
-            for (let i = 0; i < rows.length; i++) {
-                const row = rows[i];
-                const accountCell = row.getElementsByTagName('td')[0];
+  document.querySelectorAll('.bq-tip').forEach(function (cell) {
+    cell.style.cursor = 'pointer';
 
-            
-                if (accountCell) {
-                    const cellText = accountCell.textContent || accountCell.innerText;
-                    
-                    
-                    if (cellText.toLowerCase().indexOf(filterText) > -1) {
-                        row.style.display = "";
-                    } else {
-                        row.style.display = "none";
-                    }
-                }
-        }
+    cell.addEventListener('click', function (e) {
+      e.stopPropagation();
+
+      // Se clicar na mesma célula novamente → fecha
+      if (activeCell === this) {
+        hideTooltip();
+        return;
+      }
+      activeCell = this;
+
+      // Conta
+      var row = this.closest('tr');
+      var account = (row && row.dataset.fullname) ? row.dataset.fullname
+                  : (row && row.querySelector('.col-conta'))
+                    ? row.querySelector('.col-conta').textContent.trim().replace(/[\n\r]+/g,' ').trim()
+                  : '—';
+
+      // Mês
+      var mi    = parseInt(this.dataset.mi) || 0;
+      var month = mi > 0 ? MONTH_NAMES[mi - 1] : 'Anual';
+
+      // Tipo e valor
+      var kind  = this.dataset.kind || '';
+      var value = this.textContent.trim() || '—';
+
+      tipAccount.textContent = account;
+      tipMonth.textContent   = '📅 ' + month;
+      tipKind.textContent    = kind ? ('🏷 ' + kind) : '';
+      tipValue.textContent   = '💰 ' + value;
+
+      positionTooltip(e);
+      tooltip.style.display = 'block';
     });
+  });
+
+  function positionTooltip(e) {
+    var margin = 12;
+    var tw = tooltip.offsetWidth  || 220;
+    var th = tooltip.offsetHeight || 100;
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+
+    var left = e.clientX + margin;
+    var top  = e.clientY + margin;
+
+    if (left + tw > vw - margin) left = e.clientX - tw - margin;
+    if (top  + th > vh - margin) top  = e.clientY - th - margin;
+
+    tooltip.style.left = Math.max(margin, left) + 'px';
+    tooltip.style.top  = Math.max(margin, top)  + 'px';
+  }
+
+  function hideTooltip() {
+    tooltip.style.display = 'none';
+    activeCell = null;
+  }
+
+  // Fecha ao clicar fora
+  document.addEventListener('click', function (e) {
+    if (!e.target.classList.contains('bq-tip')) hideTooltip();
+  });
+
+  // Fecha ao rolar (muda contexto visual)
+  document.getElementById('bqWrap').addEventListener('scroll', hideTooltip, { passive: true });
+
+  // ── Sub-cabeçalho: aplica top = altura do thead ──────────────────
+  var thead   = document.querySelector('#mainTable thead');
+  var subRows = document.querySelectorAll('tr.detail-subheader > td');
+  if (thead && subRows.length) {
+    var theadH = thead.offsetHeight;
+    subRows.forEach(function (cell) {
+      cell.style.top = theadH + 'px';
+    });
+  }
+
+  // ── Sticky coluna esquerda — fallback via translateX ─────────────
+  // Caso CSS position:sticky não funcione (ex: layout com overflow:hidden
+  // em algum ancestral), este fallback move a coluna manualmente.
+  var bqWrap   = document.getElementById('bqWrap');
+  var contaCells = null;  // populado no primeiro scroll
+
+  if (bqWrap) {
+    // Testa se CSS sticky está funcionando
+    var testCell = bqWrap.querySelector('td.col-conta, th.col-conta');
+    var cssSticky = testCell && getComputedStyle(testCell).position === 'sticky';
+
+    if (!cssSticky) {
+      // Fallback: translateX
+      bqWrap.addEventListener('scroll', function () {
+        var x = this.scrollLeft;
+        if (!contaCells) {
+          contaCells = Array.from(bqWrap.querySelectorAll('.col-conta'));
+        }
+        contaCells.forEach(function (c) {
+          c.style.transform = 'translateX(' + x + 'px)';
+        });
+      }, { passive: true });
+    }
+  }
+
+  // ── Filtro por tipo ────────────────────────────────────────────
+  var rows = document.querySelectorAll('tr.bq-row');
+
+  document.querySelectorAll('#typeFilter button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#typeFilter button').forEach(function (b) {
+        b.classList.remove('active', 'btn-primary', 'btn-success', 'btn-danger');
+        var base = b.dataset.filter === 'R' ? 'btn-outline-success'
+                 : b.dataset.filter === 'D' ? 'btn-outline-danger'
+                 : 'btn-outline-primary';
+        if (!b.classList.contains(base)) b.classList.add(base);
+      });
+      this.classList.add('active');
+      if (this.dataset.filter === 'R') {
+        this.classList.replace('btn-outline-success', 'btn-success');
+      } else if (this.dataset.filter === 'D') {
+        this.classList.replace('btn-outline-danger', 'btn-danger');
+      } else {
+        this.classList.replace('btn-outline-primary', 'btn-primary');
+      }
+      applyFilters();
+    });
+  });
+
+  // ── Busca ──────────────────────────────────────────────────────
+  document.getElementById('accountSearch').addEventListener('input', applyFilters);
+
+  function applyFilters() {
+    var activeBtn  = document.querySelector('#typeFilter button.active');
+    var filterType = activeBtn ? activeBtn.dataset.filter : 'all';
+    var search     = document.getElementById('accountSearch').value.toLowerCase().trim();
+
+    rows.forEach(function (row) {
+      var type     = row.dataset.type || '';
+      var name     = row.dataset.name || '';
+      var typeOk   = filterType === 'all' || type === filterType;
+      var searchOk = !search || name.includes(search);
+      row.classList.toggle('row-hidden', !(typeOk && searchOk));
+    });
+  }
 });
-    </script>
-{% endblock extra_js %}
+</script>
+{% endblock %}

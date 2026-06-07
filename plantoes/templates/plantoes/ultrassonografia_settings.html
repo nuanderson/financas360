@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Ultrassonografia{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0 text-gray-800">Serviço de Ultrassonografia</h1>
+        <p class="text-muted small mb-0">Matriz de plantonistas e valores por turno.</p>
+    </div>
+    <div>
+        <a href="{% url 'plantoes:ultrassonografia_folha' %}" class="btn btn-success me-2 shadow-sm">
+            <i class="bi bi-calendar-check me-2"></i> Ver Folha Mensal
+        </a>
+        <a href="{% url 'plantoes:ultrassonografia_config_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i> Novo Cargo
+        </a>
+    </div>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Matriz de Escala (Gabarito)</h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Cargo / Função</th>
+                        <th class="text-center">Qtd Dia</th>
+                        <th class="text-end">Valor Dia</th>
+                        <th class="text-center">Qtd Noite</th>
+                        <th class="text-end">Valor Noite</th>
+                        <th class="text-end pe-4">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for config in configs %}
+                    <tr>
+                        <td class="ps-4 fw-bold text-dark">{{ config.cargo }}</td>
+                        <td class="text-center">{{ config.qtd_dia }}</td>
+                        <td class="text-end text-muted">R$ {{ config.valor_plantao_dia|floatformat:2|intcomma }}</td>
+                        <td class="text-center">{{ config.qtd_noite }}</td>
+                        <td class="text-end text-muted">R$ {{ config.valor_plantao_noite|floatformat:2|intcomma }}</td>
+                        <td class="text-end pe-4">
+                            <a href="{% url 'plantoes:ultrassonografia_config_update' config.id %}" class="text-primary me-2"><i class="bi bi-pencil-square"></i></a>
+                            <a href="{% url 'plantoes:ultrassonografia_config_delete' config.id %}" class="text-danger"><i class="bi bi-trash"></i></a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="bi bi-activity display-4 d-block mb-3 text-gray-300"></i>
+                            Nenhum cargo cadastrado.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

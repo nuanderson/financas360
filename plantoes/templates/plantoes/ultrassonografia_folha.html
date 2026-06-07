@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Folha Ultrassonografia{% endblock %}
+{% block content %}
+<style>
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0 text-gray-800">Folha — Ultrassonografia</h1>
+        <p class="text-muted small mb-0">Lançamento mensal de plantões</p>
+    </div>
+    <div class="d-flex align-items-center">
+        <a href="{% url 'plantoes:ultrassonografia_settings' %}" class="btn btn-primary shadow-sm me-3">
+            <i class="bi bi-arrow-left me-2"></i> Configurações
+        </a>
+        <form method="get" class="d-flex align-items-center bg-white p-2 rounded shadow-sm border">
+            <label class="me-2 fw-bold text-muted small mb-0">Competência:</label>
+            <input type="month" name="month" class="form-control form-control-sm border-0 bg-light fw-bold"
+                   value="{{ month_str }}" onchange="this.form.submit()">
+        </form>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-start border-4 border-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="text-xs fw-bold text-primary text-uppercase mb-1">Total Orçado (Meta)</div>
+                <div class="h4 mb-0 fw-bold">R$ {{ total_orcado|floatformat:2|intcomma }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-start border-4 border-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="text-xs fw-bold text-success text-uppercase mb-1">Total Realizado</div>
+                <div class="h4 mb-0 fw-bold">R$ {{ total_realizado|floatformat:2|intcomma }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-start border-4 {% if total_saldo < 0 %}border-danger{% else %}border-success{% endif %} shadow h-100 py-2">
+            <div class="card-body">
+                <div class="text-xs fw-bold {% if total_saldo < 0 %}text-danger{% else %}text-success{% endif %} text-uppercase mb-1">Saldo</div>
+                <div class="h4 mb-0 fw-bold {% if total_saldo < 0 %}text-danger{% else %}text-success{% endif %}">R$ {{ total_saldo|floatformat:2|intcomma }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not tem_dados %}
+<div class="text-center py-5 card shadow border-0">
+    <div class="card-body">
+        <i class="bi bi-activity display-1 text-gray-200"></i>
+        <h4 class="mt-3 text-gray-600">Sem folha gerada para {{ competencia|date:"F/Y" }}</h4>
+        <form method="post">{% csrf_token %}
+            <button type="submit" name="gerar_folha" class="btn btn-primary btn-lg px-4 mt-3">
+                <i class="bi bi-magic me-2"></i> Gerar Folha de Ultrassonografia
+            </button>
+        </form>
+    </div>
+</div>
+{% else %}
+<form method="post">
+    {% csrf_token %}
+    {{ formset.management_form }}
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center bg-white">
+            <h6 class="m-0 font-weight-bold text-primary">Lançamentos — {{ competencia|date:"F/Y" }}</h6>
+            <div>
+                <button type="submit" name="atualizar_valores" class="btn btn-warning btn-sm px-3 shadow-sm me-2 text-dark">
+                    <i class="bi bi-arrow-repeat me-1"></i> Sincronizar
+                </button>
+                <button type="submit" name="salvar_grid" class="btn btn-success btn-sm px-3 shadow-sm">
+                    <i class="bi bi-check-lg me-1"></i> Salvar
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover mb-0 align-middle text-center">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-start ps-4">Cargo</th>
+                            <th>Dias</th>
+                            <th class="text-primary">Qtd Dia</th>
+                            <th class="text-primary">Valor Dia</th>
+                            <th class="text-warning">Qtd Noite</th>
+                            <th class="text-warning">Valor Noite</th>
+                            <th class="text-primary">Meta Escala</th>
+                            <th class="bg-light-success text-dark">Pega Plantão</th>
+                            <th class="bg-light-success text-dark">Valor Efetivo</th>
+                            <th class="text-success fw-bold">Total Realizado</th>
+                            <th>Obs</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for form in formset %}
+                            {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+                            {% with obj=form.instance %}
+                            <tr>
+                                <td class="text-start ps-4 fw-bold text-dark">{{ obj.cargo_nome }}</td>
+                                <td class="p-1">{{ form.dias_mes }}</td>
+                                <td class="text-muted">{{ obj.qtd_dia }}</td>
+                                <td class="text-muted">R$ {{ obj.valor_plantao_dia|floatformat:2|intcomma }}</td>
+                                <td class="text-muted">{{ obj.qtd_noite }}</td>
+                                <td class="text-muted">R$ {{ obj.valor_plantao_noite|floatformat:2|intcomma }}</td>
+                                <td class="text-primary fw-bold">R$ {{ obj.total_escala_calculada|floatformat:2|intcomma }}</td>
+                                <td class="p-1 bg-light-success">{{ form.valor_pega_plantao }}</td>
+                                <td class="p-1 bg-light-success">{{ form.valor_efetivo }}</td>
+                                <td class="text-success fw-bold">R$ {{ obj.total_realizado|floatformat:2|intcomma }}</td>
+                                <td class="p-1">
+                                    <div class="d-none">{{ form.observacoes }}</div>
+                                    <button type="button" class="btn btn-sm {% if form.observacoes.value %}btn-info text-white{% else %}btn-outline-secondary{% endif %} rounded-circle"
+                                            onclick="openObsModal('{{ form.observacoes.auto_id }}', '{{ obj.cargo_nome }}')">
+                                        {% if form.observacoes.value %}<i class="bi bi-chat-left-text-fill"></i>{% else %}<i class="bi bi-plus-lg"></i>{% endif %}
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endwith %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-white text-end">
+            <button type="submit" name="salvar_grid" class="btn btn-success px-4">
+                <i class="bi bi-save me-2"></i> Salvar Lançamentos
+            </button>
+        </div>
+    </div>
+</form>
+{% endif %}
+
+<div class="modal fade" id="obsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog"><div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title fs-6">Observação</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+            <p class="small text-muted mb-2">Item: <span id="modalSetorName" class="fw-bold text-dark"></span></p>
+            <textarea class="form-control" id="modalObsText" rows="4"></textarea>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="saveObsFromModal()">Confirmar</button>
+        </div>
+    </div></div>
+</div>
+<script>
+    let currentInputId = null;
+    function openObsModal(inputId, nome) {
+        currentInputId = inputId;
+        document.getElementById('modalObsText').value = document.getElementById(inputId).value;
+        document.getElementById('modalSetorName').textContent = nome;
+        new bootstrap.Modal(document.getElementById('obsModal')).show();
+    }
+    function saveObsFromModal() {
+        if (currentInputId) {
+            document.getElementById(currentInputId).value = document.getElementById('modalObsText').value;
+            bootstrap.Modal.getInstance(document.getElementById('obsModal')).hide();
+        }
+    }
+</script>
+{% endblock %}

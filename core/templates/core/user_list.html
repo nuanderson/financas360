@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block title %}Gerenciar Usuários{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="fw-bold text-primary">
+        <i class="bi bi-people-fill me-2"></i>Gerenciar Usuários
+    </h1>
+    <a href="{% url 'core:user_create' %}" class="btn btn-gradient">
+        <i class="bi bi-person-plus me-1"></i> Novo Usuário
+    </a>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="px-4">Usuário</th>
+                        <th>E-mail</th>
+                        <th>Papel</th>
+                        <th>Status</th>
+                        <th class="text-end px-4">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td class="px-4">
+                            <div class="fw-semibold">{{ u.get_full_name|default:u.username }}</div>
+                            <small class="text-muted">@{{ u.username }}</small>
+                        </td>
+                        <td>{{ u.email|default:"—" }}</td>
+                        <td>
+                            {% with role=u.profile.role %}
+                            {% if role == 'admin' %}
+                                <span class="badge bg-danger">Administrador</span>
+                            {% elif role == 'gestor' %}
+                                <span class="badge bg-primary">Gestor</span>
+                            {% elif role == 'analista_receitas' %}
+                                <span class="badge bg-success">Analista de Receitas</span>
+                            {% elif role == 'analista_despesas' %}
+                                <span class="badge bg-warning text-dark">Analista de Despesas</span>
+                            {% elif role == 'analista_plantoes' %}
+                                <span class="badge bg-info text-dark">Analista de Plantões</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ role }}</span>
+                            {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td>
+                            {% if u.is_active %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">Ativo</span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Inativo</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end px-4">
+                            <a href="{% url 'core:user_edit' u.pk %}"
+                               class="btn btn-sm btn-outline-secondary me-1">
+                                <i class="bi bi-pencil"></i> Editar
+                            </a>
+                            {% if u != request.user %}
+                            <form method="post"
+                                  action="{% url 'core:user_toggle_active' u.pk %}"
+                                  class="d-inline"
+                                  onsubmit="return confirm('Confirmar alteração de status?')">
+                                {% csrf_token %}
+                                <button type="submit"
+                                        class="btn btn-sm {% if u.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                                    {% if u.is_active %}
+                                        <i class="bi bi-person-x"></i> Desativar
+                                    {% else %}
+                                        <i class="bi bi-person-check"></i> Ativar
+                                    {% endif %}
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-5">
+                            <i class="bi bi-people display-6 d-block mb-2"></i>
+                            Nenhum usuário cadastrado.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

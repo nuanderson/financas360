@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% load l10n humanize %}
+{% block title %}Orçamento vs. Realizado - {{ company.name }}{% endblock %}
+{% block extra_css %}
+<style>
+.level-0 td:first-child { font-weight:700; background:#f8f9fa; }
+.level-1 td:first-child { padding-left:1.4rem !important; font-weight:600; }
+.level-2 td:first-child { padding-left:2.6rem !important; color:#444; }
+.level-3 td:first-child { padding-left:3.8rem !important; color:#666; font-size:.88rem; }
+.val-col { width:130px; text-align:right; font-variant-numeric:tabular-nums; }
+.semaforo-success { border-left:4px solid #198754; }
+.semaforo-danger  { border-left:4px solid #dc3545; }
+.semaforo-warning { border-left:4px solid #ffc107; }
+.semaforo-secondary { border-left:4px solid #adb5bd; }
+.total-row td { font-weight:700; background:#f0f4ff; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+  <div>
+    <h1 class="fw-bold text-primary mb-0">Orçamento vs. Realizado</h1>
+    <span class="text-muted">{{ company.name }} — {{ periodo_label }}</span>
+  </div>
+  <a href="{% url 'core:reports_hub' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-grid me-1"></i> Todos os Relatórios
+  </a>
+</div>
+
+<!-- Filtro -->
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body">
+    <form method="GET" class="row g-3 align-items-end">
+      <div class="col-md-2">
+        <label class="form-label fw-semibold">Ano</label>
+        {% load l10n %}
+        <input type="text" inputmode="numeric" pattern="[0-9]{4}"
+               class="form-control" name="year"
+               value="{% localize off %}{{ year }}{% endlocalize %}"
+               placeholder="AAAA">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Mês (opcional)</label>
+        <select class="form-select" name="month">
+          <option value="">Ano inteiro</option>
+          {% for mn in month_names %}
+          <option value="{{ forloop.counter }}" {% if month == forloop.counter %}selected{% endif %}>{{ mn }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-auto">
+        <button class="btn btn-danger px-4">
+          <i class="bi bi-bullseye me-1"></i> Gerar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Barra de execução geral -->
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body">
+    <div class="d-flex justify-content-between mb-2">
+      <span class="fw-bold">Execução Orçamentária Total (Despesas)</span>
+      <span class="fw-bold">{{ exec_pct|floatformat:1 }}%</span>
+    </div>
+    <div class="progress" style="height:18px;">
+      <div class="progress-bar progress-bar-striped
+        {% if exec_pct > 100 %}bg-danger{% elif exec_pct > 85 %}bg-warning{% else %}bg-success{% endif %}"
+        style="width:{% if exec_pct > 100 %}100{% else %}{{ exec_pct|floatformat:0 }}{% endif %}%">
+      </div>
+    </div>
+    <div class="row mt-3 g-3 text-center">
+      <div class="col-md-4">
+        <div class="small text-muted text-uppercase">Orçado no Período</div>
+        <div class="fs-6 fw-bold text-info">R$ {{ total_orcado|floatformat:2|intcomma }}</div>
+      </div>
+      <div class="col-md-4">
+        <div class="small text-muted text-uppercase">Realizado</div>
+        <div class="fs-6 fw-bold text-danger">R$ {{ total_realizado|floatformat:2|intcomma }}</div>
+      </div>
+      <div class="col-md-4">
+        <div class="small text-muted text-uppercase">Desvio</div>
+        <div class="fs-6 fw-bold {% if total_desvio <= 0 %}text-success{% else %}text-danger{% endif %}">
+          {% if total_desvio > 0 %}+{% endif %}R$ {{ total_desvio|floatformat:2|intcomma }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabela -->
+<div class="card shadow-sm border-0">
+  <div class="card-body p-0">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Conta</th>
+          <th class="val-col">Orçado (R$)</th>
+          <th class="val-col">Realizado (R$)</th>
+          <th class="val-col">Desvio (R$)</th>
+          <th class="val-col">Desvio (%)</th>
+          <th style="width:40px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="table-danger">
+          <td colspan="6" class="fw-bold text-danger py-2 ps-2">
+            <i class="bi bi-arrow-down-circle-fill me-1"></i> DESPESAS
+          </td>
+        </tr>
+        {% for l in expense_lines %}
+        <tr class="level-{{ l.level }} semaforo-{{ l.semaforo }}">
+          <td class="level-{{ l.level }}">{{ l.account.code }} — {{ l.account.name }}</td>
+          <td class="val-col text-muted">{% if l.orcado %}{{ l.orcado|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+          <td class="val-col">{{ l.realizado|floatformat:2|intcomma }}</td>
+          <td class="val-col {% if l.desvio > 0 %}text-danger{% elif l.desvio < 0 %}text-success{% endif %}">
+            {% if l.desvio > 0 %}+{% endif %}{{ l.desvio|floatformat:2|intcomma }}
+          </td>
+          <td class="val-col {% if l.desvio_pct is not None and l.desvio_pct > 0 %}text-danger{% elif l.desvio_pct is not None %}text-success{% endif %}">
+            {% if l.desvio_pct is not None %}
+              {% if l.desvio_pct > 0 %}+{% endif %}{{ l.desvio_pct|floatformat:1 }}%
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-center">
+            {% if l.semaforo == 'success' %}<i class="bi bi-check-circle-fill text-success"></i>
+            {% elif l.semaforo == 'danger' %}<i class="bi bi-exclamation-circle-fill text-danger"></i>
+            {% elif l.semaforo == 'warning' %}<i class="bi bi-exclamation-triangle-fill text-warning"></i>
+            {% else %}<i class="bi bi-dash-circle text-secondary"></i>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        <tr class="total-row">
+          <td class="text-end">TOTAL DESPESAS</td>
+          <td class="val-col">{{ total_orcado|floatformat:2|intcomma }}</td>
+          <td class="val-col text-danger">{{ total_realizado|floatformat:2|intcomma }}</td>
+          <td class="val-col {% if total_desvio > 0 %}text-danger{% else %}text-success{% endif %}">
+            {% if total_desvio > 0 %}+{% endif %}{{ total_desvio|floatformat:2|intcomma }}
+          </td>
+          <td></td><td></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

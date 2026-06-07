@@ -1,32 +1,40 @@
 {% extends "base.html" %}
-{% load crispy_forms_tags %} 
+{% load crispy_forms_tags %}
 
-{% block title %}Nova Nota{% endblock %}
+{% block title %}{% if form.instance.pk %}Editar Nota{% else %}Nova Nota{% endif %}{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">{% if form.instance.pk %}Editar Nota{% else %}Nova Nota{% endif %}</h5>
-            </div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    
-                    <div class="alert alert-info py-2 small">
-                        <i class="fas fa-info-circle"></i> Notas <strong>Globais</strong> não aceitam marcadores e aparecem em todas as empresas.
-                    </div>
+  <div class="col-md-6">
+    <div class="card shadow border-0">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">
+          <i class="bi {% if form.instance.pk %}bi-pencil-square{% else %}bi-sticky-fill{% endif %} me-2"></i>
+          {% if form.instance.pk %}Editar Nota{% else %}Nova Nota{% endif %}
+        </h5>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
 
-                    {{ form|crispy }}
-                    
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                        <a href="{% url 'core:note_list' %}" class="btn btn-secondary">Cancelar</a>
-                        <button type="submit" class="btn btn-success">Salvar Nota</button>
-                    </div>
-                </form>
-            </div>
-        </div>
+          <div class="alert alert-info py-2 small border-0">
+            <i class="bi bi-info-circle me-1"></i>
+            Notas <strong>Globais</strong> não aceitam marcadores e aparecem em todas as empresas.
+          </div>
+
+          {{ form|crispy }}
+
+          <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+            <a href="{% url 'core:note_list' %}" class="btn btn-secondary">
+              <i class="bi bi-x-lg me-1"></i>Cancelar
+            </a>
+            <button type="submit" class="btn btn-success">
+              <i class="bi bi-floppy me-1"></i>Salvar Nota
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
+  </div>
 </div>
 {% endblock %}

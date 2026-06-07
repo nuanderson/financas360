@@ -97,8 +97,62 @@ urlpatterns = [
     
     path('coordenacao/folha/', views.coordenacao_folha_view, name='coordenacao_folha'),
 
+    # ==========================================
+    # AMBULATÓRIO
+    # ==========================================
+    path('ambulatorio/configuracoes/', views.ambulatorio_settings_view, name='ambulatorio_settings'),
+    path('ambulatorio/novo/', views.AmbulatorioConfigCreateView.as_view(), name='ambulatorio_config_create'),
+    path('ambulatorio/<int:pk>/editar/', views.AmbulatorioConfigUpdateView.as_view(), name='ambulatorio_config_update'),
+    path('ambulatorio/<int:pk>/excluir/', views.AmbulatorioConfigDeleteView.as_view(), name='ambulatorio_config_delete'),
+    path('ambulatorio/folha/', views.ambulatorio_folha_view, name='ambulatorio_folha'),
+
+    # ==========================================
+    # ULTRASSONOGRAFIA
+    # ==========================================
+    path('ultrassonografia/configuracoes/', views.ultrassonografia_settings_view, name='ultrassonografia_settings'),
+    path('ultrassonografia/novo/', views.UltrassonografiaConfigCreateView.as_view(), name='ultrassonografia_config_create'),
+    path('ultrassonografia/<int:pk>/editar/', views.UltrassonografiaConfigUpdateView.as_view(), name='ultrassonografia_config_update'),
+    path('ultrassonografia/<int:pk>/excluir/', views.UltrassonografiaConfigDeleteView.as_view(), name='ultrassonografia_config_delete'),
+    path('ultrassonografia/folha/', views.ultrassonografia_folha_view, name='ultrassonografia_folha'),
+
+    # ==========================================
+    # ENDOSCOPIA
+    # ==========================================
+    path('endoscopia/configuracoes/', views.endoscopia_settings_view, name='endoscopia_settings'),
+    path('endoscopia/novo/', views.EndoscopiaConfigCreateView.as_view(), name='endoscopia_config_create'),
+    path('endoscopia/<int:pk>/editar/', views.EndoscopiaConfigUpdateView.as_view(), name='endoscopia_config_update'),
+    path('endoscopia/<int:pk>/excluir/', views.EndoscopiaConfigDeleteView.as_view(), name='endoscopia_config_delete'),
+    path('endoscopia/folha/', views.endoscopia_folha_view, name='endoscopia_folha'),
+
+    # ==========================================
+    # ANESTESIOLOGIA
+    # ==========================================
+    path('anestesiologia/configuracoes/', views.anestesiologia_settings_view, name='anestesiologia_settings'),
+    path('anestesiologia/novo/', views.AnestesiologiaConfigCreateView.as_view(), name='anestesiologia_config_create'),
+    path('anestesiologia/<int:pk>/editar/', views.AnestesiologiaConfigUpdateView.as_view(), name='anestesiologia_config_update'),
+    path('anestesiologia/<int:pk>/excluir/', views.AnestesiologiaConfigDeleteView.as_view(), name='anestesiologia_config_delete'),
+    path('anestesiologia/folha/', views.anestesiologia_folha_view, name='anestesiologia_folha'),
+
+    # ==========================================
+    # COMISSÕES
+    # ==========================================
+    path('comissoes/configuracoes/', views.comissao_settings_view, name='comissao_settings'),
+    path('comissoes/novo/', views.ComissaoConfigCreateView.as_view(), name='comissao_config_create'),
+    path('comissoes/<int:pk>/editar/', views.ComissaoConfigUpdateView.as_view(), name='comissao_config_update'),
+    path('comissoes/<int:pk>/excluir/', views.ComissaoConfigDeleteView.as_view(), name='comissao_config_delete'),
+    path('comissoes/folha/', views.comissao_folha_view, name='comissao_folha'),
+
+    # ==========================================
+    # COOPERATIVAS
+    # ==========================================
+    path('cooperativas/configuracoes/', views.cooperativa_settings_view, name='cooperativa_settings'),
+    path('cooperativas/novo/', views.CooperativaConfigCreateView.as_view(), name='cooperativa_config_create'),
+    path('cooperativas/<int:pk>/editar/', views.CooperativaConfigUpdateView.as_view(), name='cooperativa_config_update'),
+    path('cooperativas/<int:pk>/excluir/', views.CooperativaConfigDeleteView.as_view(), name='cooperativa_config_delete'),
+    path('cooperativas/folha/', views.cooperativa_folha_view, name='cooperativa_folha'),
+
     # DASHBOARD (CONSOLIDAÇÃO)
-    path('', views.plantoes_dashboard_view, name='dashboard'), 
+    path('', views.plantoes_dashboard_view, name='dashboard'),
 
     # Relatório Anual
     path('relatorio-anual/', views.plantoes_annual_report_view, name='annual_report'),

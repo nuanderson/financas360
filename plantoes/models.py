@@ -489,3 +489,311 @@ class CoordenacaoLancamento(models.Model):
         if self.valor_pagar == 0:
             return 0
         return self.valor_contrato - self.valor_pagar
+
+
+# ==========================================
+# MÓDULO: AMBULATÓRIO
+# ==========================================
+
+VINCULO_CHOICES = [
+    ('EFETIVO', 'Efetivo'),
+    ('PJ', 'PJ / Contrato'),
+]
+
+class AmbulatorioConfiguracao(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("Empresa"))
+    nome_medico = models.CharField(_("Nome do Médico"), max_length=150)
+    especialidade = models.CharField(_("Especialidade"), max_length=100, blank=True, null=True)
+    vinculo = models.CharField(_("Vínculo"), max_length=20, choices=VINCULO_CHOICES, default='PJ')
+    ch_mensal = models.DecimalField(_("CH Mensal (h)"), max_digits=6, decimal_places=1, default=0)
+    valor_mensal = models.DecimalField(_("Valor Mensal"), max_digits=10, decimal_places=2, default=0)
+
+    class Meta:
+        verbose_name = _("Configuração Ambulatório")
+        verbose_name_plural = _("Configurações Ambulatório")
+        ordering = ['nome_medico']
+
+    def __str__(self):
+        return f"{self.nome_medico} - {self.especialidade}"
+
+
+class AmbulatorioLancamento(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    competencia = models.DateField(_("Mês de Referência"))
+
+    nome_medico = models.CharField(_("Médico"), max_length=150)
+    especialidade = models.CharField(_("Especialidade"), max_length=100, blank=True, null=True)
+    vinculo = models.CharField(_("Vínculo"), max_length=20, default='PJ')
+    ch_mensal = models.DecimalField(_("CH Mensal (h)"), max_digits=6, decimal_places=1, default=0)
+
+    valor_contrato = models.DecimalField(_("Valor Contrato"), max_digits=10, decimal_places=2, default=0)
+    valor_pagar = models.DecimalField(_("Valor a Pagar"), max_digits=10, decimal_places=2, default=0)
+    observacoes = models.TextField(_("Obs"), blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("Lançamento Ambulatório")
+        verbose_name_plural = _("Lançamentos Ambulatório")
+        ordering = ['nome_medico']
+
+    @property
+    def saldo_orcamentario(self):
+        if self.valor_pagar == 0:
+            return 0
+        return self.valor_contrato - self.valor_pagar
+
+
+# ==========================================
+# MÓDULO: ULTRASSONOGRAFIA
+# ==========================================
+
+class UltrassonografiaConfiguracao(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("Empresa"))
+    cargo = models.CharField(_("Cargo/Função"), max_length=100, default="Plantonista")
+    qtd_dia = models.PositiveIntegerField(_("Qtd. Plantonistas (Dia)"), default=0)
+    valor_plantao_dia = models.DecimalField(_("Valor Plantão (Dia)"), max_digits=10, decimal_places=2, default=0)
+    qtd_noite = models.PositiveIntegerField(_("Qtd. Plantonistas (Noite)"), default=0)
+    valor_plantao_noite = models.DecimalField(_("Valor Plantão (Noite)"), max_digits=10, decimal_places=2, default=0)
+
+    class Meta:
+        verbose_name = _("Configuração Ultrassonografia")
+        verbose_name_plural = _("Configurações Ultrassonografia")
+
+    def __str__(self):
+        return f"Config USG - {self.cargo}"
+
+
+class UltrassonografiaLancamento(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    competencia = models.DateField(_("Mês de Referência"))
+
+    cargo_nome = models.CharField(_("Cargo"), max_length=100)
+    qtd_dia = models.PositiveIntegerField(_("Qtd. Dia"), default=0)
+    valor_plantao_dia = models.DecimalField(_("Valor Dia"), max_digits=10, decimal_places=2, default=0)
+    qtd_noite = models.PositiveIntegerField(_("Qtd. Noite"), default=0)
+    valor_plantao_noite = models.DecimalField(_("Valor Noite"), max_digits=10, decimal_places=2, default=0)
+    dias_mes = models.DecimalField(_("Dias no Mês"), max_digits=5, decimal_places=2, default=30)
+
+    valor_pega_plantao = models.DecimalField(_("Valor Pega Plantão"), max_digits=12, decimal_places=2, default=0)
+    valor_efetivo = models.DecimalField(_("Valor Efetivo"), max_digits=12, decimal_places=2, default=0)
+    observacoes = models.TextField(_("Obs"), blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("Lançamento Ultrassonografia")
+        verbose_name_plural = _("Lançamentos Ultrassonografia")
+        ordering = ['cargo_nome']
+
+    @property
+    def total_escala_calculada(self):
+        return (self.qtd_dia * self.valor_plantao_dia * self.dias_mes +
+                self.qtd_noite * self.valor_plantao_noite * self.dias_mes)
+
+    @property
+    def custo_real_soma(self):
+        return self.valor_pega_plantao + self.valor_efetivo
+
+    @property
+    def total_realizado(self):
+        soma = self.custo_real_soma
+        return soma if soma > 0 else self.total_escala_calculada
+
+    @property
+    def saldo_orcamentario(self):
+        if self.custo_real_soma == 0:
+            return 0
+        return self.total_escala_calculada - self.custo_real_soma
+
+
+# ==========================================
+# MÓDULO: ENDOSCOPIA E OUTROS EXAMES
+# ==========================================
+
+class EndoscopiaConfiguracao(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("Empresa"))
+    nome_procedimento = models.CharField(_("Procedimento / Exame"), max_length=150)
+    valor_unitario = models.DecimalField(_("Valor Unitário"), max_digits=10, decimal_places=2, default=0)
+    meta_mensal_qtd = models.IntegerField(_("Meta/Média Mensal (Qtd)"), default=0)
+
+    class Meta:
+        verbose_name = _("Configuração Endoscopia")
+        verbose_name_plural = _("Configurações Endoscopia")
+
+    def __str__(self):
+        return f"{self.nome_procedimento}"
+
+    @property
+    def total_meta_financeira(self):
+        return self.valor_unitario * self.meta_mensal_qtd
+
+
+class EndoscopiaLancamento(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    competencia = models.DateField(_("Mês de Referência"))
+
+    nome_procedimento = models.CharField(_("Procedimento"), max_length=150)
+    valor_unitario = models.DecimalField(_("Valor Unitário"), max_digits=10, decimal_places=2, default=0)
+    meta_qtd = models.IntegerField(_("Meta (Qtd)"), default=0)
+    qtd_realizada = models.IntegerField(_("Qtd. Realizada"), default=0)
+    observacoes = models.TextField(_("Obs"), blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("Lançamento Endoscopia")
+        verbose_name_plural = _("Lançamentos Endoscopia")
+        ordering = ['nome_procedimento']
+
+    @property
+    def total_orcado(self):
+        return self.valor_unitario * self.meta_qtd
+
+    @property
+    def total_realizado(self):
+        return self.valor_unitario * self.qtd_realizada
+
+    @property
+    def saldo_orcamentario(self):
+        if self.qtd_realizada == 0:
+            return 0
+        return self.total_orcado - self.total_realizado
+
+
+# ==========================================
+# MÓDULO: ANESTESIOLOGIA
+# ==========================================
+
+class AnestesiologiaConfiguracao(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("Empresa"))
+    tipo_servico = models.CharField(_("Tipo de Serviço"), max_length=150,
+                                    help_text="Ex: C/D Plantão, S/D Plantão, Eletivas, Pré-Anestésico")
+    qtd_dia = models.PositiveIntegerField(_("Qtd. (Dia/Padrão)"), default=0)
+    valor_plantao_dia = models.DecimalField(_("Valor (Dia/Padrão)"), max_digits=10, decimal_places=2, default=0)
+    qtd_noite = models.PositiveIntegerField(_("Qtd. (Noite)"), default=0)
+    valor_plantao_noite = models.DecimalField(_("Valor (Noite)"), max_digits=10, decimal_places=2, default=0)
+
+    class Meta:
+        verbose_name = _("Configuração Anestesiologia")
+        verbose_name_plural = _("Configurações Anestesiologia")
+
+    def __str__(self):
+        return f"{self.tipo_servico}"
+
+
+class AnestesiologiaLancamento(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    competencia = models.DateField(_("Mês de Referência"))
+
+    tipo_servico = models.CharField(_("Tipo de Serviço"), max_length=150)
+    qtd_dia = models.PositiveIntegerField(_("Qtd. Dia"), default=0)
+    valor_plantao_dia = models.DecimalField(_("Valor Dia"), max_digits=10, decimal_places=2, default=0)
+    qtd_noite = models.PositiveIntegerField(_("Qtd. Noite"), default=0)
+    valor_plantao_noite = models.DecimalField(_("Valor Noite"), max_digits=10, decimal_places=2, default=0)
+    dias_mes = models.DecimalField(_("Dias no Mês"), max_digits=5, decimal_places=2, default=30)
+
+    valor_pega_plantao = models.DecimalField(_("Valor Pega Plantão"), max_digits=12, decimal_places=2, default=0)
+    valor_efetivo = models.DecimalField(_("Valor Efetivo"), max_digits=12, decimal_places=2, default=0)
+    observacoes = models.TextField(_("Obs"), blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("Lançamento Anestesiologia")
+        verbose_name_plural = _("Lançamentos Anestesiologia")
+        ordering = ['tipo_servico']
+
+    @property
+    def total_escala_calculada(self):
+        return (self.qtd_dia * self.valor_plantao_dia * self.dias_mes +
+                self.qtd_noite * self.valor_plantao_noite * self.dias_mes)
+
+    @property
+    def custo_real_soma(self):
+        return self.valor_pega_plantao + self.valor_efetivo
+
+    @property
+    def total_realizado(self):
+        soma = self.custo_real_soma
+        return soma if soma > 0 else self.total_escala_calculada
+
+    @property
+    def saldo_orcamentario(self):
+        if self.custo_real_soma == 0:
+            return 0
+        return self.total_escala_calculada - self.custo_real_soma
+
+
+# ==========================================
+# MÓDULO: COMISSÕES
+# ==========================================
+
+class ComissaoConfiguracao(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("Empresa"))
+    nome_comissao = models.CharField(_("Nome da Comissão"), max_length=150)
+    descricao = models.CharField(_("Descrição"), max_length=200, blank=True, null=True)
+    valor_mensal = models.DecimalField(_("Valor Mensal"), max_digits=10, decimal_places=2, default=0)
+
+    class Meta:
+        verbose_name = _("Configuração Comissão")
+        verbose_name_plural = _("Configurações Comissões")
+        ordering = ['nome_comissao']
+
+    def __str__(self):
+        return f"{self.nome_comissao}"
+
+
+class ComissaoLancamento(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    competencia = models.DateField(_("Mês de Referência"))
+
+    nome_comissao = models.CharField(_("Comissão"), max_length=150)
+    descricao = models.CharField(_("Descrição"), max_length=200, blank=True, null=True)
+    valor_contrato = models.DecimalField(_("Valor Previsto"), max_digits=10, decimal_places=2, default=0)
+    valor_pagar = models.DecimalField(_("Valor a Pagar"), max_digits=10, decimal_places=2, default=0)
+    observacoes = models.TextField(_("Obs"), blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("Lançamento Comissão")
+        verbose_name_plural = _("Lançamentos Comissões")
+        ordering = ['nome_comissao']
+
+    @property
+    def saldo_orcamentario(self):
+        if self.valor_pagar == 0:
+            return 0
+        return self.valor_contrato - self.valor_pagar
+
+
+# ==========================================
+# MÓDULO: COOPERATIVAS
+# ==========================================
+
+class CooperativaConfiguracao(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("Empresa"))
+    nome_cooperativa = models.CharField(_("Nome da Cooperativa"), max_length=150)
+    descricao = models.CharField(_("Descrição / Serviço"), max_length=200, blank=True, null=True)
+    valor_mensal = models.DecimalField(_("Valor Mensal"), max_digits=10, decimal_places=2, default=0)
+
+    class Meta:
+        verbose_name = _("Configuração Cooperativa")
+        verbose_name_plural = _("Configurações Cooperativas")
+        ordering = ['nome_cooperativa']
+
+    def __str__(self):
+        return f"{self.nome_cooperativa}"
+
+
+class CooperativaLancamento(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    competencia = models.DateField(_("Mês de Referência"))
+
+    nome_cooperativa = models.CharField(_("Cooperativa"), max_length=150)
+    descricao = models.CharField(_("Descrição"), max_length=200, blank=True, null=True)
+    valor_contrato = models.DecimalField(_("Valor Previsto"), max_digits=10, decimal_places=2, default=0)
+    valor_pagar = models.DecimalField(_("Valor a Pagar"), max_digits=10, decimal_places=2, default=0)
+    observacoes = models.TextField(_("Obs"), blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("Lançamento Cooperativa")
+        verbose_name_plural = _("Lançamentos Cooperativas")
+        ordering = ['nome_cooperativa']
+
+    @property
+    def saldo_orcamentario(self):
+        if self.valor_pagar == 0:
+            return 0
+        return self.valor_contrato - self.valor_pagar

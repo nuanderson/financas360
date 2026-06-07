@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Endoscopia e Exames{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0 text-gray-800">Endoscopia e Outros Exames</h1>
+        <p class="text-muted small mb-0">Tabela de preços e metas por procedimento.</p>
+    </div>
+    <div>
+        <a href="{% url 'plantoes:endoscopia_folha' %}" class="btn btn-success me-2 shadow-sm">
+            <i class="bi bi-calendar-check me-2"></i> Ver Folha de Produção
+        </a>
+        <a href="{% url 'plantoes:endoscopia_config_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i> Novo Procedimento
+        </a>
+    </div>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Procedimentos Cadastrados</h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Procedimento / Exame</th>
+                        <th class="text-end">Valor Unitário</th>
+                        <th class="text-center">Meta Mensal (Qtd)</th>
+                        <th class="text-end">Previsão Financeira</th>
+                        <th class="text-end pe-4">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for config in configs %}
+                    <tr>
+                        <td class="ps-4 fw-bold text-dark">{{ config.nome_procedimento }}</td>
+                        <td class="text-end text-muted">R$ {{ config.valor_unitario|floatformat:2|intcomma }}</td>
+                        <td class="text-center">{{ config.meta_mensal_qtd }}</td>
+                        <td class="text-end text-success fw-bold">R$ {{ config.total_meta_financeira|floatformat:2|intcomma }}</td>
+                        <td class="text-end pe-4">
+                            <a href="{% url 'plantoes:endoscopia_config_update' config.id %}" class="text-primary me-2"><i class="bi bi-pencil-square"></i></a>
+                            <a href="{% url 'plantoes:endoscopia_config_delete' config.id %}" class="text-danger"><i class="bi bi-trash"></i></a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-muted">
+                            <i class="bi bi-search-heart display-4 d-block mb-3 text-gray-300"></i>
+                            Nenhum procedimento cadastrado.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

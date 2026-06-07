@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% load l10n humanize %}
+{% block title %}DRE Comparativo - {{ company.name }}{% endblock %}
+{% block extra_css %}
+<style>
+.level-0 td:first-child { font-weight:700; background:#f8f9fa; }
+.level-1 td:first-child { padding-left:1.4rem !important; font-weight:600; }
+.level-2 td:first-child { padding-left:2.6rem !important; color:#444; }
+.level-3 td:first-child { padding-left:3.8rem !important; color:#666; font-size:.88rem; }
+.val-col   { width:130px; text-align:right; font-variant-numeric:tabular-nums; }
+.var-pos   { color:#198754; font-weight:600; }
+.var-neg   { color:#dc3545; font-weight:600; }
+.total-row td { font-weight:700; }
+.result-row td { font-weight:800; font-size:1rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+  <div>
+    <h1 class="fw-bold text-primary mb-0">DRE Comparativo</h1>
+    <span class="text-muted">{{ company.name }}</span>
+  </div>
+  <a href="{% url 'core:reports_hub' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-grid me-1"></i> Todos os Relatórios
+  </a>
+</div>
+
+<!-- Filtro -->
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body">
+    <form method="GET" class="row g-3 align-items-end">
+      <div class="col-12"><p class="fw-semibold mb-1 text-primary">Período A (referência)</p></div>
+      <div class="col-md-3">
+        <label class="form-label">Início</label>
+        <input type="date" class="form-control" name="a_start" value="{{ a_start_str }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Fim</label>
+        <input type="date" class="form-control" name="a_end" value="{{ a_end_str }}">
+      </div>
+      <div class="col-12 pt-1"><p class="fw-semibold mb-1 text-secondary">Período B (comparação)</p></div>
+      <div class="col-md-3">
+        <label class="form-label">Início</label>
+        <input type="date" class="form-control" name="b_start" value="{{ b_start_str }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Fim</label>
+        <input type="date" class="form-control" name="b_end" value="{{ b_end_str }}">
+      </div>
+      <div class="col-md-auto">
+        <button class="btn btn-warning px-4">
+          <i class="bi bi-arrow-left-right me-1"></i> Comparar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Tabela -->
+<div class="card shadow-sm border-0">
+  <div class="card-body p-0">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Conta</th>
+          <th class="val-col text-primary">Período A</th>
+          <th class="val-col text-secondary">Período B</th>
+          <th class="val-col">Var. R$</th>
+          <th class="val-col">Var. %</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- RECEITAS -->
+        <tr class="table-success">
+          <td colspan="5" class="fw-bold text-success py-2 ps-2">
+            <i class="bi bi-arrow-up-circle-fill me-1"></i> RECEITAS
+          </td>
+        </tr>
+        {% for l in revenue_lines %}
+        <tr class="level-{{ l.level }}">
+          <td class="level-{{ l.level }}">{{ l.account.code }} — {{ l.account.name }}</td>
+          <td class="val-col text-primary">{{ l.val_a|floatformat:2|intcomma }}</td>
+          <td class="val-col text-secondary">{{ l.val_b|floatformat:2|intcomma }}</td>
+          <td class="val-col {% if l.variacao_rs >= 0 %}var-pos{% else %}var-neg{% endif %}">
+            {% if l.variacao_rs >= 0 %}+{% endif %}{{ l.variacao_rs|floatformat:2|intcomma }}
+          </td>
+          <td class="val-col {% if l.variacao_pct is not None and l.variacao_pct >= 0 %}var-pos{% elif l.variacao_pct is not None %}var-neg{% endif %}">
+            {% if l.variacao_pct is not None %}
+              {% if l.variacao_pct >= 0 %}+{% endif %}{{ l.variacao_pct|floatformat:1 }}%
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        <tr class="total-row table-success">
+          <td class="text-end">TOTAL RECEITAS</td>
+          <td class="val-col text-primary">{{ rev_a|floatformat:2|intcomma }}</td>
+          <td class="val-col text-secondary">{{ rev_b|floatformat:2|intcomma }}</td>
+          <td class="val-col {% if rev_a >= rev_b %}var-pos{% else %}var-neg{% endif %}">
+            {% if rev_a >= rev_b %}+{% endif %}{{ rev_a|add:"-"|add:rev_b|floatformat:2|intcomma }}
+          </td>
+          <td></td>
+        </tr>
+
+        <tr><td colspan="5" class="py-1 bg-light"></td></tr>
+
+        <!-- DESPESAS -->
+        <tr class="table-danger">
+          <td colspan="5" class="fw-bold text-danger py-2 ps-2">
+            <i class="bi bi-arrow-down-circle-fill me-1"></i> DESPESAS
+          </td>
+        </tr>
+        {% for l in expense_lines %}
+        <tr class="level-{{ l.level }}">
+          <td class="level-{{ l.level }}">{{ l.account.code }} — {{ l.account.name }}</td>
+          <td class="val-col text-primary">{{ l.val_a|floatformat:2|intcomma }}</td>
+          <td class="val-col text-secondary">{{ l.val_b|floatformat:2|intcomma }}</td>
+          <td class="val-col {% if l.variacao_rs <= 0 %}var-pos{% else %}var-neg{% endif %}">
+            {% if l.variacao_rs >= 0 %}+{% endif %}{{ l.variacao_rs|floatformat:2|intcomma }}
+          </td>
+          <td class="val-col {% if l.variacao_pct is not None and l.variacao_pct <= 0 %}var-pos{% elif l.variacao_pct is not None %}var-neg{% endif %}">
+            {% if l.variacao_pct is not None %}
+              {% if l.variacao_pct >= 0 %}+{% endif %}{{ l.variacao_pct|floatformat:1 }}%
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        <tr class="total-row table-danger">
+          <td class="text-end">TOTAL DESPESAS</td>
+          <td class="val-col text-primary">{{ exp_a|floatformat:2|intcomma }}</td>
+          <td class="val-col text-secondary">{{ exp_b|floatformat:2|intcomma }}</td>
+          <td></td><td></td>
+        </tr>
+
+        <tr><td colspan="5" class="py-1 bg-light"></td></tr>
+
+        <!-- RESULTADO -->
+        <tr class="result-row {% if result_a >= 0 %}table-primary{% else %}table-warning{% endif %}">
+          <td class="text-end fw-bold">RESULTADO LÍQUIDO</td>
+          <td class="val-col fw-bold {% if result_a >= 0 %}text-success{% else %}text-danger{% endif %}">
+            {{ result_a|floatformat:2|intcomma }}
+          </td>
+          <td class="val-col fw-bold {% if result_b >= 0 %}text-success{% else %}text-danger{% endif %}">
+            {{ result_b|floatformat:2|intcomma }}
+          </td>
+          <td></td><td></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -23,7 +23,7 @@ class ChartOfAccountsAdmin(admin.ModelAdmin):
 @admin.register(Budget)
 class BudgetAdmin(admin.ModelAdmin):
     # Agora podemos mostrar e filtrar pela empresa diretamente
-    list_display = ('account', 'year', 'annual_amount', 'company')
+    list_display = ('account', 'year', 'month', 'amount', 'company')
     list_filter = ('year', 'company') # Filtro direto e eficiente
     search_fields = ('account__name', 'account__code')
     autocomplete_fields = ['account']

@@ -41,27 +41,46 @@
     </div>
     <p class="lead mb-4">Execução orçamentária para o período selecionado:</p>
     <div class="row g-4">
-        <div class="col-md-4">
-            <div class="card text-center h-100 border-success shadow-sm">
-                <div class="card-header bg-success text-white fw-bold">TOTAL RECEITAS</div>
-                <div class="card-body d-flex align-items-center justify-content-center">
-                    <h2 class="card-title text-success mb-0">R$ {{ total_receitas|floatformat:2|intcomma }}</h2>
+        <div class="col-md-3">
+            <div class="card text-white bg-success border-0 rounded-4 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-arrow-up-circle-fill fs-2 opacity-75 mb-2 d-block"></i>
+                    <div class="small fw-bold text-uppercase opacity-75 mb-1">Total Receitas</div>
+                    <h3 class="fw-bold mb-0">R$ {{ total_receitas|floatformat:2|intcomma }}</h3>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card text-center h-100 border-danger shadow-sm">
-                <div class="card-header bg-danger text-white fw-bold">TOTAL DESPESAS</div>
-                <div class="card-body d-flex align-items-center justify-content-center">
-                    <h2 class="card-title text-danger mb-0">R$ {{ total_realizado|floatformat:2|intcomma }}</h2>
+        <div class="col-md-3">
+            <div class="card text-white bg-danger border-0 rounded-4 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-arrow-down-circle-fill fs-2 opacity-75 mb-2 d-block"></i>
+                    <div class="small fw-bold text-uppercase opacity-75 mb-1">Total Despesas</div>
+                    <h3 class="fw-bold mb-0">R$ {{ total_realizado|floatformat:2|intcomma }}</h3>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card text-center h-100 border-info shadow-sm">
-                <div class="card-header bg-info text-white fw-bold">TOTAL ORÇAMENTO</div>
-                <div class="card-body d-flex align-items-center justify-content-center">
-                    <h2 class="card-title text-info mb-0">R$ {{ total_orcado_periodo|floatformat:2|intcomma }}</h2>
+        <div class="col-md-3">
+            <div class="card text-white bg-info border-0 rounded-4 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-bar-chart-fill fs-2 opacity-75 mb-2 d-block"></i>
+                    <div class="small fw-bold text-uppercase opacity-75 mb-1">Total Orçamento</div>
+                    <h3 class="fw-bold mb-0">R$ {{ total_orcado_periodo|floatformat:2|intcomma }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+                <div class="card text-white border-0 rounded-4 shadow-sm h-100 {% if resultado_liquido >= 0 %}bg-success{% else %}bg-danger{% endif %}" style="filter: brightness(0.9);">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-{% if resultado_liquido >= 0 %}emoji-smile-fill{% else %}emoji-frown-fill{% endif %} fs-2 opacity-75 mb-2 d-block"></i>
+                    <div class="small fw-bold text-uppercase opacity-75 mb-1">Resultado Líquido</div>
+                    <h3 class="fw-bold mb-0">R$ {{ resultado_liquido|floatformat:2|intcomma }}</h3>
+                    <div class="small opacity-75 mt-1">
+                        {% if resultado_liquido >= 0 %}
+                            <i class="bi bi-check-circle"></i> Superávit
+                        {% else %}
+                            <i class="bi bi-exclamation-triangle"></i> Déficit
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -125,36 +144,65 @@
             </div>
         </div>
     </div>
-    <div class="row g-4 mt-2">
-        <div class="col-md-6">
-            <div class="card text-center">
-                <div class="card-header">% GLOSAS SOBRE REPASSE</div>
+    <h5 class="fw-bold text-secondary mt-4 mb-3"><i class="bi bi-speedometer2"></i> Indicadores do Período</h5>
+    <div class="row g-3">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
-                    <h2 class="card-title text-warning">{{ percentual_glosa|floatformat:2 }}%</h2>
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-warning text-dark me-2 p-2"><i class="bi bi-scissors"></i></span>
+                        <span class="fw-semibold text-muted small text-uppercase">Glosas / Repasse</span>
+                    </div>
+                    <h3 class="fw-bold text-warning mb-1">{{ percentual_glosa|floatformat:1 }}%</h3>
+                    <div class="progress" style="height:6px;">
+                        <div class="progress-bar bg-warning" style="width:{{ percentual_glosa|floatformat:0 }}%"></div>
+                    </div>
+                    <small class="text-muted">Quanto do repasse foi glosado</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card text-center">
-                <div class="card-header">% DA FOLHA NAS DESPESAS</div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
-                    <h2 class="card-title text-warning">{{ percentual_folha|floatformat:2 }}%</h2>
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-primary me-2 p-2"><i class="bi bi-people-fill"></i></span>
+                        <span class="fw-semibold text-muted small text-uppercase">Folha / Despesas</span>
+                    </div>
+                    <h3 class="fw-bold text-primary mb-1">{{ percentual_folha|floatformat:1 }}%</h3>
+                    <div class="progress" style="height:6px;">
+                        <div class="progress-bar bg-primary" style="width:{{ percentual_folha|floatformat:0 }}%"></div>
+                    </div>
+                    <small class="text-muted">Peso da folha no total gasto</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card text-center">
-                <div class="card-header">RECEITAS EXTRAORDINÁRIAS</div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
-                    <h2 class="card-title text-success">R$ {{ receitas_extra|floatformat:2|intcomma }}</h2>
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-success me-2 p-2"><i class="bi bi-plus-circle-fill"></i></span>
+                        <span class="fw-semibold text-muted small text-uppercase">Receitas Extra</span>
+                    </div>
+                    <h3 class="fw-bold text-success mb-1">R$ {{ receitas_extra|floatformat:0|intcomma }}</h3>
+                    <div class="progress" style="height:6px;">
+                        <div class="progress-bar bg-success" style="width:100%"></div>
+                    </div>
+                    <small class="text-muted">Receitas fora do repasse principal</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card text-center">
-                <div class="card-header">% SERVIÇOS TERCEIRIZADOS NAS DESPESAS</div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
-                    <h2 class="card-title text-warning">{{ percentual_servicos_terceiros|floatformat:2 }}%</h2>
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-info text-dark me-2 p-2"><i class="bi bi-building"></i></span>
+                        <span class="fw-semibold text-muted small text-uppercase">Serv. Terceirizados</span>
+                    </div>
+                    <h3 class="fw-bold text-info mb-1">{{ percentual_servicos_terceiros|floatformat:1 }}%</h3>
+                    <div class="progress" style="height:6px;">
+                        <div class="progress-bar bg-info" style="width:{{ percentual_servicos_terceiros|floatformat:0 }}%"></div>
+                    </div>
+                    <small class="text-muted">Peso dos terceiros nas despesas</small>
                 </div>
             </div>
         </div>

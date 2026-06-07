@@ -39,7 +39,8 @@ class ChartOfAccountsForm(forms.ModelForm):
             # Se for uma edição, pegamos a empresa da instância. Se for criação, não temos a empresa aqui ainda.
             # A melhor abordagem é garantir que a empresa seja passada para o form.
             # Vamos assumir que a 'company' está disponível (já fizemos isso na view)
-            company = self.fields['parent_account'].queryset.first().company if self.fields['parent_account'].queryset.exists() else None
+            first = self.fields['parent_account'].queryset.first()
+            company = first.company if first is not None else None
 
             if company:
                 # Monta a consulta para ver se já existe uma conta com esse código na empresa
@@ -62,47 +63,57 @@ class ChartOfAccountsForm(forms.ModelForm):
 
 class TransactionForm(forms.ModelForm):
     account_type_filter = forms.ChoiceField(
-        choices=(('', '---------'), ('R', 'Receita'), ('D', 'Despesa')),
+        choices=(('', 'Todos os tipos'), ('R', 'Receita'), ('D', 'Despesa')),
         required=False,
-        label="Filtrar por tipo"
+        label="Filtrar conta por tipo"
     )
-    # Usamos um DateInput para que o navegador mostre um seletor de calendário
     date = forms.DateField(
-        widget=forms.DateInput(
-            attrs={'type': 'date'},
-            format='%Y-%m-%d'
-        ),
+        widget=forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
         label="Data"
     )
 
     class Meta:
         model = Transaction
-        # Campos que o usuário irá preencher
-        fields = ['account_type_filter', 'date', 'account', 'amount', 'description']
-
+        fields = ['account_type_filter', 'date', 'account', 'amount', 'description', 'status']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 1}),
             'account': forms.Select(attrs={'class': 'select2-widget'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
         }
         
     def __init__(self, *args, **kwargs):
-        # Pegamos a 'company' que será passada pela view
-        company = kwargs.pop('company', None)
+        company            = kwargs.pop('company', None)
+        # locked_type: 'R' → só receitas; 'D' → só despesas; None → todos
+        locked_type        = kwargs.pop('locked_type', None)
         super().__init__(*args, **kwargs)
 
-        # Filtramos o campo 'account' para mostrar apenas as contas
-        # da empresa ativa. Não queremos que o usuário lance na conta de outro cliente.
+        qs = ChartOfAccounts.objects.none()
         if company:
-            self.fields['account'].queryset = ChartOfAccounts.objects.filter(company=company)
+            qs = ChartOfAccounts.objects.filter(company=company)
+            if locked_type:
+                qs = qs.filter(account_type=locked_type)
+        self.fields['account'].queryset = qs
+
+        # Se o tipo está travado, oculta o filtro de tipo do formulário
+        if locked_type:
+            self.fields['account_type_filter'].widget = \
+                __import__('django.forms', fromlist=['HiddenInput']).HiddenInput()
+            self.fields['account_type_filter'].initial = locked_type
+            self.locked_type = locked_type
+        else:
+            self.locked_type = None
 
 class CompanyForm(forms.ModelForm):
     class Meta:
         model = Company
-        # O usuário só precisa informar o nome. A associação com o usuário será automática.
         fields = ['name', 'management_type']
         labels = {
             'name': 'Nome da Empresa',
             'management_type': 'Tipo de Gestão',
+        }
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'management_type': forms.Select(attrs={'class': 'form-select'}),
         }
 
 class CSVImportForm(forms.Form):
@@ -112,26 +123,47 @@ class CSVImportForm(forms.Form):
 class BudgetForm(forms.ModelForm):
     class Meta:
         model = Budget
-        fields = ['annual_amount']
+        fields = ['amount']
         widgets = {
-            'annual_amount': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end'}),
+            'amount': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm text-end',
+                'step': '0.01',
+                'min': '0',
+            }),
         }
 
 
 class TransactionFilterForm(forms.Form):
-    start_date = forms.DateField(label="Data Início", required=False, widget=forms.DateInput(attrs={'type': 'date'}))
-    end_date = forms.DateField(label="Data Fim", required=False, widget=forms.DateInput(attrs={'type': 'date'}))
-    account = forms.ModelChoiceField(
-        label="Filtrar por Conta",
-        queryset=ChartOfAccounts.objects.none(), # O queryset será definido na view
+    start_date = forms.DateField(
+        label="Data Início", required=False,
+        widget=forms.DateInput(attrs={'type': 'date'})
+    )
+    end_date = forms.DateField(
+        label="Data Fim", required=False,
+        widget=forms.DateInput(attrs={'type': 'date'})
+    )
+    account_type = forms.ChoiceField(
+        label="Tipo",
+        choices=(('', 'Todos'), ('R', 'Receita'), ('D', 'Despesa')),
         required=False
+    )
+    status = forms.ChoiceField(
+        label="Status",
+        choices=(('', 'Todos'), ('PAID', 'Realizado'), ('PENDING', 'Pendente')),
+        required=False
+    )
+    account = forms.ModelChoiceField(
+        label="Conta",
+        queryset=ChartOfAccounts.objects.none(),
+        required=False,
+        empty_label="Todas as contas"
     )
 
     def __init__(self, *args, **kwargs):
         company = kwargs.pop('company', None)
         super().__init__(*args, **kwargs)
         if company:
-            self.fields['account'].queryset = ChartOfAccounts.objects.filter(company=company)
+            self.fields['account'].queryset = ChartOfAccounts.objects.filter(company=company).order_by('code')
 
 
 class NoteForm(forms.ModelForm):

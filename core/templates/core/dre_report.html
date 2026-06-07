@@ -1,78 +1,155 @@
 {% extends 'base.html' %}
-{% load l10n %}
-{% load humanize %}
-{% block title %}DRE - {{ company.name }}{% endblock %}
+{% load l10n humanize %}
+{% block title %}DRE Gerencial - {{ company.name }}{% endblock %}
+{% block extra_css %}
+<style>
+.level-0 td:first-child { font-weight:700; background:#f8f9fa; }
+.level-1 td:first-child { padding-left:1.5rem !important; font-weight:600; }
+.level-2 td:first-child { padding-left:2.8rem !important; }
+.level-3 td:first-child { padding-left:4.1rem !important; font-size:.9rem; color:#555; }
+.level-4 td:first-child { padding-left:5.4rem !important; font-size:.85rem; color:#777; }
+.total-row td { font-weight:700; font-size:1rem; }
+.result-row td { font-size:1.1rem; font-weight:800; }
+.pct-col { width:80px; text-align:right; color:#6c757d; font-size:.85rem; }
+.val-col  { width:160px; text-align:right; font-variant-numeric:tabular-nums; }
+</style>
+{% endblock %}
 {% block content %}
-    <h1 class="mb-4 fw-bold" style="font-size: 2.25rem;">
-        <span class="text-primary">DRE Gerencial</span>
-        <span class="text-muted fs-4">{{ company.name }}</span>
-    </h1>
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
-            <form method="GET" action="" class="row g-3 align-items-end">
-                <div class="col-md-3">
-                    <label for="start_date" class="form-label">Data Início</label>
-                    <input type="date"
-                           class="form-control"
-                           id="start_date"
-                           name="start_date"
-                           value="{{ start_date_str }}">
-                </div>
-                <div class="col-md-3">
-                    <label for="end_date" class="form-label">Data Fim</label>
-                    <input type="date"
-                           class="form-control"
-                           id="end_date"
-                           name="end_date"
-                           value="{{ end_date_str }}">
-                </div>
-                <div class="col-md-auto mt-md-4">
-                    <button type="submit"
-                            class="btn text-white fw-semibold px-4"
-                            style="background: linear-gradient(to right, #5B86E5, #36D1DC)">
-                        <i class="bi bi-search me-1"></i> Filtrar
-                    </button>
-                </div>
-                <div class="col-md-auto mt-md-4">
-                    <a href="{% url 'core:dre_report_pdf' %}?start_date={{ start_date_str }}&end_date={{ end_date_str }}"
-                       class="btn text-white fw-semibold px-4"
-                       style="background: linear-gradient(to right, #FF416C, #FF4B2B)">
-                        <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
-                    </a>
-                </div>
-            </form>
-        </div>
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+  <div>
+    <h1 class="fw-bold text-primary mb-0">DRE Gerencial</h1>
+    <span class="text-muted">{{ company.name }}</span>
+  </div>
+  <a href="{% url 'core:reports_hub' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-grid me-1"></i> Todos os Relatórios
+  </a>
+</div>
+
+<!-- Filtro -->
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body">
+    <form method="GET" class="row g-3 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Data Início</label>
+        <input type="date" class="form-control" name="start_date" value="{{ start_date_str }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Data Fim</label>
+        <input type="date" class="form-control" name="end_date" value="{{ end_date_str }}">
+      </div>
+      <div class="col-md-auto">
+        <button class="btn btn-primary px-4">
+          <i class="bi bi-search me-1"></i> Filtrar
+        </button>
+      </div>
+      <div class="col-md-auto">
+        <a href="{% url 'core:dre_report_pdf' %}?start_date={{ start_date_str }}&end_date={{ end_date_str }}"
+           class="btn btn-danger px-4">
+          <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Cards de resumo -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm text-white bg-success">
+      <div class="card-body py-3">
+        <div class="small opacity-75 text-uppercase fw-bold">Total Receitas</div>
+        <div class="fs-5 fw-bold">R$ {{ total_revenue|floatformat:2|intcomma }}</div>
+      </div>
     </div>
-    <div class="card shadow-sm border-0">
-        <div class="card-body">
-            <table class="table table-hover align-middle">
-                <tbody>
-                    {% for line in dre_data.revenue_lines %}
-                        <tr class="{% if line.level == 0 %}table-light fw-bold{% endif %}">
-                            <td style="padding-left: {{ line.level|add:1 }}rem;">{{ line.account.code }} - {{ line.account.name }}</td>
-                            <td class="text-end">R$ {{ line.total|floatformat:2|intcomma }}</td>
-                        </tr>
-                    {% endfor %}
-                    <tr class="table-success fw-bold">
-                        <td class="text-end">TOTAL DE RECEITAS</td>
-                        <td class="text-end">R$ {{ total_revenue|floatformat:2|intcomma }}</td>
-                    </tr>
-                    {% for line in dre_data.expense_lines %}
-                        <tr class="{% if line.level == 0 %}table-light fw-bold{% endif %}">
-                            <td style="padding-left: {{ line.level|add:1 }}rem;">{{ line.account.code }} - {{ line.account.name }}</td>
-                            <td class="text-end">R$ {{ line.total|floatformat:2|intcomma }}</td>
-                        </tr>
-                    {% endfor %}
-                    <tr class="table-danger fw-bold">
-                        <td class="text-end">TOTAL DE DESPESAS E CUSTOS</td>
-                        <td class="text-end">R$ {{ total_expense|floatformat:2|intcomma }}</td>
-                    </tr>
-                    <tr class="{% if net_result >= 0 %}table-primary{% else %}table-dark text-white{% endif %} fw-bolder fs-5">
-                        <td class="text-end">RESULTADO LÍQUIDO</td>
-                        <td class="text-end">R$ {{ net_result|floatformat:2|intcomma }}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm text-white bg-danger">
+      <div class="card-body py-3">
+        <div class="small opacity-75 text-uppercase fw-bold">Total Despesas</div>
+        <div class="fs-5 fw-bold">R$ {{ total_expense|floatformat:2|intcomma }}</div>
+      </div>
     </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm text-white {% if net_result >= 0 %}bg-primary{% else %}bg-warning{% endif %}">
+      <div class="card-body py-3">
+        <div class="small opacity-75 text-uppercase fw-bold">Resultado Líquido</div>
+        <div class="fs-5 fw-bold">R$ {{ net_result|floatformat:2|intcomma }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabela DRE -->
+<div class="card shadow-sm border-0">
+  <div class="card-body p-0">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Conta</th>
+          <th class="val-col">Valor (R$)</th>
+          <th class="pct-col">% Receita</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- RECEITAS -->
+        <tr class="table-success">
+          <td colspan="3" class="fw-bold text-success py-2 ps-2">
+            <i class="bi bi-arrow-up-circle-fill me-1"></i> RECEITAS
+          </td>
+        </tr>
+        {% for line in revenue_lines %}
+        <tr class="level-{{ line.level }}">
+          <td class="level-{{ line.level }}">{{ line.account.code }} — {{ line.account.name }}</td>
+          <td class="val-col">{{ line.total|floatformat:2|intcomma }}</td>
+          <td class="pct-col">{{ line.pct|floatformat:1 }}%</td>
+        </tr>
+        {% endfor %}
+        <tr class="total-row table-success">
+          <td class="text-end fw-bold">TOTAL DE RECEITAS</td>
+          <td class="val-col text-success">{{ total_revenue|floatformat:2|intcomma }}</td>
+          <td class="pct-col">100%</td>
+        </tr>
+
+        <tr><td colspan="3" class="py-1 bg-light"></td></tr>
+
+        <!-- DESPESAS -->
+        <tr class="table-danger">
+          <td colspan="3" class="fw-bold text-danger py-2 ps-2">
+            <i class="bi bi-arrow-down-circle-fill me-1"></i> DESPESAS E CUSTOS
+          </td>
+        </tr>
+        {% for line in expense_lines %}
+        <tr class="level-{{ line.level }}">
+          <td class="level-{{ line.level }}">{{ line.account.code }} — {{ line.account.name }}</td>
+          <td class="val-col">{{ line.total|floatformat:2|intcomma }}</td>
+          <td class="pct-col">{{ line.pct|floatformat:1 }}%</td>
+        </tr>
+        {% endfor %}
+        <tr class="total-row table-danger">
+          <td class="text-end fw-bold">TOTAL DE DESPESAS</td>
+          <td class="val-col text-danger">{{ total_expense|floatformat:2|intcomma }}</td>
+          <td class="pct-col"></td>
+        </tr>
+
+        <tr><td colspan="3" class="py-1 bg-light"></td></tr>
+
+        <!-- RESULTADO -->
+        <tr class="result-row {% if net_result >= 0 %}table-primary{% else %}table-warning{% endif %}">
+          <td class="text-end fw-bolder">
+            {% if net_result >= 0 %}
+              <i class="bi bi-check-circle-fill text-success me-1"></i> SUPERÁVIT
+            {% else %}
+              <i class="bi bi-exclamation-triangle-fill text-danger me-1"></i> DÉFICIT
+            {% endif %}
+          </td>
+          <td class="val-col fw-bolder {% if net_result >= 0 %}text-success{% else %}text-danger{% endif %}">
+            {{ net_result|floatformat:2|intcomma }}
+          </td>
+          <td class="pct-col"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}

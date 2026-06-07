@@ -66,21 +66,49 @@
             font-size: 1rem;
         }
 
-        form button {
+        .btn-entrar {
             background: linear-gradient(90deg, #5B86E5, #36D1DC);
             border: none;
-            padding: 0.75rem;
+            padding: 0.85rem;
             border-radius: 0.5rem;
             color: white;
             font-weight: 600;
             font-size: 1rem;
             cursor: pointer;
-            transition: background 0.3s ease;
+            width: 100%;
+            transition: opacity 0.2s ease;
+            letter-spacing: 0.5px;
         }
+        .btn-entrar:hover { opacity: 0.9; }
 
-        form button:hover {
-            background: linear-gradient(90deg, #4a75cc, #2ab8c6);
+        .form-label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #333;
+            margin-bottom: 0.4rem;
+            display: block;
         }
+        .form-control {
+            border-radius: 0.5rem;
+            border: 1.5px solid #ddd;
+            font-size: 1rem;
+            padding: 0.75rem;
+            transition: border-color 0.2s;
+        }
+        .form-control:focus {
+            border-color: #5B86E5;
+            box-shadow: 0 0 0 3px rgba(91,134,229,0.15);
+            outline: none;
+        }
+        .input-group .form-control { border-right: none; }
+        .input-group .btn-outline-secondary {
+            border: 1.5px solid #ddd;
+            border-left: none;
+            border-radius: 0 0.5rem 0.5rem 0;
+            color: #999;
+            background: #fff;
+        }
+        .input-group .btn-outline-secondary:hover { color: #555; background: #f8f8f8; }
 
         .form-errors {
             color: #d9534f;
@@ -112,13 +140,47 @@
                      width="200"
                      height="auto">
             </div>
-            <p>Por favor, entre com suas credenciais.</p>
+            <p>Bem-vindo de volta. Acesse sua conta.</p>
             <form method="post">
                 {% csrf_token %}
-                {% if form.errors %}<div class="form-errors">Verifique os campos preenchidos.</div>{% endif %}
-                {{ form.as_p }}
-                <button type="submit">Entrar</button>
+                {% if form.errors %}
+                    <div class="form-errors">
+                        <i class="bi bi-exclamation-circle me-1"></i> Usuário ou senha incorretos.
+                    </div>
+                {% endif %}
+                <div class="mb-3">
+                    <label for="id_username" class="form-label">Usuário</label>
+                    <input type="text" name="username" id="id_username"
+                           class="form-control form-control-lg"
+                           placeholder="Digite seu usuário" autofocus autocomplete="username">
+                </div>
+                <div class="mb-4">
+                    <label for="id_password" class="form-label">Senha</label>
+                    <div class="input-group">
+                        <input type="password" name="password" id="id_password"
+                               class="form-control form-control-lg"
+                               placeholder="••••••••" autocomplete="current-password">
+                        <button type="button" class="btn btn-outline-secondary"
+                                onclick="togglePassword()" title="Mostrar/ocultar senha">
+                            <i class="bi bi-eye" id="toggleIcon"></i>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="btn-entrar">Entrar</button>
             </form>
+            <script>
+                function togglePassword() {
+                    const input = document.getElementById('id_password');
+                    const icon = document.getElementById('toggleIcon');
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        icon.className = 'bi bi-eye-slash';
+                    } else {
+                        input.type = 'password';
+                        icon.className = 'bi bi-eye';
+                    }
+                }
+            </script>
         </div>
     </body>
 </html>

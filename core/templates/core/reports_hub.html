@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% block title %}Relatórios - {{ company.name }}{% endblock %}
+{% block content %}
+<h1 class="fw-bold text-primary mb-1">Relatórios</h1>
+<p class="text-muted mb-4">{{ company.name }} — escolha o tipo de relatório</p>
+
+<div class="row g-4">
+
+  <div class="col-md-6 col-xl-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex flex-column">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="rounded-3 p-3" style="background:#e8f0fe;">
+            <i class="bi bi-file-earmark-bar-graph-fill fs-3 text-primary"></i>
+          </div>
+          <div>
+            <h5 class="mb-0 fw-bold">DRE Gerencial</h5>
+            <small class="text-muted">Período livre</small>
+          </div>
+        </div>
+        <p class="text-muted small flex-grow-1">
+          Demonstrativo de Resultado por qualquer intervalo de datas, com hierarquia de contas
+          e percentual de cada linha sobre a receita total.
+        </p>
+        <a href="{% url 'core:dre_report' %}" class="btn btn-primary mt-2">
+          <i class="bi bi-arrow-right-circle me-1"></i> Abrir relatório
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 col-xl-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex flex-column">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="rounded-3 p-3" style="background:#e6f4ea;">
+            <i class="bi bi-calendar3 fs-3 text-success"></i>
+          </div>
+          <div>
+            <h5 class="mb-0 fw-bold">DRE Mensal</h5>
+            <small class="text-muted">12 colunas por ano</small>
+          </div>
+        </div>
+        <p class="text-muted small flex-grow-1">
+          Visão anual com cada mês em uma coluna separada. Ideal para identificar
+          sazonalidades e comparar meses do mesmo ano.
+        </p>
+        <a href="{% url 'core:dre_mensal' %}" class="btn btn-success mt-2">
+          <i class="bi bi-arrow-right-circle me-1"></i> Abrir relatório
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 col-xl-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex flex-column">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="rounded-3 p-3" style="background:#fff3e0;">
+            <i class="bi bi-arrow-left-right fs-3 text-warning"></i>
+          </div>
+          <div>
+            <h5 class="mb-0 fw-bold">DRE Comparativo</h5>
+            <small class="text-muted">Dois períodos lado a lado</small>
+          </div>
+        </div>
+        <p class="text-muted small flex-grow-1">
+          Compara dois períodos quaisquer com variação em R$ e %. Perfeito para
+          análise ano a ano ou mês a mês.
+        </p>
+        <a href="{% url 'core:dre_comparativo' %}" class="btn btn-warning mt-2">
+          <i class="bi bi-arrow-right-circle me-1"></i> Abrir relatório
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 col-xl-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex flex-column">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="rounded-3 p-3" style="background:#fce4ec;">
+            <i class="bi bi-bullseye fs-3 text-danger"></i>
+          </div>
+          <div>
+            <h5 class="mb-0 fw-bold">Orçamento vs. Realizado</h5>
+            <small class="text-muted">Desvio por conta</small>
+          </div>
+        </div>
+        <p class="text-muted small flex-grow-1">
+          Confronta o orçamento aprovado com o realizado, mostrando desvio em R$ e %
+          com semáforo visual de alerta.
+        </p>
+        <a href="{% url 'core:budget_vs_actual_report' %}" class="btn btn-danger mt-2">
+          <i class="bi bi-arrow-right-circle me-1"></i> Abrir relatório
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 col-xl-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex flex-column">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="rounded-3 p-3" style="background:#ede7f6;">
+            <i class="bi bi-list-columns-reverse fs-3" style="color:#7c4dff;"></i>
+          </div>
+          <div>
+            <h5 class="mb-0 fw-bold">Extrato Analítico</h5>
+            <small class="text-muted">Lançamento por lançamento</small>
+          </div>
+        </div>
+        <p class="text-muted small flex-grow-1">
+          Lista todos os lançamentos do período com filtro por tipo e conta específica.
+          Exportável em PDF.
+        </p>
+        <a href="{% url 'core:extrato_analitico' %}" class="btn mt-2" style="background:#7c4dff;color:#fff;">
+          <i class="bi bi-arrow-right-circle me-1"></i> Abrir relatório
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 col-xl-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex flex-column">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="rounded-3 p-3" style="background:#e8f5e9;">
+            <i class="bi bi-people-fill fs-3" style="color:#1b5e20;"></i>
+          </div>
+          <div>
+            <h5 class="mb-0 fw-bold">Produtividade da Equipe</h5>
+            <small class="text-muted">Por usuário e por dia</small>
+          </div>
+        </div>
+        <p class="text-muted small flex-grow-1">
+          Quantidade e valor de lançamentos por colaborador no período.
+          Ranking, participação percentual e evolução diária.
+        </p>
+        <a href="{% url 'core:productivity_report' %}" class="btn mt-2"
+           style="background:#1b5e20;color:#fff;">
+          <i class="bi bi-arrow-right-circle me-1"></i> Abrir relatório
+        </a>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

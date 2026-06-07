@@ -2,90 +2,236 @@
 {% load form_filters %}
 {% load l10n humanize %}
 {% block title %}Plano de Contas - {{ company.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .account-level-0 { font-weight: 700; background-color: #f8f9fa; }
+    .account-level-1 { padding-left: 1.2rem !important; font-weight: 600; }
+    .account-level-2 { padding-left: 2.4rem !important; }
+    .account-level-3 { padding-left: 3.6rem !important; font-size: .92rem; color: #555; }
+    .account-level-4 { padding-left: 4.8rem !important; font-size: .88rem; color: #777; }
+    .account-code { font-family: monospace; font-size: .85rem; }
+    .table tbody tr:hover { background-color: #f0f4ff; }
+    #searchInput { max-width: 340px; }
+    .btn-add-float {
+        position: fixed; bottom: 2rem; right: 2rem; z-index: 1050;
+        width: 56px; height: 56px; border-radius: 50%;
+        font-size: 1.5rem; line-height: 1;
+        box-shadow: 0 4px 12px rgba(0,0,0,.25);
+    }
+    .hidden-row { display: none; }
+</style>
+{% endblock %}
+
 {% block content %}
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="fw-bold text-primary mb-3">
-            Plano de Contas <span class="text-muted fs-5">{{ company.name }}</span>
-        </h1>
-        <a href="{% url 'core:import_chart_of_accounts' company.id %}"
-           class="btn btn-outline-primary">📥 Importar CSV</a>
-    </div>
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-light">
-            <h5 class="mb-0">Contas Existentes</h5>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="fw-bold text-primary mb-0">
+        Plano de Contas <span class="text-muted fs-5">{{ company.name }}</span>
+    </h1>
+    {% if can_write %}
+    <a href="{% url 'core:import_chart_of_accounts' company.id %}"
+       class="btn btn-outline-primary">
+        <i class="bi bi-file-earmark-arrow-up"></i> Importar CSV
+    </a>
+    {% endif %}
+</div>
+
+<!-- Resumo -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm text-center py-3">
+            <div class="text-muted small text-uppercase fw-semibold">Total de Contas</div>
+            <div class="fs-3 fw-bold text-primary">{{ accounts|length }}</div>
         </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-striped align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th style="width: 10%;">Código</th>
-                            <th>Nome</th>
-                            <th>Tipo</th>
-                            <th>Conta Pai</th>
-                            <th style="width: 15%;">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for account in accounts %}
-                            <tr>
-                                <td>
-                                    <code>{{ account.code }}</code>
-                                </td>
-                                <td>{{ account.name }}</td>
-                                <td>{{ account.get_account_type_display }}</td>
-                                <td>{{ account.parent_account.name|default:"—" }}</td>
-                                <td>
-                                    <div class="d-flex gap-2">
-                                        <a href="{% url 'core:account_update' company.id account.id %}"
-                                           class="btn btn-sm btn-outline-primary"
-                                           title="Editar">✏️</a>
-                                        <a href="{% url 'core:account_delete' company.id account.id %}"
-                                           class="btn btn-sm btn-outline-danger"
-                                           title="Excluir">🗑️</a>
-                                    </div>
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="5" class="text-center py-3 text-muted">Nenhuma conta cadastrada para esta empresa.</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm text-center py-3">
+            <div class="text-muted small text-uppercase fw-semibold">Contas de Receita</div>
+            <div class="fs-3 fw-bold text-success" id="count-receita">—</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm text-center py-3">
+            <div class="text-muted small text-uppercase fw-semibold">Contas de Despesa</div>
+            <div class="fs-3 fw-bold text-danger" id="count-despesa">—</div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabela de contas -->
+<div class="card shadow-sm mb-5">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Contas Cadastradas</h5>
+        <input type="text"
+               id="searchInput"
+               class="form-control form-control-sm"
+               placeholder="🔍 Buscar por código ou nome...">
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="accountsTable">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:12%">Código</th>
+                        <th>Nome</th>
+                        <th style="width:10%">Tipo</th>
+                        <th style="width:20%">Conta Pai</th>
+                        {% if can_write %}<th style="width:12%">Ações</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for account in accounts %}
+                    {% with level=account.code|cut:"."|length %}
+                    <tr class="account-row account-level-{{ level }}" data-search="{{ account.code|lower }} {{ account.name|lower }}">
+                        <td class="account-code">{{ account.code }}</td>
+                        <td class="account-level-{{ level }}">
+                            {% if level == 0 %}<i class="bi bi-folder-fill text-warning me-1"></i>
+                            {% elif level == 1 %}<i class="bi bi-folder2 text-secondary me-1"></i>
+                            {% else %}<i class="bi bi-file-text text-muted me-1"></i>{% endif %}
+                            {{ account.name }}
+                        </td>
+                        <td>
+                            {% if account.account_type == 'R' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="bi bi-arrow-up-short"></i> Receita
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                    <i class="bi bi-arrow-down-short"></i> Despesa
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">
+                            {% if account.parent_account %}
+                                <code class="me-1">{{ account.parent_account.code }}</code>{{ account.parent_account.name }}
+                            {% else %}—{% endif %}
+                        </td>
+                        {% if can_write %}
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{% url 'core:account_update' company.id account.id %}"
+                                   class="btn btn-sm btn-outline-primary" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'core:account_delete' company.id account.id %}"
+                                   class="btn btn-sm btn-outline-danger" title="Excluir">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endwith %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                            Nenhuma conta cadastrada. Clique em <strong>+</strong> para adicionar.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div id="noResults" class="text-center py-4 text-muted d-none">
+            <i class="bi bi-search fs-3 d-block mb-2"></i>
+            Nenhuma conta encontrada para "<span id="searchTerm"></span>".
+        </div>
+    </div>
+</div>
+
+{% if can_write %}
+<!-- Modal: Adicionar Nova Conta -->
+<div class="modal fade" id="addAccountModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Nova Conta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-        </div>
-    </div>
-    <div class="card mt-4">
-        <div class="card-header">Adicionar Nova Conta</div>
-        <div class="card-body">
             <form method="post">
                 {% csrf_token %}
-                {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
-                <div class="mb-3">
-                    <label for="{{ form.code.id_for_label }}" class="form-label">Código</label>
-                    {{ form.code|add_class:"form-control" }}
-                    {% for error in form.code.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
-                </div>
-                <div class="mb-3">
-                    <label for="{{ form.name.id_for_label }}" class="form-label">Nome</label>
-                    {{ form.name|add_class:"form-control" }}
-                    {% for error in form.name.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
-                </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.account_type.id_for_label }}" class="form-label">Tipo</label>
-                        {{ form.account_type|add_class:"form-select" }}
-                        {% for error in form.account_type.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                <div class="modal-body">
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Código</label>
+                        {{ form.code|add_class:"form-control" }}
+                        <div class="form-text">Ex: 1.01.01, 2.03</div>
+                        {% for error in form.code.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.parent_account.id_for_label }}" class="form-label">Conta Pai</label>
-                        {{ form.parent_account|add_class:"form-select" }}
-                        {% for error in form.parent_account.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Nome</label>
+                        {{ form.name|add_class:"form-control" }}
+                        {% for error in form.name.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Tipo</label>
+                            {{ form.account_type|add_class:"form-select" }}
+                            {% for error in form.account_type.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Conta Pai</label>
+                            {{ form.parent_account|add_class:"form-select" }}
+                            {% for error in form.parent_account.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                        </div>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary">Salvar Conta</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg"></i> Salvar Conta
+                    </button>
+                </div>
             </form>
         </div>
     </div>
+</div>
+
+<!-- Botão flutuante para abrir o modal -->
+<button class="btn btn-primary btn-add-float"
+        data-bs-toggle="modal" data-bs-target="#addAccountModal"
+        title="Adicionar nova conta">
+    <i class="bi bi-plus-lg"></i>
+</button>
+{% endif %}{# can_write #}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Abre modal automaticamente se o form voltou com erros
+    {% if form.errors %}
+    new bootstrap.Modal(document.getElementById('addAccountModal')).show();
+    {% endif %}
+
+    // Contagens por tipo
+    const rows = document.querySelectorAll('.account-row');
+    let countR = 0, countD = 0;
+    rows.forEach(row => {
+        if (row.querySelector('.bg-success-subtle')) countR++;
+        else countD++;
+    });
+    document.getElementById('count-receita').textContent = countR;
+    document.getElementById('count-despesa').textContent = countD;
+
+    // Busca em tempo real
+    const searchInput = document.getElementById('searchInput');
+    const noResults = document.getElementById('noResults');
+    const searchTerm = document.getElementById('searchTerm');
+
+    searchInput.addEventListener('input', function () {
+        const term = this.value.toLowerCase().trim();
+        let visible = 0;
+        rows.forEach(row => {
+            const match = !term || row.dataset.search.includes(term);
+            row.classList.toggle('hidden-row', !match);
+            if (match) visible++;
+        });
+        const isEmpty = visible === 0 && term.length > 0;
+        noResults.classList.toggle('d-none', !isEmpty);
+        searchTerm.textContent = this.value;
+    });
+</script>
 {% endblock %}

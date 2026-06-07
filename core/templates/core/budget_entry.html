@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% load l10n humanize %}
+{% block title %}Lançamento de Orçamento {{ year }} — {{ company.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.budget-entry-table { font-size: 0.80rem; }
+.budget-entry-table th { white-space: nowrap; }
+.level-0 td:first-child { font-weight: 800; background: #adb5bd; }
+.level-1 td:first-child { padding-left: 1.3rem !important; font-weight: 700; background: #ced4da; }
+.level-2 td:first-child { padding-left: 2.4rem !important; font-weight: 600; background: #e9ecef; }
+.level-3 td:first-child { padding-left: 3.5rem !important; font-weight: 400; }
+.level-4 td:first-child { padding-left: 4.6rem !important; font-weight: 400; color: #666; font-size: .78rem; }
+.parent-total { text-align: right; color: #555; font-style: italic; }
+.input-budget {
+  width: 110px;
+  text-align: right;
+  font-size: .80rem;
+  padding: 2px 6px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  background: #fff;
+}
+.input-budget:focus { border-color: #1a56db; outline: none; box-shadow: 0 0 0 2px rgba(26,86,219,.2); }
+.badge-receita { background: #d4edda; color: #155724; padding: 2px 7px; border-radius: 10px; font-size: .70rem; font-weight: 700; }
+.badge-despesa { background: #f8d7da; color: #721c24; padding: 2px 7px; border-radius: 10px; font-size: .70rem; font-weight: 700; }
+.sticky-col { position: sticky; left: 0; background: inherit; z-index: 5; border-right: 2px solid #dee2e6; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+  <div>
+    <h1 class="fw-bold text-primary mb-0">
+      <i class="bi bi-pencil-square me-2"></i>Lançamento de Orçamento
+    </h1>
+    <span class="text-muted">{{ company.name }}
+      <span class="badge bg-warning text-dark ms-1">
+        <i class="bi bi-shield-lock-fill me-1"></i>Somente Administradores
+      </span>
+    </span>
+  </div>
+  <a href="{% url 'core:budget_dashboard' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-table me-1"></i> Ver Quadro
+  </a>
+</div>
+
+<!-- Seletor de Ano -->
+<div class="card shadow-sm border-0 mb-3">
+  <div class="card-body py-2">
+    <form method="GET" class="row g-2 align-items-center">
+      <div class="col-auto fw-semibold text-muted">Ano:</div>
+      <div class="col-auto">
+        {% localize off %}
+        <a href="?year={{ prev_year }}" class="btn btn-outline-secondary btn-sm">‹ {{ prev_year }}</a>
+        {% endlocalize %}
+      </div>
+      <div class="col-auto">
+        <input type="text" inputmode="numeric" pattern="[0-9]{4}"
+               class="form-control form-control-sm text-center fw-bold fs-5"
+               name="year"
+               value="{% localize off %}{{ year }}{% endlocalize %}"
+               style="width:90px;">
+      </div>
+      <div class="col-auto">
+        {% localize off %}
+        <a href="?year={{ next_year }}" class="btn btn-outline-secondary btn-sm">{{ next_year }} ›</a>
+        {% endlocalize %}
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-primary btn-sm px-3">
+          <i class="bi bi-search me-1"></i> Carregar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Formulário -->
+<form method="POST" id="budgetForm">
+  {% csrf_token %}
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered table-hover align-middle mb-0 budget-entry-table">
+          <thead class="table-light sticky-top">
+            <tr>
+              <th class="sticky-col" style="min-width:280px;">Conta</th>
+              {% for m in month_names %}
+                <th class="text-center" style="min-width:115px;">{{ m }}</th>
+              {% endfor %}
+              <th class="text-center" style="min-width:100px; background:#e9ecef;">Total Anual</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in table_rows %}
+            <tr class="level-{{ row.level }}">
+              <td class="sticky-col level-{{ row.level }}">
+                <span class="{% if row.account.account_type == 'R' %}badge-receita{% else %}badge-despesa{% endif %} me-1">
+                  {% if row.account.account_type == 'R' %}R{% else %}D{% endif %}
+                </span>
+                {{ row.account.code }} — {{ row.account.name }}
+              </td>
+              {% for val in row.months %}
+              <td class="text-center p-1">
+                {% if row.is_leaf %}
+                  <input type="text" inputmode="decimal"
+                         class="input-budget"
+                         name="budget_{{ row.account.id }}_{{ forloop.counter }}"
+                         value="{{ val|floatformat:2 }}"
+                         data-account="{{ row.account.id }}"
+                         data-month="{{ forloop.counter }}">
+                {% else %}
+                  <span class="parent-total">{{ val|floatformat:2|intcomma }}</span>
+                {% endif %}
+              </td>
+              {% endfor %}
+              <td class="text-end pe-2 fw-semibold" id="total_{{ row.account.id }}">
+                {{ row.annual_total|floatformat:2|intcomma }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card-footer d-flex justify-content-between align-items-center">
+      <small class="text-muted">
+        <i class="bi bi-info-circle me-1"></i>
+        Apenas contas sem subcontas (folhas) são editáveis. Valores em R$.
+        Contas pai exibem o somatório automaticamente.
+      </small>
+      <button type="submit" class="btn btn-success px-5">
+        <i class="bi bi-floppy me-1"></i> Salvar Orçamento {{ year }}
+      </button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // Calcula o total anual de cada linha (soma dos 12 meses)
+  function calcRowTotal(accountId) {
+    let total = 0;
+    for (let m = 1; m <= 12; m++) {
+      const input = document.querySelector(`input[name="budget_${accountId}_${m}"]`);
+      if (input) {
+        const val = parseFloat(input.value.replace(',', '.')) || 0;
+        total += val;
+      }
+    }
+    const cell = document.getElementById(`total_${accountId}`);
+    if (cell) {
+      cell.textContent = total.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2, maximumFractionDigits: 2
+      });
+    }
+  }
+
+  // Inicializa totais
+  document.querySelectorAll('input.input-budget').forEach(function (input) {
+    const accountId = input.dataset.account;
+    calcRowTotal(accountId);
+
+    input.addEventListener('input', function () {
+      calcRowTotal(accountId);
+    });
+
+    // Enter avança para o próximo campo
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const inputs = Array.from(document.querySelectorAll('input.input-budget'));
+        const idx = inputs.indexOf(this);
+        if (idx >= 0 && idx < inputs.length - 1) {
+          inputs[idx + 1].focus();
+          inputs[idx + 1].select();
+        }
+      }
+    });
+
+    // Seleciona tudo ao focar
+    input.addEventListener('focus', function () { this.select(); });
+  });
+});
+</script>
+{% endblock %}

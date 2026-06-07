@@ -1,196 +1,319 @@
 {% extends "base.html" %}
 {% load form_filters %}
 {% load l10n humanize %}
-{% block title %}
-    Lançamentos - {{ active_company.name }}
-{% endblock title %}
+
+{% block title %}Lançamentos - {{ active_company.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.btn-gradient-save    { background: linear-gradient(to right,#fc5c7d,#6a82fb); border:none; color:#fff !important; }
+.btn-gradient-clear   { background: linear-gradient(to right,#283048,#859398); border:none; color:#fff !important; }
+.btn-gradient-filter  { background: linear-gradient(to right,#5B86E5,#36D1DC); border:none; color:#fff !important; }
+.btn-gradient-import  { background: linear-gradient(to right,#00c6ff,#0072ff); border:none; color:#fff !important; }
+.btn-gradient-template{ background: linear-gradient(to right,#4b6cb7,#182848); border:none; color:#fff !important; }
+.btn-gradient-save:hover,.btn-gradient-save:focus       { background:linear-gradient(to right,#fc5c7d,#6a82fb); opacity:.9; }
+.btn-gradient-clear:hover,.btn-gradient-clear:focus     { background:linear-gradient(to right,#283048,#859398); opacity:.9; }
+.btn-gradient-filter:hover,.btn-gradient-filter:focus   { background:linear-gradient(to right,#5B86E5,#36D1DC); opacity:.9; }
+.btn-gradient-import:hover,.btn-gradient-import:focus   { background:linear-gradient(to right,#00c6ff,#0072ff); opacity:.9; }
+.btn-gradient-template:hover,.btn-gradient-template:focus{ background:linear-gradient(to right,#4b6cb7,#182848); opacity:.9; }
+
+.btn-add-float {
+    position:fixed; bottom:2rem; right:2rem; z-index:1050;
+    width:56px; height:56px; border-radius:50%;
+    font-size:1.4rem; line-height:1;
+    box-shadow:0 4px 14px rgba(0,0,0,.3);
+    background:linear-gradient(to right,#fc5c7d,#6a82fb);
+    border:none; color:#fff;
+}
+.table tbody tr:hover { background-color:#f5f7ff; }
+</style>
+{% endblock %}
+
 {% block content %}
-    <h1 class="fw-bold text-primary mb-3">
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="fw-bold text-primary mb-0">
         Lançamentos <span class="text-muted fs-5">{{ active_company.name }}</span>
     </h1>
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-light">
-            <h5 class="mb-0">Adicionar Novo Lançamento</h5>
-        </div>
-        <div class="card-body">
-            <form method="post" action="{% url 'core:transaction_list' %}" novalidate>
-                {% csrf_token %}
-                <div class="row g-3">
-                    <div class="col-12 col-md-8">
-                        <label for="{{ form.account.id_for_label }}" class="form-label">Conta</label>
-                        {{ form.account }}
-                        {% if form.account.errors %}<div class="text-danger small mt-1">{{ form.account.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <label for="{{ form.date.id_for_label }}" class="form-label">Data</label>
-                        {{ form.date|add_class:"form-control" }}
-                        {% if form.date.errors %}<div class="text-danger small mt-1">{{ form.date.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <label for="{{ form.amount.id_for_label }}" class="form-label">Valor</label>
-                        {{ form.amount|add_class:"form-control" }}
-                        {% if form.amount.errors %}<div class="text-danger small mt-1">{{ form.amount.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <label for="{{ form.description.id_for_label }}" class="form-label">Descrição</label>
-                        {{ form.description|add_class:"form-control" }}
-                        {% if form.description.errors %}
-                            <div class="text-danger small mt-1">{{ form.description.errors|join:", " }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-                <button type="submit"
-                        class="btn text-white fw-semibold px-4 mt-4 btn-gradient-save">💾 Salvar Lançamento</button>
-            </form>
-        </div>
+    <div class="d-flex gap-2">
+        {% if can_manage %}
+        <a href="{% url 'core:import_transactions' %}" class="btn btn-sm btn-gradient-import">
+            <i class="bi bi-upload me-1"></i> Importar
+        </a>
+        <a href="{% url 'core:download_transaction_template' %}" class="btn btn-sm btn-gradient-template">
+            <i class="bi bi-download me-1"></i> Modelo CSV
+        </a>
+        {% endif %}
+        <button class="btn btn-gradient-save"
+                data-bs-toggle="modal" data-bs-target="#addTransactionModal">
+            <i class="bi bi-plus-circle me-1"></i> Novo Lançamento
+        </button>
     </div>
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-light">
-            <h5 class="mb-0">🔍 Filtrar Extrato</h5>
-        </div>
-        <div class="card-body">
-            <form method="get" action="">
-                <div class="row g-3 align-items-end">
-                    <div class="col-md-4">
-                        <label for="{{ filter_form.start_date.id_for_label }}" class="form-label">Data Início</label>
-                        {{ filter_form.start_date|add_class:"form-control" }}
-                    </div>
-                    <div class="col-md-4">
-                        <label for="{{ filter_form.end_date.id_for_label }}" class="form-label">Data Fim</label>
-                        {{ filter_form.end_date|add_class:"form-control" }}
-                    </div>
-                    <div class="col-md-4">
-                        <label for="{{ filter_form.account.id_for_label }}" class="form-label">Conta Específica</label>
-                        {{ filter_form.account|add_class:"form-select" }}
-                    </div>
-                    <div class="col-md-12 text-end mt-3">
-                        <a href="{% url 'core:transaction_list' %}"
-                           class="btn text-white fw-semibold px-4 btn-gradient-clear">Limpar Filtros</a>
-                        <button type="submit"
-                                class="btn text-white fw-semibold px-4 btn-gradient-filter">
-                            <i class="bi bi-search me-1"></i> Aplicar Filtros
-                        </button>
-                    </div>
-                </div>
-            </form>
-        </div>
+</div>
+
+<!-- Filtros -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="bi bi-funnel me-2 text-primary"></i>Filtrar Extrato</h5>
     </div>
-    <div class="card shadow-sm">
-        <div class="card-header bg-light d-flex align-items-center justify-content-between">
-            <h5 class="mb-0">📄 Extrato de Lançamentos</h5>
-            <div class="d-flex gap-2">
-                <a href="{% url 'core:import_transactions' %}"
-                   class="btn btn-sm text-white fw-semibold btn-gradient-import">
-                    <i class="bi bi-upload me-1"></i> Importar Lançamentos
-                </a>
-                <a href="{% url 'core:download_transaction_template' %}"
-                   class="btn btn-sm text-white fw-semibold btn-gradient-template">
-                    <i class="bi bi-download me-1"></i> Baixar Modelo CSV
-                </a>
+    <div class="card-body">
+        <form method="get" action="">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label">Data Início</label>
+                    {{ filter_form.start_date|add_class:"form-control" }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Data Fim</label>
+                    {{ filter_form.end_date|add_class:"form-control" }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Tipo</label>
+                    {{ filter_form.account_type|add_class:"form-select" }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    {{ filter_form.status|add_class:"form-select" }}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Conta</label>
+                    {{ filter_form.account|add_class:"form-select" }}
+                </div>
+                <div class="col-12 d-flex justify-content-end gap-2 mt-2">
+                    <a href="{% url 'core:transaction_list' %}" class="btn btn-gradient-clear">
+                        <i class="bi bi-x-circle me-1"></i> Limpar
+                    </a>
+                    <button type="submit" class="btn btn-gradient-filter">
+                        <i class="bi bi-search me-1"></i> Filtrar
+                    </button>
+                </div>
             </div>
-        </div>
-        <div class="card-body p-0">
-            <table class="table table-striped table-hover mb-0">
+        </form>
+    </div>
+</div>
+
+<!-- Extrato -->
+<div class="card shadow-sm">
+    <div class="card-header bg-light d-flex align-items-center justify-content-between">
+        <h5 class="mb-0">
+            <i class="bi bi-list-ul me-2 text-primary"></i>Extrato
+            <span class="badge bg-secondary ms-2">{{ total_count }} lançamento{{ total_count|pluralize }}</span>
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>Data</th>
+                        <th style="width:9%">Data</th>
+                        <th style="width:8%">Tipo</th>
                         <th>Conta</th>
                         <th>Descrição</th>
-                        <th class="text-end">Valor (R$)</th>
-                        <th class="text-center">Ações</th>
+                        <th style="width:8%">Status</th>
+                        <th style="width:10%">Lançado por</th>
+                        <th class="text-end" style="width:13%">Valor (R$)</th>
+                        <th class="text-center" style="width:9%">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for transaction in transactions %}
-                        <tr>
-                            <td>{{ transaction.date|date:"d/m/Y" }}</td>
-                            <td>{{ transaction.account.name }}</td>
-                            <td>{{ transaction.description|default:"—" }}</td>
-                            {% if transaction.account.account_type == 'R' %}
-                                <td class="text-end text-success fw-bold">+ {{ transaction.amount|floatformat:2|intcomma }}</td>
+                    {% for t in transactions %}
+                    <tr>
+                        <td class="text-nowrap">{{ t.date|date:"d/m/Y" }}</td>
+                        <td>
+                            {% if t.account.account_type == 'R' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="bi bi-arrow-up-short"></i> Receita
+                                </span>
                             {% else %}
-                                <td class="text-end text-danger fw-bold">- {{ transaction.amount|floatformat:2|intcomma }}</td>
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                    <i class="bi bi-arrow-down-short"></i> Despesa
+                                </span>
                             {% endif %}
-                            <td class="text-center">
-                                <a href="{% url 'core:transaction_update' transaction.pk %}"
-                                   class="btn btn-sm btn-outline-primary me-1"
-                                   title="Editar lançamento">✏️</a>
-                                <a href="{% url 'core:transaction_delete' transaction.pk %}"
-                                   class="btn btn-sm btn-outline-danger"
-                                   title="Excluir lançamento">🗑️</a>
-                            </td>
-                        </tr>
+                        </td>
+                        <td>
+                            <span class="text-muted small me-1"><code>{{ t.account.code }}</code></span>
+                            {{ t.account.name }}
+                        </td>
+                        <td class="text-muted small">{{ t.description|default:"—"|truncatechars:60 }}</td>
+                        <td>
+                            {% if t.status == 'PAID' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="bi bi-check-circle"></i> Realizado
+                                </span>
+                            {% else %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                                    <i class="bi bi-clock"></i> Pendente
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="small text-muted">
+                            {% if t.created_by %}
+                                <i class="bi bi-person-fill me-1"></i>{{ t.created_by.get_full_name|default:t.created_by.username }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-bold text-nowrap">
+                            {% if t.account.account_type == 'R' %}
+                                <span class="text-success">+ {{ t.amount|floatformat:2|intcomma }}</span>
+                            {% else %}
+                                <span class="text-danger">- {{ t.amount|floatformat:2|intcomma }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'core:transaction_update' t.pk %}"
+                               class="btn btn-sm btn-outline-primary" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'core:transaction_delete' t.pk %}"
+                               class="btn btn-sm btn-outline-danger" title="Excluir">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
                     {% empty %}
-                        <tr>
-                            <td colspan="5" class="text-center text-muted py-3">Nenhum lançamento encontrado.</td>
-                        </tr>
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                            Nenhum lançamento encontrado para os filtros aplicados.
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        <div class="card-footer">
-            {% if transactions.has_other_pages %}
-                <nav aria-label="Navegação do extrato">
-                    <ul class="pagination justify-content-center mb-0">
-                        {% if transactions.has_previous %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page=1&{{ query_params }}">« Primeira</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link"
-                                   href="?page={{ transactions.previous_page_number }}&{{ query_params }}">Anterior</a>
-                            </li>
-                        {% endif %}
-                        <li class="page-item disabled">
-                            <a class="page-link" href="#">Página {{ transactions.number }} de {{ transactions.paginator.num_pages }}.</a>
+    </div>
+
+    <!-- Paginação -->
+    {% if transactions.has_other_pages %}
+    <div class="card-footer">
+        <nav aria-label="Paginação">
+            <ul class="pagination justify-content-center mb-0 flex-wrap gap-1">
+                {% if transactions.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1&{{ query_params.urlencode }}">«</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ transactions.previous_page_number }}&{{ query_params.urlencode }}">‹</a>
+                    </li>
+                {% endif %}
+
+                {% for num in transactions.paginator.page_range %}
+                    {% if transactions.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > transactions.number|add:"-3" and num < transactions.number|add:"3" %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}&{{ query_params.urlencode }}">{{ num }}</a>
                         </li>
-                        {% if transactions.has_next %}
-                            <li class="page-item">
-                                <a class="page-link"
-                                   href="?page={{ transactions.next_page_number }}&{{ query_params }}">Próxima</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link"
-                                   href="?page={{ transactions.paginator.num_pages }}&{{ query_params }}">Última »</a>
-                            </li>
-                        {% endif %}
-                    </ul>
-                </nav>
-            {% endif %}
+                    {% endif %}
+                {% endfor %}
+
+                {% if transactions.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ transactions.next_page_number }}&{{ query_params.urlencode }}">›</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ transactions.paginator.num_pages }}&{{ query_params.urlencode }}">»</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        <div class="text-center text-muted small mt-2">
+            Página {{ transactions.number }} de {{ transactions.paginator.num_pages }}
+            &nbsp;·&nbsp; {{ total_count }} registro{{ total_count|pluralize }}
         </div>
     </div>
-    {{ all_accounts_json_str|json_script:"accounts-data" }}
-{% endblock content %}
-{% block extra_css %}
-    <style>
-.btn-gradient-save {
-    background: linear-gradient(to right, #fc5c7d, #6a82fb);
-    border: none;
-    color: #fff !important;
+    {% endif %}
+</div>
+
+<!-- Modal: Novo Lançamento -->
+<div class="modal fade" id="addTransactionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Novo Lançamento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'core:transaction_list' %}" novalidate>
+                {% csrf_token %}
+                <div class="modal-body">
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Filtrar conta por tipo</label>
+                            {{ form.account_type_filter|add_class:"form-select" }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Data <span class="text-danger">*</span></label>
+                            {{ form.date|add_class:"form-control" }}
+                            {% for e in form.date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Status</label>
+                            {{ form.status|add_class:"form-select" }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Conta <span class="text-danger">*</span></label>
+                            {{ form.account|add_class:"form-select" }}
+                            {% for e in form.account.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label fw-semibold">Valor (R$) <span class="text-danger">*</span></label>
+                            {{ form.amount|add_class:"form-control" }}
+                            {% for e in form.amount.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-7">
+                            <label class="form-label fw-semibold">Descrição</label>
+                            {{ form.description|add_class:"form-control" }}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-gradient-save">
+                        <i class="bi bi-check-circle me-1"></i> Salvar Lançamento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# Botão flutuante removido — usar o botão no cabeçalho #}
+
+{{ all_accounts_json_str|json_script:"accounts-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Abre modal automaticamente se o form voltou com erros
+{% if form.errors %}
+new bootstrap.Modal(document.getElementById('addTransactionModal')).show();
+{% endif %}
+
+// Filtra o dropdown de contas conforme o tipo selecionado
+const allAccounts = JSON.parse(document.getElementById('accounts-data').textContent);
+const typeFilter  = document.getElementById('{{ form.account_type_filter.id_for_label }}');
+const accountSel  = document.getElementById('{{ form.account.id_for_label }}');
+
+function populateAccounts(filterType) {
+    const current = accountSel.value;
+    accountSel.innerHTML = '<option value="">---------</option>';
+    allAccounts
+        .filter(a => !filterType || a.account_type === filterType)
+        .forEach(a => {
+            const opt = document.createElement('option');
+            opt.value = a.pk;
+            opt.textContent = `${a.code} – ${a.name}`;
+            if (String(a.pk) === String(current)) opt.selected = true;
+            accountSel.appendChild(opt);
+        });
 }
-.btn-gradient-clear {
-    background: linear-gradient(to right, #283048, #859398);
-    border: none;
-    color: #fff !important;
+
+if (typeFilter && accountSel) {
+    typeFilter.addEventListener('change', () => populateAccounts(typeFilter.value));
+    populateAccounts(typeFilter.value); // inicializa
 }
-.btn-gradient-filter {
-    background: linear-gradient(to right, #5B86E5, #36D1DC);
-    border: none;
-    color: #fff !important;
-}
-.btn-gradient-import {
-    background: linear-gradient(to right, #00c6ff, #0072ff);
-    border: none;
-}
-.btn-gradient-template {
-    background: linear-gradient(to right, #4b6cb7, #182848);
-    border: none;
-}
-/* Preserve gradient on hover/focus */
-.btn-gradient-save:hover, .btn-gradient-save:focus { background: linear-gradient(to right, #fc5c7d, #6a82fb); opacity: .95; }
-.btn-gradient-clear:hover, .btn-gradient-clear:focus { background: linear-gradient(to right, #283048, #859398); opacity: .95; }
-.btn-gradient-filter:hover, .btn-gradient-filter:focus { background: linear-gradient(to right, #5B86E5, #36D1DC); opacity: .95; }
-.btn-gradient-import:hover, .btn-gradient-import:focus { background: linear-gradient(to right, #00c6ff, #0072ff); opacity: .95; }
-.btn-gradient-template:hover, .btn-gradient-template:focus { background: linear-gradient(to right, #4b6cb7, #182848); opacity: .95; }
-    </style>
-{% endblock extra_css %}
+</script>
+{% endblock %}

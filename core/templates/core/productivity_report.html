@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+{% load l10n humanize %}
+{% block title %}Produtividade da Equipe — {{ company.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-card { border-left: 4px solid; border-radius: .5rem; }
+.stat-card.blue   { border-color: #1a56db; }
+.stat-card.green  { border-color: #057a55; }
+.stat-card.purple { border-color: #7c3aed; }
+.progress { height: 8px; border-radius: 4px; }
+.table-user thead th { background: #f8f9fa; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: #6c757d; }
+.badge-rank { width: 24px; height: 24px; border-radius: 50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:.75rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Cabeçalho -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="fw-bold text-primary mb-0">
+            <i class="bi bi-people-fill me-2"></i>Produtividade da Equipe
+        </h1>
+        <p class="text-muted mb-0">{{ company.name }}</p>
+    </div>
+    <a href="{% url 'core:reports_hub' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Relatórios
+    </a>
+</div>
+
+<!-- Filtros -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Data Início</label>
+                <input type="date" name="start_date" class="form-control"
+                       value="{{ start_date_str }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Data Fim</label>
+                <input type="date" name="end_date" class="form-control"
+                       value="{{ end_date_str }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Usuário</label>
+                <select name="user_id" class="form-select">
+                    <option value="">Todos os usuários</option>
+                    {% for u in company_users %}
+                    <option value="{{ u.pk }}"
+                        {% if user_filter_id == u.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ u.get_full_name|default:u.username }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1">
+                    <i class="bi bi-search me-1"></i> Filtrar
+                </button>
+                <a href="{% url 'core:productivity_report' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Cards de resumo -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm stat-card blue p-3">
+            <div class="text-muted small text-uppercase fw-semibold mb-1">Total de Lançamentos</div>
+            <div class="fs-2 fw-bold text-primary">{{ total_lancamentos }}</div>
+            <div class="text-muted small">no período selecionado</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm stat-card green p-3">
+            <div class="text-muted small text-uppercase fw-semibold mb-1">Usuários Ativos</div>
+            <div class="fs-2 fw-bold text-success">{{ usuarios_ativos }}</div>
+            <div class="text-muted small">com pelo menos 1 lançamento</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm stat-card purple p-3">
+            <div class="text-muted small text-uppercase fw-semibold mb-1">Maior Produtor</div>
+            {% if top_user %}
+            <div class="fs-5 fw-bold" style="color:#7c3aed;">{{ top_user.display_name }}</div>
+            <div class="text-muted small">{{ top_user.total_lancamentos }} lançamento{{ top_user.total_lancamentos|pluralize }}</div>
+            {% else %}
+            <div class="fs-5 fw-bold text-muted">—</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Tabela de resumo por usuário -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-bottom fw-semibold">
+        <i class="bi bi-bar-chart-fill text-primary me-2"></i>Resumo por Usuário
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 table-user">
+                <thead>
+                    <tr>
+                        <th class="px-3" style="width:40px;">#</th>
+                        <th>Usuário</th>
+                        <th class="text-center">Total</th>
+                        <th class="text-center text-success">Receitas (qtd)</th>
+                        <th class="text-end text-success">Valor Receitas</th>
+                        <th class="text-center text-danger">Despesas (qtd)</th>
+                        <th class="text-end text-danger">Valor Despesas</th>
+                        <th class="text-end">Valor Total</th>
+                        <th style="width:15%">Participação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in user_summary %}
+                    {% with pct=row.total_lancamentos|default:0 %}
+                    <tr>
+                        <td class="px-3">
+                            {% if forloop.counter == 1 %}
+                                <span class="badge-rank bg-warning text-dark">1</span>
+                            {% elif forloop.counter == 2 %}
+                                <span class="badge-rank bg-secondary text-white">2</span>
+                            {% elif forloop.counter == 3 %}
+                                <span class="badge-rank" style="background:#cd7f32;color:#fff;">3</span>
+                            {% else %}
+                                <span class="text-muted small">{{ forloop.counter }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ row.display_name }}</div>
+                            <small class="text-muted">@{{ row.created_by__username|default:"—" }}</small>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-primary rounded-pill fs-6">{{ row.total_lancamentos }}</span>
+                        </td>
+                        <td class="text-center text-success fw-semibold">{{ row.qtd_receitas }}</td>
+                        <td class="text-end text-success">R$ {{ row.valor_receitas|floatformat:2|intcomma }}</td>
+                        <td class="text-center text-danger fw-semibold">{{ row.qtd_despesas }}</td>
+                        <td class="text-end text-danger">R$ {{ row.valor_despesas|floatformat:2|intcomma }}</td>
+                        <td class="text-end fw-bold">R$ {{ row.valor_total|floatformat:2|intcomma }}</td>
+                        <td>
+                            {% if total_lancamentos > 0 %}
+                            {% widthratio row.total_lancamentos total_lancamentos 100 as pct_val %}
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress flex-grow-1">
+                                    <div class="progress-bar bg-primary"
+                                         style="width:{{ pct_val }}%"></div>
+                                </div>
+                                <small class="text-muted" style="min-width:32px;">{{ pct_val }}%</small>
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endwith %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                            Nenhum lançamento encontrado no período.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if user_summary %}
+                <tfoot class="table-light">
+                    <tr>
+                        <td colspan="2" class="fw-bold px-3">Total</td>
+                        <td class="text-center fw-bold">{{ total_lancamentos }}</td>
+                        <td colspan="4"></td>
+                        <td class="text-end fw-bold">R$ {{ total_valor|floatformat:2|intcomma }}</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Evolução diária -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-bottom fw-semibold">
+        <i class="bi bi-calendar3 text-primary me-2"></i>Evolução Diária
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 table-user">
+                <thead>
+                    <tr>
+                        <th class="px-3">Data</th>
+                        <th>Usuário</th>
+                        <th class="text-center">Lançamentos</th>
+                        <th class="text-end">Valor Movimentado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in daily_rows %}
+                    <tr>
+                        <td class="px-3 text-nowrap">
+                            <i class="bi bi-calendar3 text-muted me-1"></i>
+                            {{ row.date|date:"d/m/Y" }}
+                        </td>
+                        <td>
+                            <i class="bi bi-person-fill text-muted me-1"></i>
+                            <span class="fw-semibold">{{ row.display_name }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge rounded-pill"
+                                  style="background:#0e9f6e;font-size:.85rem;">
+                                {{ row.lancamentos }}
+                            </span>
+                        </td>
+                        <td class="text-end fw-semibold">
+                            R$ {{ row.valor|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center py-4 text-muted">
+                            Nenhum dado no período.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

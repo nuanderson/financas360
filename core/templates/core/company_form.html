@@ -1,64 +1,106 @@
 {% extends 'base.html' %}
 {% block title %}{{ page_title }}{% endblock %}
 {% block content %}
-    <div class="card border-0 shadow-sm rounded-4">
-        <div class="card-header bg-white border-bottom-0">
-            <h2 class="fw-bold text-primary">{{ page_title }}</h2>
-        </div>
-        <div class="card-body">
-            <form method="post" novalidate>
-                {% csrf_token %}
-                <div class="mb-4">{{ form.as_p }}</div>
-                <div class="d-flex justify-content-between mt-4">
-                    <a href="{% url 'core:company_list' %}"
-                       class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left-circle"></i> Cancelar
-                    </a>
-                    <button type="submit" class="btn btn-gradient">
-                        <i class="bi bi-check-circle-fill"></i> Salvar
-                    </button>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="fw-bold text-primary">{{ page_title }}</h1>
+    <a href="{% url 'core:company_list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Voltar
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4" style="max-width: 700px;">
+    <div class="card-body p-4">
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            <!-- Nome -->
+            <div class="mb-3">
+                <label class="form-label fw-semibold">
+                    {{ form.name.label }} <span class="text-danger">*</span>
+                </label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                    <div class="text-danger small mt-1">{{ form.name.errors|join:", " }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Tipo de Gestão -->
+            <div class="mb-4">
+                <label class="form-label fw-semibold">
+                    {{ form.management_type.label }} <span class="text-danger">*</span>
+                </label>
+                {{ form.management_type }}
+                {% if form.management_type.errors %}
+                    <div class="text-danger small mt-1">{{ form.management_type.errors|join:", " }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Usuários com acesso (somente admin) -->
+            {% if can_manage_users %}
+            <hr class="my-3">
+            <div class="mb-4">
+                <label class="form-label fw-semibold">
+                    <i class="bi bi-people me-1"></i>Usuários com acesso
+                </label>
+                <div class="form-text mb-2">Selecione quais usuários podem acessar esta empresa.</div>
+
+                <div class="border rounded-3 p-3" style="max-height: 260px; overflow-y: auto;">
+                    {% for u in all_users %}
+                    <div class="form-check py-1 border-bottom border-light">
+                        <input class="form-check-input" type="checkbox"
+                               name="company_users"
+                               value="{{ u.pk }}"
+                               id="cu_{{ u.pk }}"
+                               {% if u.pk in company_user_ids %}checked{% endif %}>
+                        <label class="form-check-label d-flex align-items-center gap-2" for="cu_{{ u.pk }}">
+                            <span class="fw-semibold">{{ u.get_full_name|default:u.username }}</span>
+                            <small class="text-muted">@{{ u.username }}</small>
+                            {% with role=u.profile.role %}
+                            {% if role == 'admin' %}
+                                <span class="badge bg-danger ms-1" style="font-size:.65rem;">Admin</span>
+                            {% elif role == 'gestor' %}
+                                <span class="badge bg-primary ms-1" style="font-size:.65rem;">Gestor</span>
+                            {% elif role == 'analista_receitas' %}
+                                <span class="badge bg-success ms-1" style="font-size:.65rem;">Receitas</span>
+                            {% elif role == 'analista_despesas' %}
+                                <span class="badge bg-warning text-dark ms-1" style="font-size:.65rem;">Despesas</span>
+                            {% elif role == 'analista_plantoes' %}
+                                <span class="badge bg-info text-dark ms-1" style="font-size:.65rem;">Plantões</span>
+                            {% endif %}
+                            {% endwith %}
+                        </label>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted mb-0">Nenhum usuário cadastrado.</p>
+                    {% endfor %}
                 </div>
-            </form>
-        </div>
+            </div>
+            {% endif %}
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-gradient">
+                    <i class="bi bi-check-circle-fill me-1"></i> Salvar
+                </button>
+                <a href="{% url 'core:company_list' %}" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </form>
     </div>
-    <style>
-    form p {
-        margin-bottom: 1.2rem;
-    }
+</div>
 
-    form label {
-        font-weight: 500;
-        margin-bottom: 0.25rem;
-        display: block;
-    }
-
-    form input, form select, form textarea {
-        width: 100%;
-        padding: 0.6rem 0.75rem;
-        font-size: 1rem;
-        border: 1px solid #ccc;
-        border-radius: 0.5rem;
-        transition: border-color 0.2s;
-    }
-
-    form input:focus, form select:focus, form textarea:focus {
-        border-color: #5B86E5;
-        outline: none;
-    }
-
-    .btn-gradient {
-        background: linear-gradient(90deg, #5B86E5, #36D1DC);
-        color: white;
-        font-weight: 600;
-        border: none;
-        border-radius: 0.5rem;
-        padding: 0.5rem 1rem;
-        transition: background 0.3s ease;
-    }
-
-    .btn-gradient:hover {
-        background: linear-gradient(90deg, #4a75cc, #2ab8c6);
-        color: white;
-    }
-    </style>
+<style>
+.form-control, .form-select {
+    border-radius: .5rem;
+    border: 1px solid #ccc;
+    padding: .6rem .75rem;
+    width: 100%;
+    font-size: 1rem;
+    transition: border-color .2s;
+}
+.form-control:focus, .form-select:focus {
+    border-color: #5B86E5;
+    outline: none;
+    box-shadow: 0 0 0 .2rem rgba(91,134,229,.15);
+}
+</style>
 {% endblock %}

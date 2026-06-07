@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}{% if action == 'create' %}Novo Usuário{% else %}Editar Usuário{% endif %}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="fw-bold text-primary">
+        <i class="bi bi-person-{% if action == 'create' %}plus{% else %}gear{% endif %}-fill me-2"></i>
+        {% if action == 'create' %}Novo Usuário{% else %}Editar Usuário{% endif %}
+    </h1>
+    <a href="{% url 'core:user_list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Voltar
+    </a>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="card border-0 shadow-sm rounded-4" style="max-width: 600px;">
+    <div class="card-body p-4">
+        <form method="post">
+            {% csrf_token %}
+
+            {% if action == 'create' %}
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Nome de usuário <span class="text-danger">*</span></label>
+                <input type="text" name="username" class="form-control"
+                       value="{{ request.POST.username|default:'' }}" required autofocus>
+            </div>
+            {% else %}
+            <div class="mb-3">
+                <label class="form-label fw-semibold text-muted">Nome de usuário</label>
+                <input type="text" class="form-control" value="{{ target_user.username }}" disabled>
+            </div>
+            {% endif %}
+
+            <div class="row g-3 mb-3">
+                <div class="col">
+                    <label class="form-label fw-semibold">Primeiro nome</label>
+                    <input type="text" name="first_name" class="form-control"
+                           value="{% if action == 'edit' %}{{ target_user.first_name }}{% else %}{{ request.POST.first_name }}{% endif %}">
+                </div>
+                <div class="col">
+                    <label class="form-label fw-semibold">Sobrenome</label>
+                    <input type="text" name="last_name" class="form-control"
+                           value="{% if action == 'edit' %}{{ target_user.last_name }}{% else %}{{ request.POST.last_name }}{% endif %}">
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">E-mail</label>
+                <input type="email" name="email" class="form-control"
+                       value="{% if action == 'edit' %}{{ target_user.email }}{% else %}{{ request.POST.email }}{% endif %}">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Papel <span class="text-danger">*</span></label>
+                <select name="role" class="form-select" required>
+                    {% for value, label in role_choices %}
+                    <option value="{{ value }}"
+                        {% if action == 'edit' and profile.role == value %}selected
+                        {% elif action == 'create' and request.POST.role == value %}selected
+                        {% elif action == 'create' and not request.POST.role and value == 'gestor' %}selected
+                        {% endif %}>
+                        {{ label }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">
+                    <strong>Administrador:</strong> acesso total incluindo gerenciar usuários.<br>
+                    <strong>Gestor:</strong> acesso total exceto gerenciar usuários.<br>
+                    <strong>Analista de Receitas:</strong> plano de contas (leitura), lançamentos de receitas, quadro orçamentário.<br>
+                    <strong>Analista de Despesas:</strong> plano de contas (leitura), lançamentos de despesas, quadro orçamentário.<br>
+                    <strong>Analista de Plantões:</strong> somente módulo de escalas/plantões e notas.
+                </div>
+            </div>
+
+            <hr class="my-3">
+            <p class="fw-semibold mb-2">
+                {% if action == 'create' %}Senha <span class="text-danger">*</span>{% else %}Redefinir senha <span class="text-muted fw-normal">(deixe em branco para manter a atual)</span>{% endif %}
+            </p>
+
+            <div class="row g-3 mb-4">
+                <div class="col">
+                    <label class="form-label">Nova senha{% if action == 'create' %} <span class="text-danger">*</span>{% endif %}</label>
+                    <input type="password" name="password1" class="form-control"
+                           {% if action == 'create' %}required{% endif %}>
+                </div>
+                <div class="col">
+                    <label class="form-label">Confirmar senha</label>
+                    <input type="password" name="password2" class="form-control">
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-gradient">
+                    <i class="bi bi-check-lg me-1"></i>
+                    {% if action == 'create' %}Criar Usuário{% else %}Salvar Alterações{% endif %}
+                </button>
+                <a href="{% url 'core:user_list' %}" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

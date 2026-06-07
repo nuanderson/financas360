@@ -27,11 +27,25 @@ urlpatterns = [
     path('lancamentos/<int:pk>/excluir/', views.TransactionDeleteView.as_view(), name='transaction_delete'),
     path('lancamentos/importar/', views.import_transactions, name='import_transactions'),
     path('lancamentos/importar/modelo/', views.download_transaction_template, name='download_transaction_template'),
-    # Página de Lançamentos de Orçamentos
+    # Lançamento de Orçamento (admin)
     path('orcamento/', views.budget_edit_view, name='budget_edit'),
-    # Página de Relatórios
+    path('orcamento/definir/', views.budget_entry, name='budget_entry'),
+    # Hub de Relatórios
+    path('relatorios/', views.reports_hub, name='reports_hub'),
+    # DRE Gerencial
     path('relatorios/dre/', views.dre_report, name='dre_report'),
     path('relatorios/dre/pdf/', views.dre_report_pdf, name='dre_report_pdf'),
+    # DRE Mensal
+    path('relatorios/dre/mensal/', views.dre_mensal, name='dre_mensal'),
+    path('relatorios/dre/mensal/pdf/', views.dre_mensal_pdf, name='dre_mensal_pdf'),
+    # DRE Comparativo
+    path('relatorios/dre/comparativo/', views.dre_comparativo, name='dre_comparativo'),
+    # Orçamento vs. Realizado
+    path('relatorios/orcamento-vs-realizado/', views.budget_vs_actual_report, name='budget_vs_actual_report'),
+    # Extrato Analítico
+    path('relatorios/extrato/', views.extrato_analitico, name='extrato_analitico'),
+    # Produtividade da Equipe
+    path('relatorios/produtividade/', views.productivity_report, name='productivity_report'),
     # Página do Quadro Orçamentário
     path('quadro-orcamentario/', views.budget_dashboard, name='budget_dashboard'),
     path('quadro-orcamentario/exportar/', views.export_budget_xls, name='export_budget_xls'),
@@ -46,6 +60,11 @@ urlpatterns = [
     path('api/budget-vs-actual-timeline/', views.budget_vs_actual_timeline_data, name='budget_vs_actual_timeline_data'),
     path('api/expense-percentage-chart/', views.expense_percentage_chart_data, name='expense_percentage_chart_data'),
     path('api/revenue-vs-expense-12m/', views.revenue_vs_expense_12m_data, name='revenue_vs_expense_12m_data'),
+    # Gerenciamento de Usuários (admin only)
+    path('usuarios/', views.user_list, name='user_list'),
+    path('usuarios/novo/', views.user_create, name='user_create'),
+    path('usuarios/<int:user_id>/editar/', views.user_edit, name='user_edit'),
+    path('usuarios/<int:user_id>/toggle-ativo/', views.user_toggle_active, name='user_toggle_active'),
     # Bloco de Notas
     path('notas/', views.note_list, name='note_list'),
     path('notas/nova/', views.NoteCreateView.as_view(), name='note_create'),

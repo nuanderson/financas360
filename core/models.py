@@ -92,36 +92,6 @@ class Transaction(models.Model):
     # Data do Pagamento Real (Pode ser diferente do vencimento)
     payment_date = models.DateField("Data do Pagamento", blank=True, null=True)
 
-    # Vínculos com a nova vertente (Usamos string 'app.Model' para evitar erro de importação circular)
-    customer = models.ForeignKey(
-        'commercial.Customer', 
-        on_delete=models.SET_NULL, 
-        null=True, blank=True, 
-        verbose_name="Cliente"
-    )
-
-    supplier = models.ForeignKey(
-        'commercial.Supplier', 
-        on_delete=models.SET_NULL, 
-        null=True, blank=True, 
-        verbose_name="Fornecedor"
-    )
-    
-    # Vínculo com a Venda (Para saber que essa transação é a parcela 2/10 da Venda X)
-    sale_origin = models.ForeignKey(
-        'commercial.Sale',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name='generated_transactions'
-    )
-
-    bank_account = models.ForeignKey(
-        'commercial.BankAccount', 
-        on_delete=models.SET_NULL, 
-        null=True, blank=True, 
-        verbose_name="Conta Bancária"
-    )
-
     def __str__(self):
         return f"[{self.date}] {self.account.name} - R$ {self.amount}"
 
@@ -132,21 +102,23 @@ class Transaction(models.Model):
 
 class Budget(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name=_("empresa"))
-    # Cada registro de orçamento pertence a uma conta específica
     account = models.ForeignKey(ChartOfAccounts, on_delete=models.CASCADE, verbose_name=_("account"))
-    # O ano para o qual este orçamento se aplica
     year = models.PositiveIntegerField(_("year"))
-    # O valor total previsto para a conta no ano inteiro
-    annual_amount = models.DecimalField(_("annual amount"), max_digits=15, decimal_places=2)
+    month = models.PositiveIntegerField(
+        _("month"),
+        default=1,
+        help_text=_("Mês de referência (1=Janeiro … 12=Dezembro)")
+    )
+    # Valor da meta para este mês específico
+    amount = models.DecimalField(_("amount"), max_digits=15, decimal_places=2, default=0)
 
     def __str__(self):
-        return f"Orçamento para {self.account.name} em {self.year}"
+        return f"Meta {self.account.name} {self.month:02d}/{self.year}: R$ {self.amount}"
 
     class Meta:
         verbose_name = _("Budget")
         verbose_name_plural = _("Budgets")
-        # Garante que só exista um orçamento por conta e por ano
-        unique_together = ('company', 'account', 'year')    
+        unique_together = ('company', 'account', 'year', 'month')    
     
 
 class NoteTag(models.Model):
@@ -192,3 +164,79 @@ class Note(models.Model):
 
     def __str__(self):
         return self.title or f"Nota #{self.id}"
+
+
+# ══════════════════════════════════════════════════════════════════
+#  PERFIL DE USUÁRIO — papéis e permissões
+# ══════════════════════════════════════════════════════════════════
+
+class UserProfile(models.Model):
+    ROLE_ADMIN             = 'admin'
+    ROLE_GESTOR            = 'gestor'
+    ROLE_ANALISTA_RECEITAS = 'analista_receitas'
+    ROLE_ANALISTA_DESPESAS = 'analista_despesas'
+    ROLE_ANALISTA_PLANTOES = 'analista_plantoes'
+
+    ROLE_CHOICES = [
+        (ROLE_ADMIN,             'Administrador'),
+        (ROLE_GESTOR,            'Gestor'),
+        (ROLE_ANALISTA_RECEITAS, 'Analista de Receitas'),
+        (ROLE_ANALISTA_DESPESAS, 'Analista de Despesas'),
+        (ROLE_ANALISTA_PLANTOES, 'Analista de Plantões'),
+    ]
+
+    user       = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    role       = models.CharField(max_length=30, choices=ROLE_CHOICES,
+                                  default=ROLE_GESTOR, verbose_name='Papel')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name          = 'Perfil de Usuário'
+        verbose_name_plural   = 'Perfis de Usuários'
+
+    def __str__(self):
+        return f"{self.user.username} — {self.get_role_display()}"
+
+    # ── helpers de role ──────────────────────────────────────────
+    @property
+    def is_admin(self):
+        return self.role == self.ROLE_ADMIN
+
+    @property
+    def is_gestor(self):
+        return self.role == self.ROLE_GESTOR
+
+    @property
+    def is_analista_receitas(self):
+        return self.role == self.ROLE_ANALISTA_RECEITAS
+
+    @property
+    def is_analista_despesas(self):
+        return self.role == self.ROLE_ANALISTA_DESPESAS
+
+    @property
+    def is_analista_plantoes(self):
+        return self.role == self.ROLE_ANALISTA_PLANTOES
+
+    @property
+    def can_manage(self):
+        """Admin ou Gestor — acesso amplo"""
+        return self.role in (self.ROLE_ADMIN, self.ROLE_GESTOR)
+
+    @property
+    def is_any_analista(self):
+        return self.role in (
+            self.ROLE_ANALISTA_RECEITAS,
+            self.ROLE_ANALISTA_DESPESAS,
+            self.ROLE_ANALISTA_PLANTOES,
+        )
+
+
+# ── Signal: cria UserProfile automaticamente ao criar User ───────
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        UserProfile.objects.get_or_create(user=instance)
