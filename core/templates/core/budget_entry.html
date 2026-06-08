@@ -25,6 +25,26 @@
 .badge-receita { background: #d4edda; color: #155724; padding: 2px 7px; border-radius: 10px; font-size: .70rem; font-weight: 700; }
 .badge-despesa { background: #f8d7da; color: #721c24; padding: 2px 7px; border-radius: 10px; font-size: .70rem; font-weight: 700; }
 .sticky-col { position: sticky; left: 0; background: inherit; z-index: 5; border-right: 2px solid #dee2e6; }
+
+/* ── Barra de salvamento sticky ─── */
+#saveBanner {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    transition: background .2s;
+}
+#saveBanner.dirty {
+    background: #fffbe6 !important;
+    border-color: #ffc107 !important;
+}
+#saveBanner.dirty #stickyBtn {
+    animation: pulseSave 1.5s ease-in-out 1;
+}
+@keyframes pulseSave {
+    0%   { box-shadow: 0 0 0 0 rgba(25,135,84,.5); }
+    50%  { box-shadow: 0 0 0 8px rgba(25,135,84,0); }
+    100% { box-shadow: none; }
+}
 </style>
 {% endblock %}
 
@@ -76,8 +96,25 @@
   </div>
 </div>
 
+<!-- ── Barra de salvamento fixa ──────────────────────────────────── -->
+<div id="saveBanner" class="d-flex align-items-center justify-content-between px-4 py-2 mb-3 rounded shadow-sm border"
+     style="background:#fff; border-color:#dee2e6 !important; display:none !important;">
+    <div id="saveBannerMsg" class="small text-muted">
+        <i class="bi bi-floppy me-1 text-success"></i> Tudo salvo.
+    </div>
+    <div class="d-flex align-items-center gap-3">
+        <span id="unsavedBadge" class="badge bg-warning text-dark d-none">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>Alterações não salvas
+        </span>
+        <button type="submit" form="budgetForm" id="stickyBtn"
+                class="btn btn-success btn-sm px-4 fw-semibold">
+            <i class="bi bi-floppy me-1"></i> Salvar Orçamento {{ year }}
+        </button>
+    </div>
+</div>
+
 <!-- Formulário -->
-<form method="POST" id="budgetForm">
+<form method="POST" id="budgetForm" action="?year={{ year }}">
   {% csrf_token %}
   <div class="card shadow-sm border-0">
     <div class="card-body p-0">
@@ -141,6 +178,34 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+  const banner      = document.getElementById('saveBanner');
+  const bannerMsg   = document.getElementById('saveBannerMsg');
+  const unsavedBadge= document.getElementById('unsavedBadge');
+  let   isDirty     = false;
+
+  // Mostra a barra imediatamente
+  banner.style.display = 'flex';
+
+  function markDirty() {
+    if (isDirty) return;
+    isDirty = true;
+    banner.classList.add('dirty');
+    unsavedBadge.classList.remove('d-none');
+    bannerMsg.innerHTML = '<i class="bi bi-pencil-fill me-1 text-warning"></i> Você tem alterações não salvas.';
+  }
+
+  function markClean() {
+    isDirty = false;
+    banner.classList.remove('dirty');
+    unsavedBadge.classList.add('d-none');
+    bannerMsg.innerHTML = '<i class="bi bi-check-circle-fill me-1 text-success"></i> Tudo salvo.';
+  }
+
+  // Submissão do formulário: marca como limpo antes de submeter
+  document.getElementById('budgetForm').addEventListener('submit', function () {
+    markClean();
+  });
+
   // Calcula o total anual de cada linha (soma dos 12 meses)
   function calcRowTotal(accountId) {
     let total = 0;
@@ -159,12 +224,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // Inicializa totais
+  // Inicializa totais e listeners
   document.querySelectorAll('input.input-budget').forEach(function (input) {
     const accountId = input.dataset.account;
     calcRowTotal(accountId);
 
     input.addEventListener('input', function () {
+      markDirty();
       calcRowTotal(accountId);
     });
 
@@ -183,6 +249,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Seleciona tudo ao focar
     input.addEventListener('focus', function () { this.select(); });
+  });
+
+  // Ctrl+S salva o formulário
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      document.getElementById('budgetForm').requestSubmit();
+    }
+  });
+
+  // Avisa ao sair sem salvar
+  window.addEventListener('beforeunload', function (e) {
+    if (isDirty) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
   });
 });
 </script>
