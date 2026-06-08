@@ -77,6 +77,7 @@
                 <div class="col-md-4">
                     <label class="form-label">Conta</label>
                     {{ filter_form.account|add_class:"form-select" }}
+                    {# id único para o JS: id_filter_account — evita conflito com o modal #}
                 </div>
                 <div class="col-12 d-flex justify-content-end gap-2 mt-2">
                     <a href="{% url 'core:transaction_list' %}" class="btn btn-gradient-clear">
@@ -286,7 +287,7 @@
 
 {# Botão flutuante removido — usar o botão no cabeçalho #}
 
-{{ all_accounts_json_str|json_script:"accounts-data" }}
+{{ all_accounts|json_script:"accounts-data" }}
 {% endblock %}
 
 {% block extra_js %}
@@ -296,28 +297,43 @@
 new bootstrap.Modal(document.getElementById('addTransactionModal')).show();
 {% endif %}
 
-// Filtra o dropdown de contas conforme o tipo selecionado
+// ── Dados de contas (array Python serializado corretamente via json_script) ──
 const allAccounts = JSON.parse(document.getElementById('accounts-data').textContent);
-const typeFilter  = document.getElementById('{{ form.account_type_filter.id_for_label }}');
-const accountSel  = document.getElementById('{{ form.account.id_for_label }}');
 
-function populateAccounts(filterType) {
-    const current = accountSel.value;
-    accountSel.innerHTML = '<option value="">---------</option>';
+// ── Helper: popula um <select> de contas filtrando por tipo ──────────────────
+function populateAccountSelect(selectEl, filterType, currentValue) {
+    selectEl.innerHTML = '<option value="">---------</option>';
     allAccounts
         .filter(a => !filterType || a.account_type === filterType)
         .forEach(a => {
             const opt = document.createElement('option');
             opt.value = a.pk;
             opt.textContent = `${a.code} – ${a.name}`;
-            if (String(a.pk) === String(current)) opt.selected = true;
-            accountSel.appendChild(opt);
+            if (String(a.pk) === String(currentValue)) opt.selected = true;
+            selectEl.appendChild(opt);
         });
 }
 
-if (typeFilter && accountSel) {
-    typeFilter.addEventListener('change', () => populateAccounts(typeFilter.value));
-    populateAccounts(typeFilter.value); // inicializa
+// ── 1. Dropdown de contas no MODAL (novo lançamento) ────────────────────────
+const modalTypeFilter = document.getElementById('{{ form.account_type_filter.id_for_label }}');
+const modalAccountSel = document.getElementById('{{ form.account.id_for_label }}');
+
+if (modalTypeFilter && modalAccountSel) {
+    modalTypeFilter.addEventListener('change', () =>
+        populateAccountSelect(modalAccountSel, modalTypeFilter.value, modalAccountSel.value));
+    populateAccountSelect(modalAccountSel, modalTypeFilter.value, modalAccountSel.value);
+}
+
+// ── 2. Dropdown de contas no FILTRO (topo da página) ────────────────────────
+const filterTypeSel   = document.getElementById('{{ filter_form.account_type.id_for_label }}');
+const filterAccountSel = document.getElementById('{{ filter_form.account.id_for_label }}');
+
+if (filterTypeSel && filterAccountSel) {
+    // Preserva a conta já selecionada pelo GET (ex: ao recarregar após filtrar)
+    const selectedAccount = filterAccountSel.value;
+    populateAccountSelect(filterAccountSel, filterTypeSel.value, selectedAccount);
+    filterTypeSel.addEventListener('change', () =>
+        populateAccountSelect(filterAccountSel, filterTypeSel.value, ''));
 }
 </script>
 {% endblock %}

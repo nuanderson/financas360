@@ -10,7 +10,6 @@ from decimal import Decimal, InvalidOperation
 from datetime import datetime
 import csv
 import io
-import json
 
 from django.db.models import Sum, Value, DecimalField
 from django.db.models.functions import Coalesce
@@ -213,15 +212,14 @@ def transaction_list(request):
     if 'page' in query_params:
         del query_params['page']
 
-    all_accounts = ChartOfAccounts.objects.filter(
-        company=active_company).values('pk', 'code', 'name', 'account_type')
-    all_accounts_json_str = json.dumps(list(all_accounts))
+    all_accounts = list(ChartOfAccounts.objects.filter(
+        company=active_company).values('pk', 'code', 'name', 'account_type'))
 
     context = {
         'transactions':         transactions,
         'form':                 form,
         'filter_form':          filter_form,
-        'all_accounts_json_str': all_accounts_json_str,
+        'all_accounts':         all_accounts,
         'total_receitas':       total_receitas,
         'total_despesas':       total_despesas,
         'saldo':                saldo,
