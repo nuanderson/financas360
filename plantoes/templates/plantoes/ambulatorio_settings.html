@@ -2,82 +2,160 @@
 {% load humanize %}
 {% block title %}Ambulatório{% endblock %}
 {% block content %}
+
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1 class="h3 mb-0 text-gray-800">Ambulatório</h1>
-        <p class="text-muted small mb-0">Cadastro de médicos, especialidades, vínculos e valores.</p>
-    </div>
-    <div>
-        <a href="{% url 'plantoes:ambulatorio_folha' %}" class="btn btn-success me-2 shadow-sm">
-            <i class="bi bi-calendar-check me-2"></i> Ver Folha de Pagamento
-        </a>
-        <a href="{% url 'plantoes:ambulatorio_config_create' %}" class="btn btn-primary">
-            <i class="bi bi-person-plus-fill me-1"></i> Novo Médico
-        </a>
-    </div>
+  <div>
+    <h1 class="h3 mb-0 text-gray-800">Ambulatório</h1>
+    <p class="text-muted small mb-0">Médicos, especialidades e contratos. A folha mensal é gerada automaticamente.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'plantoes:ambulatorio_folha' %}" class="btn btn-success shadow-sm">
+      <i class="bi bi-calendar-check"></i> Ver Folha
+    </a>
+    <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalNovo">
+      <i class="bi bi-person-plus-fill"></i> Novo Médico
+    </button>
+  </div>
 </div>
 
 <div class="card shadow mb-4">
-    <div class="card-header py-3">
-        <h6 class="m-0 font-weight-bold text-primary">Médicos Cadastrados</h6>
+  <div class="card-header py-3 bg-white"><h6 class="m-0 font-weight-bold text-primary">Médicos Cadastrados</h6></div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4">Médico</th>
+            <th>Especialidade</th>
+            <th class="text-center">Vínculo</th>
+            <th class="text-center">CH (h)</th>
+            <th class="text-end">Valor Mensal</th>
+            <th class="text-end pe-4">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for config in configs %}
+          <tr>
+            <td class="ps-4 fw-bold text-dark">{{ config.nome_medico }}</td>
+            <td class="text-muted small">{{ config.especialidade|default:"—" }}</td>
+            <td class="text-center">
+              {% if config.vinculo == 'EFETIVO' %}
+                <span class="badge bg-primary">Efetivo</span>
+              {% else %}
+                <span class="badge bg-warning text-dark">PJ</span>
+              {% endif %}
+            </td>
+            <td class="text-center text-muted">{{ config.ch_mensal|floatformat:0 }}h</td>
+            <td class="text-end text-success fw-bold">R$ {{ config.valor_mensal|floatformat:2|intcomma }}</td>
+            <td class="text-end pe-4">
+              <a href="#" class="text-primary me-2"
+                 data-update-url="{% url 'plantoes:ambulatorio_config_update' config.id %}"
+                 data-nome="{{ config.nome_medico|escapejs }}"
+                 data-especialidade="{{ config.especialidade|default:''|escapejs }}"
+                 data-vinculo="{{ config.vinculo }}"
+                 data-ch="{{ config.ch_mensal }}"
+                 data-valor="{{ config.valor_mensal }}"
+                 onclick="abrirEditar(this)"><i class="bi bi-pencil-square"></i></a>
+              <a href="{% url 'plantoes:ambulatorio_config_delete' config.id %}" class="text-danger"><i class="bi bi-trash"></i></a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center py-5 text-muted">
+              <i class="bi bi-hospital display-4 d-block mb-3 text-gray-300"></i>Nenhum médico cadastrado.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th class="ps-4">Médico</th>
-                        <th>Especialidade</th>
-                        <th class="text-center">Vínculo</th>
-                        <th class="text-center">CH (h)</th>
-                        <th class="text-end">Valor Mensal</th>
-                        <th class="text-end pe-4">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for config in configs %}
-                    <tr>
-                        <td class="ps-4 fw-bold text-dark">{{ config.nome_medico }}</td>
-                        <td class="text-muted small">{{ config.especialidade|default:"—" }}</td>
-                        <td class="text-center">
-                            {% if config.vinculo == 'EFETIVO' %}
-                                <span class="badge bg-primary">Efetivo</span>
-                            {% else %}
-                                <span class="badge bg-warning text-dark">PJ</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-center text-muted">{{ config.ch_mensal|floatformat:0 }}h</td>
-                        <td class="text-end text-success fw-bold">R$ {{ config.valor_mensal|floatformat:2|intcomma }}</td>
-                        <td class="text-end pe-4">
-                            <a href="{% url 'plantoes:ambulatorio_config_update' config.id %}" class="text-primary me-2"><i class="bi bi-pencil-square"></i></a>
-                            <a href="{% url 'plantoes:ambulatorio_config_delete' config.id %}" class="text-danger"><i class="bi bi-trash"></i></a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center py-5 text-muted">
-                            <i class="bi bi-hospital display-4 d-block mb-3 text-gray-300"></i>
-                            Nenhum médico cadastrado.
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-                {% if configs %}
-                <tfoot class="table-light">
-                    <tr>
-                        <td colspan="4" class="fw-bold ps-4">Total Previsto</td>
-                        <td class="text-end fw-bold text-success">
-                            R$ {% with total=0 %}
-                            {% for c in configs %}{% endfor %}
-                            {{ configs|length }}
-                            {% endwith %}
-                        </td>
-                        <td></td>
-                    </tr>
-                </tfoot>
-                {% endif %}
-            </table>
-        </div>
-    </div>
+  </div>
 </div>
+
+<!-- Modal: Novo -->
+<div class="modal fade" id="modalNovo" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="post" action="{% url 'plantoes:ambulatorio_config_create' %}">
+        {% csrf_token %}
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title fs-6"><i class="bi bi-person-plus-fill me-2"></i>Novo Médico</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row">
+            {% for field in config_form %}
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold small">{{ field.label }}</label>
+              {{ field }}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary btn-sm">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar -->
+<div class="modal fade" id="modalEditar" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="post" id="formEditar">
+        {% csrf_token %}
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title fs-6"><i class="bi bi-pencil-square me-2"></i>Editar Médico</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold small">Nome do Médico</label>
+              <input type="text" name="nome_medico" id="editNome" class="form-control" required>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold small">Especialidade</label>
+              <input type="text" name="especialidade" id="editEspecialidade" class="form-control">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label fw-bold small">Vínculo</label>
+              <select name="vinculo" id="editVinculo" class="form-select">
+                <option value="EFETIVO">Efetivo</option>
+                <option value="PJ">PJ</option>
+              </select>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label fw-bold small">CH Mensal (h)</label>
+              <input type="number" name="ch_mensal" id="editCH" class="form-control" step="0.5" min="0">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label fw-bold small">Valor Mensal (R$)</label>
+              <input type="number" name="valor_mensal" id="editValor" class="form-control" step="0.01" min="0" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-warning btn-sm text-dark">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function abrirEditar(el) {
+  document.getElementById('editNome').value = el.dataset.nome;
+  document.getElementById('editEspecialidade').value = el.dataset.especialidade;
+  document.getElementById('editVinculo').value = el.dataset.vinculo;
+  document.getElementById('editCH').value = el.dataset.ch;
+  document.getElementById('editValor').value = el.dataset.valor;
+  document.getElementById('formEditar').action = el.dataset.updateUrl;
+  new bootstrap.Modal(document.getElementById('modalEditar')).show();
+}
+</script>
 {% endblock %}

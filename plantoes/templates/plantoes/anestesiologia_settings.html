@@ -2,63 +2,172 @@
 {% load humanize %}
 {% block title %}Anestesiologia{% endblock %}
 {% block content %}
+
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1 class="h3 mb-0 text-gray-800">Anestesiologia</h1>
-        <p class="text-muted small mb-0">Matriz de tipos de serviço e valores de referência.</p>
-    </div>
-    <div>
-        <a href="{% url 'plantoes:anestesiologia_folha' %}" class="btn btn-success me-2 shadow-sm">
-            <i class="bi bi-calendar-check me-2"></i> Ver Folha Mensal
-        </a>
-        <a href="{% url 'plantoes:anestesiologia_config_create' %}" class="btn btn-primary">
-            <i class="bi bi-plus-circle me-1"></i> Novo Tipo de Serviço
-        </a>
-    </div>
+  <div>
+    <h1 class="h3 mb-0 text-gray-800">Anestesiologia</h1>
+    <p class="text-muted small mb-0">Tipos de serviço e valores de plantão. A folha mensal é gerada automaticamente.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'plantoes:anestesiologia_folha' %}" class="btn btn-success shadow-sm">
+      <i class="bi bi-calendar-check"></i> Ver Folha
+    </a>
+    <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalNovo">
+      <i class="bi bi-plus-lg"></i> Novo Tipo de Serviço
+    </button>
+  </div>
 </div>
 
 <div class="card shadow mb-4">
-    <div class="card-header py-3">
-        <h6 class="m-0 font-weight-bold text-primary">Tipos de Serviço (Gabarito)</h6>
+  <div class="card-header py-3 bg-white"><h6 class="m-0 font-weight-bold text-primary">Tipos de Serviço Cadastrados</h6></div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light text-center">
+          <tr>
+            <th class="text-start ps-4">Tipo de Serviço</th>
+            <th>Qtd Dia</th>
+            <th>Valor Dia</th>
+            <th>Qtd Noite</th>
+            <th>Valor Noite</th>
+            <th class="text-end pe-4">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for config in configs %}
+          <tr>
+            <td class="ps-4 fw-bold text-dark">{{ config.tipo_servico }}</td>
+            <td class="text-center">{{ config.qtd_dia }}</td>
+            <td class="text-center text-muted">R$ {{ config.valor_plantao_dia|intcomma }}</td>
+            <td class="text-center">{{ config.qtd_noite }}</td>
+            <td class="text-center text-muted">R$ {{ config.valor_plantao_noite|intcomma }}</td>
+            <td class="text-end pe-4">
+              <a href="#" class="text-primary me-2"
+                 data-update-url="{% url 'plantoes:anestesiologia_config_update' config.id %}"
+                 data-tipo="{{ config.tipo_servico|escapejs }}"
+                 data-qtd-dia="{{ config.qtd_dia }}"
+                 data-valor-dia="{{ config.valor_plantao_dia }}"
+                 data-qtd-noite="{{ config.qtd_noite }}"
+                 data-valor-noite="{{ config.valor_plantao_noite }}"
+                 onclick="abrirEditar(this)"><i class="bi bi-pencil-square"></i></a>
+              <a href="{% url 'plantoes:anestesiologia_config_delete' config.id %}" class="text-danger"><i class="bi bi-trash"></i></a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center py-5 text-muted">
+              <i class="bi bi-capsule display-4 d-block mb-3 text-gray-300"></i>Nenhum serviço cadastrado.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th class="ps-4">Tipo de Serviço</th>
-                        <th class="text-center">Qtd Dia</th>
-                        <th class="text-end">Valor Dia</th>
-                        <th class="text-center">Qtd Noite</th>
-                        <th class="text-end">Valor Noite</th>
-                        <th class="text-end pe-4">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for config in configs %}
-                    <tr>
-                        <td class="ps-4 fw-bold text-dark">{{ config.tipo_servico }}</td>
-                        <td class="text-center">{{ config.qtd_dia }}</td>
-                        <td class="text-end text-muted">R$ {{ config.valor_plantao_dia|floatformat:2|intcomma }}</td>
-                        <td class="text-center">{{ config.qtd_noite }}</td>
-                        <td class="text-end text-muted">R$ {{ config.valor_plantao_noite|floatformat:2|intcomma }}</td>
-                        <td class="text-end pe-4">
-                            <a href="{% url 'plantoes:anestesiologia_config_update' config.id %}" class="text-primary me-2"><i class="bi bi-pencil-square"></i></a>
-                            <a href="{% url 'plantoes:anestesiologia_config_delete' config.id %}" class="text-danger"><i class="bi bi-trash"></i></a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center py-5 text-muted">
-                            <i class="bi bi-capsule display-4 d-block mb-3 text-gray-300"></i>
-                            Nenhum tipo de serviço cadastrado.<br>
-                            <small>Ex: C/D Plantão, S/D Plantão, Eletivas, Pré-Anestésico, Coordenação</small>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+  </div>
 </div>
+
+<!-- Modal: Novo -->
+<div class="modal fade" id="modalNovo" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="post" action="{% url 'plantoes:anestesiologia_config_create' %}">
+        {% csrf_token %}
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title fs-6"><i class="bi bi-plus-lg me-2"></i>Novo Tipo de Serviço</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold small">Tipo de Serviço</label>{{ config_form.tipo_servico }}
+          </div>
+          <h6 class="text-warning fw-bold mb-3 small"><i class="bi bi-sun-fill me-2"></i>Escala DIURNA</h6>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label small text-muted">Qtd. (Dia)</label>{{ config_form.qtd_dia }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small text-muted">Valor (Dia)</label>
+              <div class="input-group"><span class="input-group-text bg-light">R$</span>{{ config_form.valor_plantao_dia }}</div>
+            </div>
+          </div>
+          <h6 class="text-secondary fw-bold mb-3 small"><i class="bi bi-moon-stars-fill me-2"></i>Escala NOTURNA</h6>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label small text-muted">Qtd. (Noite)</label>{{ config_form.qtd_noite }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small text-muted">Valor (Noite)</label>
+              <div class="input-group"><span class="input-group-text bg-light">R$</span>{{ config_form.valor_plantao_noite }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary btn-sm">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar -->
+<div class="modal fade" id="modalEditar" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="post" id="formEditar">
+        {% csrf_token %}
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title fs-6"><i class="bi bi-pencil-square me-2"></i>Editar Tipo de Serviço</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold small">Tipo de Serviço</label>
+            <input type="text" name="tipo_servico" id="editTipo" class="form-control" required>
+          </div>
+          <h6 class="text-warning fw-bold mb-3 small"><i class="bi bi-sun-fill me-2"></i>Escala DIURNA</h6>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label small text-muted">Qtd. (Dia)</label>
+              <input type="number" name="qtd_dia" id="editQtdDia" class="form-control" min="0">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small text-muted">Valor (Dia)</label>
+              <div class="input-group"><span class="input-group-text bg-light">R$</span>
+              <input type="number" name="valor_plantao_dia" id="editValorDia" class="form-control" step="0.01" min="0"></div>
+            </div>
+          </div>
+          <h6 class="text-secondary fw-bold mb-3 small"><i class="bi bi-moon-stars-fill me-2"></i>Escala NOTURNA</h6>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label small text-muted">Qtd. (Noite)</label>
+              <input type="number" name="qtd_noite" id="editQtdNoite" class="form-control" min="0">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small text-muted">Valor (Noite)</label>
+              <div class="input-group"><span class="input-group-text bg-light">R$</span>
+              <input type="number" name="valor_plantao_noite" id="editValorNoite" class="form-control" step="0.01" min="0"></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-warning btn-sm text-dark">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function abrirEditar(el) {
+  document.getElementById('editTipo').value = el.dataset.tipo;
+  document.getElementById('editQtdDia').value = el.dataset.qtdDia;
+  document.getElementById('editValorDia').value = el.dataset.valorDia;
+  document.getElementById('editQtdNoite').value = el.dataset.qtdNoite;
+  document.getElementById('editValorNoite').value = el.dataset.valorNoite;
+  document.getElementById('formEditar').action = el.dataset.updateUrl;
+  new bootstrap.Modal(document.getElementById('modalEditar')).show();
+}
+</script>
 {% endblock %}

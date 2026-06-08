@@ -13,8 +13,8 @@
         <p class="text-muted small mb-0">Pagamentos mensais de médicos</p>
     </div>
     <div class="d-flex align-items-center">
-        <a href="{% url 'plantoes:ambulatorio_settings' %}" class="btn btn-primary shadow-sm me-3">
-            <i class="bi bi-arrow-left me-2"></i> Configurações
+        <a href="{% url 'plantoes:ambulatorio_settings' %}" class="btn btn-outline-secondary btn-sm shadow-sm">
+            <i class="bi bi-gear me-1"></i> Configurações
         </a>
         <form method="get" class="d-flex align-items-center bg-white p-2 rounded shadow-sm border">
             <label class="me-2 fw-bold text-muted small mb-0">Competência:</label>
@@ -55,12 +55,8 @@
 <div class="text-center py-5 card shadow border-0">
     <div class="card-body">
         <i class="bi bi-hospital display-1 text-gray-200"></i>
-        <h4 class="mt-3 text-gray-600">Sem folha gerada para {{ competencia|date:"F/Y" }}</h4>
-        <form method="post">{% csrf_token %}
-            <button type="submit" name="gerar_folha" class="btn btn-primary btn-lg px-4 mt-3">
-                <i class="bi bi-magic me-2"></i> Gerar Folha do Ambulatório
-            </button>
-        </form>
+        <h4 class="mt-3 text-gray-600">Nenhum médico cadastrado</h4>
+        <p class="text-muted">Adicione contratos em <a href="{% url 'plantoes:ambulatorio_settings' %}">Configurações</a> para gerar a folha automaticamente.</p>
     </div>
 </div>
 {% else %}
@@ -71,11 +67,11 @@
         <div class="card-header py-3 d-flex justify-content-between align-items-center bg-white">
             <h6 class="m-0 font-weight-bold text-primary">Pagamentos — {{ competencia|date:"F/Y" }}</h6>
             <div>
-                <button type="submit" name="atualizar_valores" class="btn btn-warning btn-sm px-3 shadow-sm me-2 text-dark">
-                    <i class="bi bi-arrow-repeat me-1"></i> Sincronizar Contratos
+                <button type="button" class="btn btn-outline-danger btn-sm px-3 me-2" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
+                    <i class="bi bi-trash"></i> Limpar
                 </button>
                 <button type="submit" name="salvar_grid" class="btn btn-success btn-sm px-3 shadow-sm">
-                    <i class="bi bi-check-lg me-1"></i> Salvar
+                    <i class="bi bi-check-lg me-1"></i> Salvar Lançamentos
                 </button>
             </div>
         </div>
@@ -132,6 +128,24 @@
     </div>
 </form>
 {% endif %}
+
+<!-- Modal Limpar -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header bg-danger text-white">
+      <h5 class="modal-title">Atenção</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+      <p>Deseja apagar todos os lançamentos desta competência?</p>
+      <p class="small text-muted">A folha será gerada automaticamente ao reabrir a página.</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+      <form method="post">{% csrf_token %}<button type="submit" name="limpar_folha" class="btn btn-danger">Sim, Limpar</button></form>
+    </div>
+  </div></div>
+</div>
 
 <div class="modal fade" id="obsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog"><div class="modal-content">

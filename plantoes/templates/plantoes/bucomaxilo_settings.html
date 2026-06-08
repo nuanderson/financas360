@@ -1,61 +1,132 @@
 {% extends "base.html" %}
 {% load humanize %}
-
 {% block title %}Contratos Bucomaxilo{% endblock %}
-
 {% block content %}
+
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1 class="h3 mb-0 text-gray-800">Contratos Bucomaxilo</h1>
-        <p class="text-muted small mb-0">Cadastro de profissionais e serviços fixos.</p>
-    </div>
-    <div>
-        <a href="{% url 'plantoes:bucomaxilo_folha' %}" class="btn btn-success me-2 shadow-sm">
-            <i class="bi bi-calendar-check me-2"></i> Ver Folha de Pagamento
-        </a>
-        <a href="{% url 'plantoes:bucomaxilo_config_create' %}" class="btn btn-primary">
-            <i class="bi bi-person-plus-fill"></i> Novo Contrato
-        </a>
-    </div>
+  <div>
+    <h1 class="h3 mb-0 text-gray-800">Contratos Bucomaxilo</h1>
+    <p class="text-muted small mb-0">Profissionais e serviços fixos. A folha mensal é gerada automaticamente.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'plantoes:bucomaxilo_folha' %}" class="btn btn-success shadow-sm">
+      <i class="bi bi-calendar-check"></i> Ver Folha
+    </a>
+    <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalNovo">
+      <i class="bi bi-person-plus-fill"></i> Novo Contrato
+    </button>
+  </div>
 </div>
 
 <div class="card shadow mb-4">
-    <div class="card-header py-3">
-        <h6 class="m-0 font-weight-bold text-primary">Profissionais Cadastrados</h6>
+  <div class="card-header py-3 bg-white"><h6 class="m-0 font-weight-bold text-primary">Profissionais Cadastrados</h6></div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4">Profissional / Empresa</th>
+            <th>Descrição Serviço</th>
+            <th class="text-end">Valor Mensal</th>
+            <th class="text-end pe-4">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for config in configs %}
+          <tr>
+            <td class="ps-4 fw-bold text-dark">{{ config.nome_profissional }}</td>
+            <td class="text-muted">{{ config.descricao_servico }}</td>
+            <td class="text-end text-success fw-bold">R$ {{ config.valor_mensal|intcomma }}</td>
+            <td class="text-end pe-4">
+              <a href="#" class="text-primary me-2"
+                 data-update-url="{% url 'plantoes:bucomaxilo_config_update' config.id %}"
+                 data-nome="{{ config.nome_profissional|escapejs }}"
+                 data-descricao="{{ config.descricao_servico|escapejs }}"
+                 data-valor="{{ config.valor_mensal }}"
+                 onclick="abrirEditar(this)"><i class="bi bi-pencil-square"></i></a>
+              <a href="{% url 'plantoes:bucomaxilo_config_delete' config.id %}" class="text-danger"><i class="bi bi-trash"></i></a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" class="text-center py-5 text-muted">
+              <i class="bi bi-person-x display-4 d-block mb-3 text-gray-300"></i>Nenhum contrato cadastrado.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th class="ps-4">Profissional / Empresa</th>
-                        <th>Descrição Serviço</th>
-                        <th class="text-end">Valor Mensal (Fixo)</th>
-                        <th class="text-end pe-4">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for config in configs %}
-                    <tr>
-                        <td class="ps-4 fw-bold text-dark">{{ config.nome_profissional }}</td>
-                        <td class="text-muted">{{ config.descricao_servico }}</td>
-                        <td class="text-end text-success fw-bold">R$ {{ config.valor_mensal|intcomma }}</td>
-                        <td class="text-end pe-4">
-                            <a href="{% url 'plantoes:bucomaxilo_config_update' config.id %}" class="text-primary me-2"><i class="bi bi-pencil-square"></i></a>
-                            <a href="{% url 'plantoes:bucomaxilo_config_delete' config.id %}" class="text-danger"><i class="bi bi-trash"></i></a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="4" class="text-center py-5 text-muted">
-                            <i class="bi bi-person-x display-4 d-block mb-3 text-gray-300"></i>
-                            Nenhum contrato cadastrado.
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+  </div>
 </div>
+
+<!-- Modal: Novo -->
+<div class="modal fade" id="modalNovo" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{% url 'plantoes:bucomaxilo_config_create' %}">
+        {% csrf_token %}
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title fs-6"><i class="bi bi-person-plus-fill me-2"></i>Novo Contrato</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          {% for field in config_form %}
+          <div class="mb-3">
+            <label class="form-label fw-bold small">{{ field.label }}</label>
+            {{ field }}
+          </div>
+          {% endfor %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary btn-sm">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar -->
+<div class="modal fade" id="modalEditar" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" id="formEditar">
+        {% csrf_token %}
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title fs-6"><i class="bi bi-pencil-square me-2"></i>Editar Contrato</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold small">Profissional / Empresa</label>
+            <input type="text" name="nome_profissional" id="editNome" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold small">Descrição do Serviço</label>
+            <input type="text" name="descricao_servico" id="editDescricao" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold small">Valor Mensal (R$)</label>
+            <input type="number" name="valor_mensal" id="editValor" class="form-control" step="0.01" min="0" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-warning btn-sm text-dark">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function abrirEditar(el) {
+  document.getElementById('editNome').value = el.dataset.nome;
+  document.getElementById('editDescricao').value = el.dataset.descricao;
+  document.getElementById('editValor').value = el.dataset.valor;
+  document.getElementById('formEditar').action = el.dataset.updateUrl;
+  new bootstrap.Modal(document.getElementById('modalEditar')).show();
+}
+</script>
 {% endblock %}

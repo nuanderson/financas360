@@ -1,63 +1,132 @@
 {% extends "base.html" %}
 {% load humanize %}
-
-{% block title %}Residência de Cirurgia{% endblock %}
-
+{% block title %}Aulas COREME{% endblock %}
 {% block content %}
+
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1 class="h3 mb-0 text-gray-800">Residência de Cirurgia</h1>
-        <p class="text-muted small mb-0">Cadastro de médicos e valores por aula.</p>
-    </div>
-    <div>
-        <a href="{% url 'plantoes:residencia_folha' %}" class="btn btn-success me-2 shadow-sm">
-            <i class="bi bi-calendar-check me-2"></i> Ver Folha de Aulas
-        </a>
-        <a href="{% url 'plantoes:residencia_config_create' %}" class="btn btn-primary">
-            <i class="bi bi-person-plus-fill"></i> Novo Médico
-        </a>
-    </div>
+  <div>
+    <h1 class="h3 mb-0 text-gray-800">Aulas COREME — Residência</h1>
+    <p class="text-muted small mb-0">Médicos, valores e metas. A folha mensal é gerada automaticamente.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'plantoes:residencia_folha' %}" class="btn btn-success shadow-sm">
+      <i class="bi bi-calendar-check"></i> Ver Folha
+    </a>
+    <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalNovo">
+      <i class="bi bi-person-plus-fill"></i> Novo Médico
+    </button>
+  </div>
 </div>
 
 <div class="card shadow mb-4">
-    <div class="card-header py-3">
-        <h6 class="m-0 font-weight-bold text-primary">Médicos Cadastrados</h6>
+  <div class="card-header py-3 bg-white"><h6 class="m-0 font-weight-bold text-primary">Médicos Preceptores Cadastrados</h6></div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4">Médico</th>
+            <th class="text-end">Valor por Aula</th>
+            <th class="text-center">Meta Mensal</th>
+            <th class="text-end pe-4">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for config in configs %}
+          <tr>
+            <td class="ps-4 fw-bold text-dark">{{ config.nome_medico }}</td>
+            <td class="text-end text-success fw-bold">R$ {{ config.valor_aula|intcomma }}</td>
+            <td class="text-center"><span class="badge bg-light text-dark border">{{ config.meta_aulas }} aulas</span></td>
+            <td class="text-end pe-4">
+              <a href="#" class="text-primary me-2"
+                 data-update-url="{% url 'plantoes:residencia_config_update' config.id %}"
+                 data-nome="{{ config.nome_medico|escapejs }}"
+                 data-valor="{{ config.valor_aula }}"
+                 data-meta="{{ config.meta_aulas }}"
+                 onclick="abrirEditar(this)"><i class="bi bi-pencil-square"></i></a>
+              <a href="{% url 'plantoes:residencia_config_delete' config.id %}" class="text-danger"><i class="bi bi-trash"></i></a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" class="text-center py-5 text-muted">
+              <i class="bi bi-mortarboard display-4 d-block mb-3 text-gray-300"></i>Nenhum médico cadastrado.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th class="ps-4">Médico</th>
-                        <th class="text-center">Meta Aulas/Mês</th>
-                        <th class="text-end">Valor por Aula</th>
-                        <th class="text-end pe-4">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for config in configs %}
-                    <tr>
-                        <td class="ps-4 fw-bold text-dark">{{ config.nome_medico }}</td>
-                        <td class="text-center">
-                            <span class="badge bg-light text-dark border">{{ config.meta_aulas }}</span>
-                        </td>
-                        <td class="text-end text-success fw-bold">R$ {{ config.valor_aula|intcomma }}</td>
-                        <td class="text-end pe-4">
-                            <a href="{% url 'plantoes:residencia_config_update' config.id %}" class="text-primary me-2"><i class="bi bi-pencil-square"></i></a>
-                            <a href="{% url 'plantoes:residencia_config_delete' config.id %}" class="text-danger"><i class="bi bi-trash"></i></a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="4" class="text-center py-5 text-muted">
-                            <i class="bi bi-mortarboard display-4 d-block mb-3 text-gray-300"></i>
-                            Nenhum médico cadastrado.
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+  </div>
 </div>
+
+<!-- Modal: Novo -->
+<div class="modal fade" id="modalNovo" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{% url 'plantoes:residencia_config_create' %}">
+        {% csrf_token %}
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title fs-6"><i class="bi bi-person-plus-fill me-2"></i>Novo Médico</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          {% for field in config_form %}
+          <div class="mb-3">
+            <label class="form-label fw-bold small">{{ field.label }}</label>
+            {{ field }}
+          </div>
+          {% endfor %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary btn-sm">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar -->
+<div class="modal fade" id="modalEditar" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" id="formEditar">
+        {% csrf_token %}
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title fs-6"><i class="bi bi-pencil-square me-2"></i>Editar Médico</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold small">Nome do Médico</label>
+            <input type="text" name="nome_medico" id="editNome" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold small">Valor por Aula (R$)</label>
+            <input type="number" name="valor_aula" id="editValor" class="form-control" step="0.01" min="0" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold small">Meta de Aulas Mensal</label>
+            <input type="number" name="meta_aulas" id="editMeta" class="form-control" min="0">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-warning btn-sm text-dark">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function abrirEditar(el) {
+  document.getElementById('editNome').value = el.dataset.nome;
+  document.getElementById('editValor').value = el.dataset.valor;
+  document.getElementById('editMeta').value = el.dataset.meta;
+  document.getElementById('formEditar').action = el.dataset.updateUrl;
+  new bootstrap.Modal(document.getElementById('modalEditar')).show();
+}
+</script>
 {% endblock %}

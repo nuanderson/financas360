@@ -1,315 +1,265 @@
 {% extends "base.html" %}
 {% load humanize %}
-{% load crispy_forms_tags %}
-{% block title %}Folha de Cirurgia (Controladoria){% endblock %}
+{% block title %}Folha de Cirurgia Geral{% endblock %}
 {% block content %}
-    <style>
-    /* Remove setas do input number */
-    input::-webkit-outer-spin-button,
-    input::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-    }
-    input[type=number] {
-        -moz-appearance: textfield;
-    }
-    .table-hover tbody tr:hover td, .table-hover tbody tr:hover th {
-        background-color: #f8f9fc;
-    }
-    </style>
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-0 text-gray-800">Folha de Cirurgia Geral</h1>
-            <p class="text-muted small mb-0">Gestão Orçamentária e Escalas</p>
+<style>
+input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
+.table-hover tbody tr:hover td { background-color: #f8f9fc; }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h3 mb-0 text-gray-800">Folha de Cirurgia Geral</h1>
+    <p class="text-muted small mb-0">Gestão Orçamentária e Escalas</p>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <a href="{% url 'plantoes:cirurgia_settings' %}" class="btn btn-outline-secondary btn-sm shadow-sm">
+      <i class="bi bi-gear me-1"></i> Configurações
+    </a>
+    <form method="get" class="d-flex align-items-center bg-white p-2 rounded shadow-sm border">
+      <label class="me-2 fw-bold text-muted small mb-0">Competência:</label>
+      <input type="month" name="month" class="form-control form-control-sm border-0 bg-light fw-bold" value="{{ month_str }}" onchange="this.form.submit()">
+    </form>
+  </div>
+</div>
+
+<div class="row mb-4">
+  <div class="col-md-4">
+    <div class="card border-start border-4 border-primary shadow h-100 py-2">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col me-2">
+            <div class="text-xs fw-bold text-primary text-uppercase mb-1">Orçamento Previsto (Meta)</div>
+            <div class="h4 mb-0 fw-bold text-gray-800">R$ {{ total_orcado|floatformat:2|intcomma }}</div>
+          </div>
+          <div class="col-auto"><i class="bi bi-calculator display-6 text-gray-300"></i></div>
         </div>
-        <div class="d-flex align-items-center">
-            <a href="{% url 'plantoes:cirurgia_settings' %}"
-               class="btn btn-primary shadow-sm me-3">
-                <i class="bi bi-arrow-left me-2"></i> Voltar para Matriz
-            </a>
-            <form method="get"
-                  class="d-flex align-items-center bg-white p-2 rounded shadow-sm border">
-                <label class="me-2 fw-bold text-muted small mb-0">Competência:</label>
-                <input type="month"
-                       name="month"
-                       class="form-control form-control-sm border-0 bg-light fw-bold"
-                       value="{{ month_str }}"
-                       onchange="this.form.submit()">
-            </form>
-        </div>
+      </div>
     </div>
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card border-start border-4 border-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col me-2">
-                            <div class="text-xs fw-bold text-primary text-uppercase mb-1">Orçamento Previsto (Meta)</div>
-                            <div class="h4 mb-0 fw-bold text-gray-800">R$ {{ total_orcado|floatformat:2|intcomma }}</div>
-                            <div class="small text-muted mt-1">Baseado na Matriz</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="bi bi-calculator display-6 text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-start border-4 border-warning shadow h-100 py-2">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col me-2">
+            <div class="text-xs fw-bold text-warning text-uppercase mb-1">Custo Realizado</div>
+            <div class="h4 mb-0 fw-bold text-gray-800">R$ {{ total_realizado|floatformat:2|intcomma }}</div>
+            <div class="small text-muted mt-1">
+              <span class="text-info fw-bold">Ef: {{ total_efetivo|floatformat:0|intcomma }}</span> +
+              <span class="text-warning fw-bold">PP: {{ total_pega_plantao|floatformat:0|intcomma }}</span>
             </div>
+          </div>
+          <div class="col-auto"><i class="bi bi-cash-stack display-6 text-gray-300"></i></div>
         </div>
-        <div class="col-md-4">
-            <div class="card border-start border-4 border-warning shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col me-2">
-                            <div class="text-xs fw-bold text-warning text-uppercase mb-1">Custo Realizado (Execução)</div>
-                            <div class="h4 mb-0 fw-bold text-gray-800">R$ {{ total_realizado|floatformat:2|intcomma }}</div>
-                            <div class="small text-muted mt-1">
-                                <span class="text-info fw-bold">Ef: {{ total_efetivo|floatformat:0|intcomma }}</span> +
-                                <span class="text-warning fw-bold">PP: {{ total_pega_plantao|floatformat:0|intcomma }}</span>
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="bi bi-cash-stack display-6 text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card border-start border-4 {% if total_saldo < 0 %}border-danger{% else %}border-success{% endif %} shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col me-2">
-                            <div class="text-xs fw-bold {% if total_saldo < 0 %}text-danger{% else %}text-success{% endif %} text-uppercase mb-1">
-                                Status do Orçamento
-                            </div>
-                            <div class="h4 mb-0 fw-bold {% if total_saldo < 0 %}text-danger{% else %}text-success{% endif %}">
-                                R$ {{ total_saldo|floatformat:2|intcomma }}
-                            </div>
-                            <div class="small text-muted mt-1">
-                                {% if total_saldo < 0 %}
-                                    <i class="bi bi-exclamation-triangle-fill text-danger"></i> Orçamento Extrapolado
-                                {% else %}
-                                    <i class="bi bi-check-circle-fill text-success"></i> Dentro da Meta
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="bi bi-graph-up-arrow display-6 text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+      </div>
     </div>
-    {% if not tem_dados %}
-        <div class="text-center py-5 card shadow border-0">
-            <div class="card-body">
-                <i class="bi bi-file-earmark-plus display-1 text-gray-200"></i>
-                <h4 class="mt-3 text-gray-600">Nenhum lançamento para {{ competencia|date:"F/Y" }}</h4>
-                <p class="text-muted">Clique abaixo para gerar a planilha baseada na Configuração Padrão.</p>
-                <form method="post">
-                    {% csrf_token %}
-                    <button type="submit" name="gerar_folha" class="btn btn-primary btn-lg px-4">
-                        <i class="bi bi-magic me-2"></i> Gerar Folha de {{ competencia|date:"F" }}
-                    </button>
-                </form>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-start border-4 {% if total_saldo < 0 %}border-danger{% else %}border-success{% endif %} shadow h-100 py-2">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col me-2">
+            <div class="text-xs fw-bold {% if total_saldo < 0 %}text-danger{% else %}text-success{% endif %} text-uppercase mb-1">Status do Orçamento</div>
+            <div class="h4 mb-0 fw-bold {% if total_saldo < 0 %}text-danger{% else %}text-success{% endif %}">R$ {{ total_saldo|floatformat:2|intcomma }}</div>
+            <div class="small mt-1 {% if total_saldo < 0 %}text-danger{% else %}text-success{% endif %}">
+              {% if total_saldo < 0 %}<i class="bi bi-exclamation-triangle-fill"></i> Extrapolado
+              {% else %}<i class="bi bi-check-circle-fill"></i> Dentro da Meta{% endif %}
             </div>
+          </div>
+          <div class="col-auto"><i class="bi bi-graph-up-arrow display-6 text-gray-300"></i></div>
         </div>
-    {% else %}
-        <form method="post" id="folhaForm">
-            {% csrf_token %}
-            {{ formset.management_form }}
-            <div class="card shadow mb-4">
-                <div class="card-header py-3 d-flex justify-content-between align-items-center bg-white">
-                    <h6 class="m-0 font-weight-bold text-primary">Detalhamento e Controladoria (Cirurgia)</h6>
-                    <div>
-                        <button type="submit"
-                                name="atualizar_valores"
-                                class="btn btn-warning btn-sm px-3 shadow-sm me-2 text-dark"
-                                title="Sincronizar">
-                            <i class="bi bi-arrow-repeat me-1"></i> Sincronizar
-                        </button>
-                        <button type="submit"
-                                name="salvar_grid"
-                                class="btn btn-success btn-sm px-3 shadow-sm">
-                            <i class="bi bi-check-lg me-1"></i> Salvar Alterações
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover mb-0 align-middle text-sm"
-                               style="font-size: 0.8rem">
-                            <thead class="table-light text-center align-middle">
-                                <tr>
-                                    <th rowspan="2" class="text-start ps-3" style="min-width: 180px;">Setor / Cargo</th>
-                                    <th colspan="3" class="bg-light-primary text-primary border-bottom-0">META (ORÇADO)</th>
-                                    <th colspan="3" class="bg-light-warning text-dark border-bottom-0">EXECUÇÃO (REAL)</th>
-                                    <th rowspan="2"
-                                        class="text-end pe-3 border-start"
-                                        style="min-width: 100px">
-                                        SALDO
-                                        <br>
-                                        (Diferença)
-                                    </th>
-                                    <th rowspan="2" class="text-center" style="width: 50px;">Obs</th>
-                                </tr>
-                                <tr>
-                                    <th class="bg-light-primary text-primary small">Dias</th>
-                                    <th class="bg-light-primary text-primary small">Unitários</th>
-                                    <th class="bg-light-primary text-primary small fw-bold">TOTAL META</th>
-                                    <th class="bg-light-warning small">Efetivo</th>
-                                    <th class="bg-light-warning small">Pega Plantão</th>
-                                    <th class="bg-light-warning small fw-bold">TOTAL REAL</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for form in formset %}
-                                    {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
-                                    {% with obj=form.instance %}
-                                        <tr>
-                                            <td class="text-start ps-3">
-                                                <div class="fw-bold text-dark">{{ obj.setor_nome }}</div>
-                                                <div class="text-muted small">{{ obj.cargo_nome }}</div>
-                                            </td>
-                                            <td class="table-warning p-1 text-center" style="width: 60px;">{{ form.dias_mes }}</td>
-                                            <td class="text-end small text-muted">
-                                                D: {{ obj.valor_plantao_dia|intcomma }} ({{ obj.qtd_dia }})
-                                                <br>
-                                                N: {{ obj.valor_plantao_noite|intcomma }} ({{ obj.qtd_noite }})
-                                            </td>
-                                            <td class="text-end fw-bold text-primary bg-light-primary">{{ obj.total_escala_calculada|floatformat:2|intcomma }}</td>
-                                            <td class="p-1" style="width: 100px;">{{ form.valor_efetivo }}</td>
-                                            <td class="p-1" style="width: 100px;">{{ form.valor_pega_plantao }}</td>
-                                            <td class="text-end fw-bold bg-light-warning">{{ obj.total_realizado|floatformat:2|intcomma }}</td>
-                                            <td class="text-end pe-3 fw-bold border-start {% if obj.saldo_orcamentario < 0 %}text-danger{% else %}text-success{% endif %}">
-                                                {{ obj.saldo_orcamentario|floatformat:2|intcomma }}
-                                            </td>
-                                            <td class="text-center p-1">
-                                                <div class="d-none">{{ form.observacoes }}</div>
-                                                <button type="button"
-                                                        class="btn btn-sm {% if form.observacoes.value %}btn-info text-white{% else %}btn-outline-secondary{% endif %} rounded-circle"
-                                                        style="width: 32px;
-                                                               height: 32px;
-                                                               padding: 0"
-                                                        onclick="openObsModal('{{ form.observacoes.auto_id }}', '{{ obj.setor_nome }}')">
-                                                    {% if form.observacoes.value %}
-                                                        <i class="bi bi-chat-left-text-fill" style="font-size: 0.8rem;"></i>
-                                                    {% else %}
-                                                        <i class="bi bi-plus-lg" style="font-size: 1rem;"></i>
-                                                    {% endif %}
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    {% endwith %}
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="card-footer bg-white text-end">
-                    <button type="submit" name="salvar_grid" class="btn btn-success px-4">
-                        <i class="bi bi-save me-2"></i> Salvar Lançamentos
-                    </button>
-                </div>
-            </div>
-        </form>
-        <div class="row mt-4">
-            <div class="col-12">
-                <h5 class="text-gray-800 border-bottom pb-2 mb-3">
-                    <i class="bi bi-list-check me-2"></i>Observações Registradas
-                </h5>
-            </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if not tem_dados %}
+  <div class="card shadow border-0 text-center py-5">
+    <div class="card-body">
+      <i class="bi bi-calendar-x display-1 text-gray-200"></i>
+      <h4 class="mt-3 text-gray-600">Nenhuma escala configurada para esta competência</h4>
+      <p class="text-muted">Configure setores e cargos em <a href="{% url 'plantoes:cirurgia_settings' %}">Configurações</a> para gerar a folha automaticamente.</p>
+    </div>
+  </div>
+{% else %}
+<form method="post" id="folhaForm">
+  {% csrf_token %}
+  {{ formset.management_form }}
+  <div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center bg-white">
+      <h6 class="m-0 font-weight-bold text-primary">Detalhamento e Controladoria — Cirurgia</h6>
+      <div>
+        <button type="button" class="btn btn-outline-danger btn-sm px-3 me-2" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
+          <i class="bi bi-trash"></i> Limpar
+        </button>
+        <button type="submit" name="salvar_grid" class="btn btn-success btn-sm px-3">
+          <i class="bi bi-check-lg"></i> Salvar Lançamentos
+        </button>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover mb-0 align-middle" style="font-size:0.8rem">
+          <thead class="table-light text-center align-middle">
+            <tr>
+              <th rowspan="2" class="text-start ps-3" style="min-width:180px">Setor / Cargo</th>
+              <th colspan="3" class="text-primary border-bottom-0">META (ORÇADO)</th>
+              <th colspan="3" class="text-dark border-bottom-0">EXECUÇÃO (REAL)</th>
+              <th rowspan="2" class="text-end pe-3 border-start" style="min-width:100px">SALDO<br>(Diferença)</th>
+              <th rowspan="2" style="width:50px">Obs</th>
+            </tr>
+            <tr>
+              <th class="text-primary small">Dias</th>
+              <th class="text-primary small">Unitários</th>
+              <th class="text-primary small fw-bold">TOTAL META</th>
+              <th class="small">Efetivo</th>
+              <th class="small">Pega Plantão</th>
+              <th class="small fw-bold">TOTAL REAL</th>
+            </tr>
+          </thead>
+          <tbody>
             {% for form in formset %}
-                {% if form.instance.observacoes %}
-                    <div class="col-md-6 mb-3">
-                        <div class="card border-left-info shadow-sm h-100 py-2">
-                            <div class="card-body py-2">
-                                <div class="row no-gutters align-items-center">
-                                    <div class="col mr-2">
-                                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                            {{ form.instance.setor_nome }} - {{ form.instance.cargo_nome }}
-                                        </div>
-                                        <div class="text-dark small mb-0">{{ form.instance.observacoes|linebreaksbr }}</div>
-                                    </div>
-                                    <div class="col-auto">
-                                        <i class="bi bi-chat-quote text-gray-300 display-6"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                {% endif %}
+              {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+              {% with obj=form.instance %}
+              <tr>
+                <td class="text-start ps-3">
+                  <div class="fw-bold text-dark">{{ obj.setor_nome }}</div>
+                  <div class="text-muted small">{{ obj.cargo_nome }}</div>
+                </td>
+                <td class="table-warning p-1 text-center" style="width:60px">{{ form.dias_mes }}</td>
+                <td class="text-end small text-muted">
+                  D: {{ obj.valor_plantao_dia|intcomma }} ({{ obj.qtd_dia }})<br>
+                  N: {{ obj.valor_plantao_noite|intcomma }} ({{ obj.qtd_noite }})
+                </td>
+                <td class="text-end fw-bold text-primary">{{ obj.total_escala_calculada|floatformat:2|intcomma }}</td>
+                <td class="p-1" style="width:100px">{{ form.valor_efetivo }}</td>
+                <td class="p-1" style="width:100px">{{ form.valor_pega_plantao }}</td>
+                <td class="text-end fw-bold">{{ obj.total_realizado|floatformat:2|intcomma }}</td>
+                <td class="text-end pe-3 fw-bold border-start {% if obj.saldo_orcamentario < 0 %}text-danger{% else %}text-success{% endif %}">
+                  {{ obj.saldo_orcamentario|floatformat:2|intcomma }}
+                </td>
+                <td class="text-center p-1">
+                  <div class="d-none">{{ form.observacoes }}</div>
+                  <button type="button"
+                    id="btn-obs-{{ form.observacoes.auto_id }}"
+                    class="btn btn-sm {% if form.observacoes.value %}btn-info text-white{% else %}btn-outline-secondary{% endif %} rounded-circle"
+                    style="width:32px;height:32px;padding:0"
+                    onclick="openObsModal('{{ form.observacoes.auto_id }}', '{{ obj.setor_nome }}')">
+                    {% if form.observacoes.value %}<i class="bi bi-chat-left-text-fill"></i>
+                    {% else %}<i class="bi bi-plus-lg"></i>{% endif %}
+                  </button>
+                </td>
+              </tr>
+              {% endwith %}
             {% endfor %}
-        </div>
-    {% endif %}
-    <div class="modal fade" id="obsModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title fs-6">Adicionar Observação</h5>
-                    <button type="button"
-                            class="btn-close btn-close-white"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="small text-muted mb-2">
-                        Setor: <span id="modalSetorName" class="fw-bold text-dark"></span>
-                    </p>
-                    <div class="form-group">
-                        <label for="modalObsText" class="form-label small fw-bold">Descrição:</label>
-                        <textarea class="form-control"
-                                  id="modalObsText"
-                                  rows="4"
-                                  placeholder="Detalhes..."></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button"
-                            class="btn btn-secondary btn-sm"
-                            data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button"
-                            class="btn btn-primary btn-sm"
-                            onclick="saveObsFromModal()">Confirmar</button>
-                </div>
-            </div>
-        </div>
+          </tbody>
+        </table>
+      </div>
     </div>
-    <script>
-    let currentInputId = null;
+    <div class="card-footer bg-white text-end">
+      <button type="submit" name="salvar_grid" class="btn btn-success px-4">
+        <i class="bi bi-save me-2"></i> Salvar Lançamentos
+      </button>
+    </div>
+  </div>
+</form>
 
-    function openObsModal(inputId, setorNome) {
-        currentInputId = inputId;
-        let currentVal = document.getElementById(inputId).value;
-        document.getElementById('modalObsText').value = currentVal;
-        document.getElementById('modalSetorName').textContent = setorNome;
-        var myModal = new bootstrap.Modal(document.getElementById('obsModal'));
-        myModal.show();
+<div class="row mt-4">
+  <div class="col-12">
+    <h5 class="text-gray-800 border-bottom pb-2 mb-3"><i class="bi bi-list-check me-2"></i>Observações Registradas</h5>
+  </div>
+  {% for form in formset %}
+    {% if form.instance.observacoes %}
+    <div class="col-md-6 mb-3">
+      <div class="card border-left-info shadow-sm h-100 py-2">
+        <div class="card-body py-2">
+          <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+            {{ form.instance.setor_nome }} — {{ form.instance.cargo_nome }}
+          </div>
+          <div class="text-dark small mt-2">{{ form.instance.observacoes|linebreaksbr }}</div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Modal Observação -->
+<div class="modal fade" id="obsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fs-6">Observação</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted mb-2">Setor: <span id="modalSetorName" class="fw-bold text-dark"></span></p>
+        <textarea class="form-control" id="modalObsText" rows="4" placeholder="Detalhes..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="saveObsFromModal()">Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Limpar -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title">Atenção</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Deseja apagar todos os lançamentos desta competência?</p>
+        <p class="small text-muted">A folha será gerada automaticamente ao reabrir a página.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <form method="post">
+          {% csrf_token %}
+          <button type="submit" name="limpar_folha" class="btn btn-danger">Sim, Limpar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentInputId = null;
+function openObsModal(inputId, setorNome) {
+  currentInputId = inputId;
+  const hiddenInput = document.getElementById(inputId);
+  if (hiddenInput) {
+    document.getElementById('modalObsText').value = hiddenInput.value;
+    document.getElementById('modalSetorName').textContent = setorNome;
+    new bootstrap.Modal(document.getElementById('obsModal')).show();
+  }
+}
+function saveObsFromModal() {
+  if (!currentInputId) return;
+  const newVal = document.getElementById('modalObsText').value;
+  const hiddenInput = document.getElementById(currentInputId);
+  if (hiddenInput) {
+    hiddenInput.value = newVal;
+    const btn = document.getElementById('btn-obs-' + currentInputId);
+    if (btn) {
+      if (newVal.trim()) {
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-info', 'text-white');
+        btn.innerHTML = '<i class="bi bi-chat-left-text-fill" style="font-size:0.8rem"></i>';
+      } else {
+        btn.classList.remove('btn-info', 'text-white');
+        btn.classList.add('btn-outline-secondary');
+        btn.innerHTML = '<i class="bi bi-plus-lg"></i>';
+      }
     }
-
-    function saveObsFromModal() {
-        if (currentInputId) {
-            let newVal = document.getElementById('modalObsText').value;
-            document.getElementById(currentInputId).value = newVal;
-            
-            var myModalEl = document.getElementById('obsModal');
-            var modal = bootstrap.Modal.getInstance(myModalEl);
-            modal.hide();
-
-            let inputEl = document.getElementById(currentInputId);
-            let btnEl = inputEl.nextElementSibling;
-            
-            if (newVal.trim() !== "") {
-                btnEl.classList.remove('btn-outline-secondary');
-                btnEl.classList.add('btn-info', 'text-white');
-                btnEl.innerHTML = '<i class="bi bi-chat-left-text-fill" style="font-size: 0.8rem;"></i>';
-            } else {
-                btnEl.classList.remove('btn-info', 'text-white');
-                btnEl.classList.add('btn-outline-secondary');
-                btnEl.innerHTML = '<i class="bi bi-plus-lg" style="font-size: 1rem;"></i>';
-            }
-        }
-    }
-    </script>
+  }
+  bootstrap.Modal.getInstance(document.getElementById('obsModal')).hide();
+}
+</script>
 {% endblock %}
