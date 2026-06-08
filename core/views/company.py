@@ -6,9 +6,12 @@ from django.contrib.auth.models import User
 from django.urls import reverse_lazy
 from django.contrib import messages
 
+from datetime import date
+
 from ..models import Company
 from ..forms import CompanyForm
 from ..permissions import RoleRequiredMixin, has_role, ADMIN
+from ..permissions import get_role
 
 
 class CompanyCreateView(RoleRequiredMixin, LoginRequiredMixin, CreateView):
@@ -103,6 +106,14 @@ def select_company(request, company_id):
 @login_required
 def home_redirect(request):
     active_company_id = request.session.get('active_company_id')
+    active_company = None
     if active_company_id:
-        return redirect('core:dashboard', company_id=active_company_id)
-    return redirect('core:company_list')
+        active_company = Company.objects.filter(pk=active_company_id, users=request.user).first()
+
+    role = get_role(request.user)
+
+    return render(request, 'core/home.html', {
+        'active_company': active_company,
+        'role': role,
+        'today': date.today(),
+    })

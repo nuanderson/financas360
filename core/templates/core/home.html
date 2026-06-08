@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+{% block title %}Início — Controle +{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Banner de boas-vindas ─────────────────────────────────────── */
+.home-banner {
+    background: linear-gradient(135deg, #4159D0 0%, #C84FC0 60%, #FFCD70 100%);
+    border-radius: 1rem;
+    padding: 2rem 2.5rem;
+    color: #fff;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 20px rgba(65,89,208,.25);
+}
+.home-banner .clock {
+    font-size: 3.2rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+.home-banner .clock-seconds {
+    font-size: 2rem;
+    opacity: .7;
+    font-weight: 400;
+}
+.home-banner .date-label {
+    font-size: .95rem;
+    opacity: .85;
+    margin-top: .3rem;
+}
+.home-banner .greeting {
+    font-size: 1.4rem;
+    font-weight: 600;
+}
+.home-banner .company-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    background: rgba(255,255,255,.18);
+    border: 1px solid rgba(255,255,255,.3);
+    border-radius: 2rem;
+    padding: .3rem .85rem;
+    font-size: .85rem;
+    margin-top: .5rem;
+}
+
+/* ── Seção label ──────────────────────────────────────────────── */
+.section-label {
+    font-size: .7rem;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #6c757d;
+    margin-bottom: .75rem;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+}
+.section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #dee2e6;
+}
+
+/* ── Module tiles ─────────────────────────────────────────────── */
+.module-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: #fff;
+    border-radius: .75rem;
+    padding: 1.25rem 1.25rem 1rem;
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    height: 100%;
+}
+.module-tile:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,.1);
+    border-color: #c5ceff;
+    color: inherit;
+}
+.module-tile .tile-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: .6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    margin-bottom: .75rem;
+    flex-shrink: 0;
+}
+.module-tile .tile-name {
+    font-weight: 600;
+    font-size: .88rem;
+    color: #212529;
+    line-height: 1.3;
+}
+.module-tile .tile-desc {
+    font-size: .75rem;
+    color: #6c757d;
+    margin-top: .2rem;
+    line-height: 1.4;
+}
+
+/* Cores das tiles por módulo */
+.tile-blue   { background: #e8ecff; color: #4159D0; }
+.tile-green  { background: #e6f7ee; color: #1a7c45; }
+.tile-purple { background: #f3e8ff; color: #7c3aed; }
+.tile-teal   { background: #e6f7f5; color: #0d7870; }
+.tile-orange { background: #fff4e6; color: #c05c00; }
+.tile-red    { background: #fee8e8; color: #c0392b; }
+.tile-indigo { background: #eef0ff; color: #3d52d5; }
+.tile-pink   { background: #fce8f6; color: #b5179e; }
+.tile-yellow { background: #fffbe6; color: #9a7000; }
+.tile-cyan   { background: #e6f9ff; color: #0077a8; }
+.tile-gray   { background: #f1f3f5; color: #495057; }
+.tile-lime   { background: #edfce8; color: #3a7d26; }
+
+/* ── No-company banner ────────────────────────────────────────── */
+.no-company-card {
+    border: 2px dashed #ced4da;
+    border-radius: .75rem;
+    padding: 2rem;
+    text-align: center;
+    background: #fff;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Banner: Relógio + Saudação ──────────────────────────────── -->
+<div class="home-banner d-flex flex-wrap justify-content-between align-items-center gap-3">
+
+    <!-- Lado esquerdo: saudação + empresa -->
+    <div>
+        <div class="greeting mb-1" id="greetingText">Olá, {{ request.user.get_full_name|default:request.user.username }}!</div>
+        {% if active_company %}
+        <div class="company-badge">
+            <i class="bi bi-building-fill"></i>
+            <span>{{ active_company.name }}</span>
+        </div>
+        {% else %}
+        <div class="company-badge" style="opacity:.7;">
+            <i class="bi bi-building"></i>
+            <span>Nenhuma unidade ativa</span>
+        </div>
+        {% endif %}
+        <div class="date-label mt-2" id="dateLabel">carregando data…</div>
+    </div>
+
+    <!-- Lado direito: relógio digital -->
+    <div class="text-end">
+        <div class="clock">
+            <span id="clockHM">--:--</span><span class="clock-seconds">:<span id="clockS">--</span></span>
+        </div>
+        <div class="date-label mt-1" id="timezoneLabel" style="font-size:.78rem;opacity:.6;">horário local</div>
+    </div>
+
+</div>
+
+<!-- ── Aviso: sem unidade ativa ────────────────────────────────── -->
+{% if not active_company %}
+<div class="no-company-card mb-4">
+    <i class="bi bi-building-x display-4 text-muted mb-3 d-block"></i>
+    <h5 class="text-muted">Nenhuma unidade selecionada</h5>
+    <p class="text-muted small mb-3">Selecione uma unidade para acessar os módulos do sistema.</p>
+    <a href="{% url 'core:company_list' %}" class="btn btn-primary px-4">
+        <i class="bi bi-building me-2"></i>Ir para Minhas Unidades
+    </a>
+</div>
+{% endif %}
+
+{% if active_company %}
+
+<!-- ════════════════════════════════════════════════════════════════
+     FINANCEIRO — roles: admin, gestor, analista_receitas, analista_despesas
+     ════════════════════════════════════════════════════════════════ -->
+{% if role != 'analista_plantoes' %}
+
+<div class="section-label"><i class="bi bi-currency-dollar"></i> Financeiro</div>
+<div class="row g-3 mb-4">
+
+    {% if role == 'admin' or role == 'gestor' %}
+    <div class="col-6 col-md-3">
+        <a href="{% url 'core:dashboard' active_company.id %}" class="module-tile">
+            <div class="tile-icon tile-blue"><i class="bi bi-graph-up"></i></div>
+            <div class="tile-name">Dashboard</div>
+            <div class="tile-desc">Visão financeira do mês</div>
+        </a>
+    </div>
+    {% endif %}
+
+    <div class="col-6 col-md-3">
+        <a href="{% url 'core:transaction_list' %}" class="module-tile">
+            <div class="tile-icon tile-green"><i class="bi bi-arrow-left-right"></i></div>
+            <div class="tile-name">Lançamentos</div>
+            <div class="tile-desc">Receitas e despesas</div>
+        </a>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <a href="{% url 'core:chart_of_accounts_list' active_company.id %}" class="module-tile">
+            <div class="tile-icon tile-indigo"><i class="bi bi-journal-text"></i></div>
+            <div class="tile-name">Plano de Contas</div>
+            <div class="tile-desc">Estrutura contábil</div>
+        </a>
+    </div>
+
+    {% if role == 'admin' or role == 'gestor' %}
+    <div class="col-6 col-md-3">
+        <a href="{% url 'core:reports_hub' %}" class="module-tile">
+            <div class="tile-icon tile-purple"><i class="bi bi-file-earmark-bar-graph"></i></div>
+            <div class="tile-name">Relatórios</div>
+            <div class="tile-desc">DRE, Extrato, Comparativo</div>
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+
+<div class="section-label"><i class="bi bi-wallet2"></i> Orçamento</div>
+<div class="row g-3 mb-4">
+
+    <div class="col-6 col-md-3">
+        <a href="{% url 'core:budget_dashboard' %}" class="module-tile">
+            <div class="tile-icon tile-teal"><i class="bi bi-table"></i></div>
+            <div class="tile-name">Quadro Orçamentário</div>
+            <div class="tile-desc">Planejado vs. realizado</div>
+        </a>
+    </div>
+
+    {% if role == 'admin' or role == 'gestor' %}
+    <div class="col-6 col-md-3">
+        <a href="{% url 'core:budget_entry' %}" class="module-tile">
+            <div class="tile-icon tile-orange"><i class="bi bi-pencil-square"></i></div>
+            <div class="tile-name">Lançar Orçamento</div>
+            <div class="tile-desc">Definir metas mensais</div>
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+
+{% endif %}{# /not analista_plantoes #}
+
+<!-- ════════════════════════════════════════════════════════════════
+     GESTÃO DE ESCALAS — roles: admin, gestor, analista_plantoes
+     ════════════════════════════════════════════════════════════════ -->
+{% if role == 'admin' or role == 'gestor' or role == 'analista_plantoes' %}
+
+<div class="section-label"><i class="bi bi-hospital"></i> Gestão de Escalas — Plantões &amp; Serviços</div>
+<div class="row g-3 mb-4">
+
+    <div class="col-6 col-md-3">
+        <a href="{% url 'plantoes:dashboard' %}" class="module-tile">
+            <div class="tile-icon tile-blue"><i class="bi bi-speedometer2"></i></div>
+            <div class="tile-name">Visão Geral</div>
+            <div class="tile-desc">Resumo de todos os módulos</div>
+        </a>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <a href="{% url 'plantoes:urgencia_folha' %}" class="module-tile">
+            <div class="tile-icon tile-red"><i class="bi bi-heart-pulse-fill"></i></div>
+            <div class="tile-name">Urgência e Emergência</div>
+            <div class="tile-desc">Folha de plantões</div>
+        </a>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <a href="{% url 'plantoes:cirurgia_folha' %}" class="module-tile">
+            <div class="tile-icon tile-pink"><i class="bi bi-bandaid-fill"></i></div>
+            <div class="tile-name">Cirurgia Geral</div>
+            <div class="tile-desc">Folha de plantões</div>
+        </a>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <a href="{% url 'plantoes:anestesiologia_folha' %}" class="module-tile">
+            <div class="tile-icon tile-purple"><i class="bi bi-capsule"></i></div>
+            <div class="tile-name">Anestesiologia</div>
+            <div class="tile-desc">Plantões e produtividade</div>
+        </a>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <a href="{% url 'plantoes:ambulatorio_folha' %}" class="module-tile">
+            <div class="tile-icon tile-teal"><i class="bi bi-hospital"></i></div>
+            <div class="tile-name">Ambulatório</div>
+            <div class="tile-desc">Contratos médicos</div>
+        </a>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <a href="{% url 'plantoes:nefrologia_folha' %}" class="module-tile">
+            <div class="tile-icon tile-cyan"><i class="bi bi-droplet-half"></i></div>
+            <div class="tile-name">Nefrologia</div>
+            <div class="tile-desc">Produção e hemodiálise</div>
+        </a>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <a href="{% url 'plantoes:ultrassonografia_folha' %}" class="module-tile">
+            <div class="tile-icon tile-indigo"><i class="bi bi-activity"></i></div>
+            <div class="tile-name">Ultrassonografia</div>
+            <div class="tile-desc">Lançamento mensal</div>
+        </a>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <a href="{% url 'plantoes:endoscopia_folha' %}" class="module-tile">
+            <div class="tile-icon tile-green"><i class="bi bi-search-heart"></i></div>
+            <div class="tile-name">Endoscopia e Exames</div>
+            <div class="tile-desc">Produção de procedimentos</div>
+        </a>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <a href="{% url 'plantoes:bucomaxilo_folha' %}" class="module-tile">
+            <div class="tile-icon tile-orange"><i class="bi bi-person-lines-fill"></i></div>
+            <div class="tile-name">Bucomaxilo</div>
+            <div class="tile-desc">Pagamentos e sobreavisos</div>
+        </a>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <a href="{% url 'plantoes:residencia_folha' %}" class="module-tile">
+            <div class="tile-icon tile-yellow"><i class="bi bi-mortarboard-fill"></i></div>
+            <div class="tile-name">Aulas COREME</div>
+            <div class="tile-desc">Residência médica</div>
+        </a>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <a href="{% url 'plantoes:coordenacao_folha' %}" class="module-tile">
+            <div class="tile-icon tile-blue"><i class="bi bi-people-fill"></i></div>
+            <div class="tile-name">Coordenações</div>
+            <div class="tile-desc">Pagamentos fixos</div>
+        </a>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <a href="{% url 'plantoes:comissao_folha' %}" class="module-tile">
+            <div class="tile-icon tile-lime"><i class="bi bi-patch-check-fill"></i></div>
+            <div class="tile-name">Comissões</div>
+            <div class="tile-desc">Comissões hospitalares</div>
+        </a>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <a href="{% url 'plantoes:cooperativa_folha' %}" class="module-tile">
+            <div class="tile-icon tile-gray"><i class="bi bi-building"></i></div>
+            <div class="tile-name">Cooperativas</div>
+            <div class="tile-desc">Contratos mensais</div>
+        </a>
+    </div>
+
+</div>
+
+{% endif %}{# /gestao_escalas #}
+
+<!-- ════════════════════════════════════════════════════════════════
+     OUTROS — sempre visível quando tem empresa
+     ════════════════════════════════════════════════════════════════ -->
+<div class="section-label"><i class="bi bi-three-dots"></i> Outros</div>
+<div class="row g-3 mb-4">
+
+    <div class="col-6 col-md-3">
+        <a href="{% url 'core:note_list' %}" class="module-tile">
+            <div class="tile-icon tile-yellow"><i class="bi bi-sticky"></i></div>
+            <div class="tile-name">Bloco de Notas</div>
+            <div class="tile-desc">Anotações e lembretes</div>
+        </a>
+    </div>
+
+    {% if role == 'admin' %}
+    <div class="col-6 col-md-3">
+        <a href="{% url 'core:user_list' %}" class="module-tile">
+            <div class="tile-icon tile-gray"><i class="bi bi-people"></i></div>
+            <div class="tile-name">Gerenciar Usuários</div>
+            <div class="tile-desc">Acessos e permissões</div>
+        </a>
+    </div>
+    {% endif %}
+
+    <div class="col-6 col-md-3">
+        <a href="{% url 'core:company_list' %}" class="module-tile">
+            <div class="tile-icon tile-indigo"><i class="bi bi-building-fill-gear"></i></div>
+            <div class="tile-name">Minhas Unidades</div>
+            <div class="tile-desc">Trocar ou gerenciar unidade</div>
+        </a>
+    </div>
+
+</div>
+
+{% endif %}{# /active_company #}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    // ── Meses e dias em português ──────────────────────────────────
+    const meses = [
+        'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+        'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'
+    ];
+    const diasSemana = [
+        'Domingo','Segunda-feira','Terça-feira','Quarta-feira',
+        'Quinta-feira','Sexta-feira','Sábado'
+    ];
+
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    function updateClock() {
+        const now = new Date();
+
+        // ── Relógio ───────────────────────────────────────────────
+        document.getElementById('clockHM').textContent =
+            pad(now.getHours()) + ':' + pad(now.getMinutes());
+        document.getElementById('clockS').textContent =
+            pad(now.getSeconds());
+
+        // ── Data por extenso ──────────────────────────────────────
+        const diaSemana = diasSemana[now.getDay()];
+        const dia       = now.getDate();
+        const mes       = meses[now.getMonth()];
+        const ano       = now.getFullYear();
+        document.getElementById('dateLabel').textContent =
+            diaSemana + ', ' + dia + ' de ' + mes + ' de ' + ano;
+
+        // ── Saudação dinâmica ─────────────────────────────────────
+        const h = now.getHours();
+        let saudacao = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+        const nome = '{{ request.user.get_full_name|default:request.user.username|escapejs }}';
+        document.getElementById('greetingText').textContent =
+            saudacao + ', ' + nome + '!';
+    }
+
+    updateClock();
+    setInterval(updateClock, 1000);
+})();
+</script>
+{% endblock %}
