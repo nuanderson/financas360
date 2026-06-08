@@ -91,6 +91,9 @@ LOGIN_URL = 'core:login'
 
 USE_THOUSAND_SEPARATOR = True
 
+# Plano de contas pode ter muitas contas × 12 meses no formulário de orçamento
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
+
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
