@@ -160,6 +160,7 @@
                             {% endif %}
                         </td>
                         <td class="text-center">
+                            {% if not locked_type or t.account.account_type == locked_type %}
                             <a href="{% url 'core:transaction_update' t.pk %}"
                                class="btn btn-sm btn-outline-primary" title="Editar">
                                 <i class="bi bi-pencil"></i>
@@ -168,6 +169,9 @@
                                class="btn btn-sm btn-outline-danger" title="Excluir">
                                 <i class="bi bi-trash"></i>
                             </a>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}

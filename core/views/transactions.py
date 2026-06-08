@@ -41,12 +41,32 @@ def _locked_type_for_user(user):
     return None
 
 
-class TransactionUpdateView(RoleRequiredMixin, LoginRequiredMixin, UpdateView):
-    """Editar lançamento — somente Admin/Gestor."""
+class TransactionUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    Editar lançamento.
+    Admin/Gestor: qualquer tipo.
+    Analista Receitas: só pode editar receitas.
+    Analista Despesas: só pode editar despesas.
+    Outros: bloqueados.
+    """
     model         = Transaction
     form_class    = TransactionForm
     template_name = 'core/transaction_form.html'
-    allowed_roles = MANAGERS
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            from django.contrib.auth.views import redirect_to_login
+            return redirect_to_login(request.get_full_path())
+        if not has_role(request.user, ADMIN, GESTOR, ANALISTA_RECEITAS, ANALISTA_DESPESAS):
+            messages.error(request, "Você não tem permissão para editar lançamentos.")
+            return redirect('core:transaction_list')
+        obj = self.get_object()
+        locked = _locked_type_for_user(request.user)
+        if locked and obj.account.account_type != locked:
+            messages.error(request,
+                "Você não tem permissão para editar este tipo de lançamento.")
+            return redirect('core:transaction_list')
+        return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         active_company_id = self.request.session.get('active_company_id')
