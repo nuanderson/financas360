@@ -20,7 +20,12 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.contrib.auth.models import User
-from weasyprint import HTML
+try:
+    from weasyprint import HTML as WeasyHTML
+    _WEASYPRINT_OK = True
+except Exception:
+    WeasyHTML = None
+    _WEASYPRINT_OK = False
 
 from ..models import Budget, ChartOfAccounts, Company, Transaction
 from ..permissions import role_required, MANAGERS
@@ -272,7 +277,9 @@ def dre_report_pdf(request):
         **dre,
     }
     html_string = render_to_string('core/dre_report_pdf.html', context)
-    pdf = HTML(string=html_string).write_pdf()
+    if not _WEASYPRINT_OK:
+        return HttpResponse("PDF indisponível neste ambiente.", status=501)
+    pdf = WeasyHTML(string=html_string).write_pdf()
     response = HttpResponse(pdf, content_type='application/pdf')
     response['Content-Disposition'] = (
         f'attachment; filename="DRE_{active_company.name}_{start_date_str}_{end_date_str}.pdf"'
@@ -445,7 +452,9 @@ def dre_mensal_pdf(request):
         'generated_at': datetime.now().strftime('%d/%m/%Y %H:%M'),
     }
     html_string = render_to_string('core/dre_mensal_pdf.html', context)
-    pdf = HTML(string=html_string).write_pdf()
+    if not _WEASYPRINT_OK:
+        return HttpResponse("PDF indisponível neste ambiente.", status=501)
+    pdf = WeasyHTML(string=html_string).write_pdf()
     response = HttpResponse(pdf, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="DRE_Mensal_{active_company.name}_{year}.pdf"'
     return response
@@ -706,7 +715,9 @@ def extrato_analitico(request):
             'generated_at': datetime.now().strftime('%d/%m/%Y %H:%M'),
         }
         html_string = render_to_string('core/extrato_analitico_pdf.html', context)
-        pdf = HTML(string=html_string).write_pdf()
+        if not _WEASYPRINT_OK:
+            return HttpResponse("PDF indisponivel neste ambiente.", status=501)
+        pdf = WeasyHTML(string=html_string).write_pdf()
         response = HttpResponse(pdf, content_type='application/pdf')
         response['Content-Disposition'] = (
             f'attachment; filename="Extrato_{active_company.name}_{start_date_str}_{end_date_str}.pdf"'

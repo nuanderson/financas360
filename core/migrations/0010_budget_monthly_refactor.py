@@ -40,6 +40,7 @@ def collapse_monthly_to_annual(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    atomic = False
 
     dependencies = [
         ('core', '0009_remove_commercial_fks'),

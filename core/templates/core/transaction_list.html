@@ -5,6 +5,7 @@
 {% block title %}Lançamentos - {{ active_company.name }}{% endblock %}
 
 {% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 <style>
 .btn-gradient-save    { background: linear-gradient(to right,#fc5c7d,#6a82fb); border:none; color:#fff !important; }
 .btn-gradient-clear   { background: linear-gradient(to right,#283048,#859398); border:none; color:#fff !important; }
@@ -314,26 +315,54 @@ function populateAccountSelect(selectEl, filterType, currentValue) {
         });
 }
 
+// ── Helper: (re)inicializa Select2 num elemento ─────────────────────────────
+function initSelect2(selector, options) {
+    const $el = $(selector);
+    if ($el.data('select2')) $el.select2('destroy');
+    $el.select2(options);
+}
+
 // ── 1. Dropdown de contas no MODAL (novo lançamento) ────────────────────────
 const modalTypeFilter = document.getElementById('{{ form.account_type_filter.id_for_label }}');
 const modalAccountSel = document.getElementById('{{ form.account.id_for_label }}');
+const modalSelect2Opts = {
+    dropdownParent: $('#addTransactionModal'),
+    placeholder: 'Digite para buscar a conta...',
+    allowClear: true,
+    width: '100%',
+    theme: 'bootstrap-5',
+    language: { noResults: () => 'Nenhuma conta encontrada' }
+};
 
 if (modalTypeFilter && modalAccountSel) {
-    modalTypeFilter.addEventListener('change', () =>
-        populateAccountSelect(modalAccountSel, modalTypeFilter.value, modalAccountSel.value));
+    modalTypeFilter.addEventListener('change', () => {
+        populateAccountSelect(modalAccountSel, modalTypeFilter.value, '');
+        initSelect2('#{{ form.account.id_for_label }}', modalSelect2Opts);
+    });
     populateAccountSelect(modalAccountSel, modalTypeFilter.value, modalAccountSel.value);
+    initSelect2('#{{ form.account.id_for_label }}', modalSelect2Opts);
 }
 
 // ── 2. Dropdown de contas no FILTRO (topo da página) ────────────────────────
-const filterTypeSel   = document.getElementById('{{ filter_form.account_type.id_for_label }}');
+const filterTypeSel    = document.getElementById('{{ filter_form.account_type.id_for_label }}');
 const filterAccountSel = document.getElementById('{{ filter_form.account.id_for_label }}');
+const filterSelect2Opts = {
+    placeholder: 'Selecione ou busque uma conta...',
+    allowClear: true,
+    width: '100%',
+    theme: 'bootstrap-5',
+    language: { noResults: () => 'Nenhuma conta encontrada' }
+};
 
 if (filterTypeSel && filterAccountSel) {
-    // Preserva a conta já selecionada pelo GET (ex: ao recarregar após filtrar)
     const selectedAccount = filterAccountSel.value;
     populateAccountSelect(filterAccountSel, filterTypeSel.value, selectedAccount);
-    filterTypeSel.addEventListener('change', () =>
-        populateAccountSelect(filterAccountSel, filterTypeSel.value, ''));
+    initSelect2('#{{ filter_form.account.id_for_label }}', filterSelect2Opts);
+
+    filterTypeSel.addEventListener('change', () => {
+        populateAccountSelect(filterAccountSel, filterTypeSel.value, '');
+        initSelect2('#{{ filter_form.account.id_for_label }}', filterSelect2Opts);
+    });
 }
 </script>
 {% endblock %}
