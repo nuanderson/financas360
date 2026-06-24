@@ -334,12 +334,23 @@ const modalSelect2Opts = {
 };
 
 if (modalTypeFilter && modalAccountSel) {
+    // Select2 precisa ser inicializado APÓS o modal estar visível
+    $('#addTransactionModal').on('shown.bs.modal', function () {
+        populateAccountSelect(modalAccountSel, modalTypeFilter.value, modalAccountSel.value);
+        initSelect2('#{{ form.account.id_for_label }}', modalSelect2Opts);
+    });
+
+    // Limpa o Select2 ao fechar para evitar duplicações
+    $('#addTransactionModal').on('hidden.bs.modal', function () {
+        const $el = $('#{{ form.account.id_for_label }}');
+        if ($el.data('select2')) $el.select2('destroy');
+    });
+
+    // Mudança no filtro de tipo re-popula e re-inicializa o Select2
     modalTypeFilter.addEventListener('change', () => {
         populateAccountSelect(modalAccountSel, modalTypeFilter.value, '');
         initSelect2('#{{ form.account.id_for_label }}', modalSelect2Opts);
     });
-    populateAccountSelect(modalAccountSel, modalTypeFilter.value, modalAccountSel.value);
-    initSelect2('#{{ form.account.id_for_label }}', modalSelect2Opts);
 }
 
 // ── 2. Dropdown de contas no FILTRO (topo da página) ────────────────────────
