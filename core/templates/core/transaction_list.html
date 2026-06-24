@@ -271,6 +271,9 @@
                                             box-shadow:0 4px 8px rgba(0,0,0,.15)">
                                 </div>
                             </div>
+                            {# Input hidden que realmente envia o valor da conta no POST #}
+                            <input type="hidden" name="account" id="id_account_submit">
+                            {# Select do Django usado só para ler valor inicial (form com erro); disabled = não envia #}
                             <div style="display:none">{{ form.account }}</div>
                             {% for e in form.account.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                         </div>
@@ -326,12 +329,23 @@ function populateAccountSelect(selectEl, filterType, currentValue) {
 }
 
 // ── 1. Typeahead customizado no MODAL (novo lançamento) ─────────────────────
-const modalTypeFilter = document.getElementById('{{ form.account_type_filter.id_for_label }}');
-const modalAccountSel = document.getElementById('{{ form.account.id_for_label }}');
-const contaSearch     = document.getElementById('conta-search');
-const contaDropdown   = document.getElementById('conta-dropdown');
+const modalTypeFilter  = document.getElementById('{{ form.account_type_filter.id_for_label }}');
+const modalAccountSel  = document.getElementById('{{ form.account.id_for_label }}');
+const accountSubmitInput = document.getElementById('id_account_submit');
+const contaSearch      = document.getElementById('conta-search');
+const contaDropdown    = document.getElementById('conta-dropdown');
 
 let currentTypeFilter = '';
+
+// Desabilita o select do Django para que não envie valor duplicado no POST
+if (modalAccountSel) modalAccountSel.disabled = true;
+
+// Se o form voltou com erro, lê o valor do select do Django e preenche o hidden + search
+if (modalAccountSel && modalAccountSel.value && accountSubmitInput) {
+    accountSubmitInput.value = modalAccountSel.value;
+    const saved = allAccounts.find(a => String(a.pk) === String(modalAccountSel.value));
+    if (saved) contaSearch.value = `${saved.code} – ${saved.name}`;
+}
 
 // Move o dropdown para body para evitar clipping do overflow do modal
 document.body.appendChild(contaDropdown);
@@ -366,8 +380,11 @@ function buildContaDropdown(term) {
             btn.textContent = `${a.code} – ${a.name}`;
             btn.addEventListener('mousedown', e => {
                 e.preventDefault();
-                contaSearch.value     = btn.textContent;
-                modalAccountSel.value = a.pk;
+                contaSearch.value          = btn.textContent;
+                accountSubmitInput.value   = a.pk;
+                contaSearch.classList.remove('is-invalid');
+                const fb = document.getElementById('conta-search-feedback');
+                if (fb) fb.remove();
                 contaDropdown.style.display = 'none';
             });
             contaDropdown.appendChild(btn);
@@ -377,18 +394,9 @@ function buildContaDropdown(term) {
     contaDropdown.style.display = 'block';
 }
 
-if (contaSearch && modalAccountSel) {
-    modalAccountSel.style.display = 'none';
-
-    // Se form voltou com erro, exibe o nome da conta já selecionada
-    if (modalAccountSel.value) {
-        const saved = allAccounts.find(a => String(a.pk) === String(modalAccountSel.value));
-        if (saved) contaSearch.value = `${saved.code} – ${saved.name}`;
-    }
-
+if (contaSearch) {
     contaSearch.addEventListener('input', function () {
-        // Limpa seleção ao digitar (usuário precisa clicar no resultado)
-        modalAccountSel.value = '';
+        accountSubmitInput.value = '';
         contaSearch.classList.remove('is-invalid');
         buildContaDropdown(this.value);
     });
@@ -399,27 +407,27 @@ if (contaSearch && modalAccountSel) {
 
     if (modalTypeFilter) {
         modalTypeFilter.addEventListener('change', function () {
-            currentTypeFilter     = this.value;
-            contaSearch.value     = '';
-            modalAccountSel.value = '';
+            currentTypeFilter        = this.value;
+            contaSearch.value        = '';
+            accountSubmitInput.value = '';
             contaDropdown.style.display = 'none';
         });
     }
 
-    // Validação antes de enviar: exige que uma conta tenha sido selecionada
+    // Bloqueia envio se nenhuma conta foi selecionada da lista
     const modalForm = contaSearch.closest('form');
     if (modalForm) {
         modalForm.addEventListener('submit', function (e) {
-            if (!modalAccountSel.value) {
+            if (!accountSubmitInput.value) {
                 e.preventDefault();
                 contaSearch.classList.add('is-invalid');
                 contaSearch.focus();
                 if (!document.getElementById('conta-search-feedback')) {
                     const fb = document.createElement('div');
                     fb.id = 'conta-search-feedback';
-                    fb.className = 'invalid-feedback d-block';
-                    fb.textContent = 'Selecione uma conta da lista.';
-                    contaSearch.parentElement.appendChild(fb);
+                    fb.className = 'text-danger small mt-1';
+                    fb.textContent = 'Selecione uma conta clicando na lista.';
+                    contaSearch.closest('.position-relative').after(fb);
                 }
             }
         });
