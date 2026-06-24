@@ -28,7 +28,7 @@ except Exception:
     _WEASYPRINT_OK = False
 
 from ..models import Budget, ChartOfAccounts, Company, Transaction
-from ..permissions import role_required, MANAGERS
+from ..permissions import role_required, MANAGERS, has_role, ADMIN
 
 
 def _parse_year(value, default=None):
@@ -753,7 +753,10 @@ def productivity_report(request):
         return redirect('core:company_list')
     active_company = get_object_or_404(Company, pk=active_company_id, users=request.user)
 
-    today = date.today()
+    is_admin      = has_role(request.user, ADMIN)
+    all_companies = is_admin and request.GET.get('all_companies') == '1'
+
+    today          = date.today()
     start_date_str = request.GET.get('start_date', today.replace(day=1).strftime('%Y-%m-%d'))
     end_date_str   = request.GET.get('end_date', today.strftime('%Y-%m-%d'))
     user_filter_id = request.GET.get('user_id', '')
@@ -765,17 +768,48 @@ def productivity_report(request):
         start_date = today.replace(day=1)
         end_date   = today
 
-    qs = Transaction.objects.filter(
-        company=active_company,
-        created_at__date__range=[start_date, end_date],
-    )
+    if all_companies:
+        qs = Transaction.objects.filter(
+            company__users=request.user,
+            created_at__date__range=[start_date, end_date],
+        )
+    else:
+        qs = Transaction.objects.filter(
+            company=active_company,
+            created_at__date__range=[start_date, end_date],
+        )
     if user_filter_id:
         qs = qs.filter(created_by_id=user_filter_id)
 
+    # ── Resumo por empresa (somente no modo consolidado) ─────────
+    by_company = []
+    if all_companies:
+        by_company = list(
+            qs.values('company__id', 'company__name')
+            .annotate(
+                total_lancamentos=Count('id'),
+                qtd_receitas=Count('id', filter=Q(account__account_type='R')),
+                qtd_despesas=Count('id', filter=Q(account__account_type__in=['D', 'E'])),
+                valor_receitas=Coalesce(
+                    Sum('amount', filter=Q(account__account_type='R')),
+                    Value(Decimal('0.00')), output_field=DecimalField()),
+                valor_despesas=Coalesce(
+                    Sum('amount', filter=Q(account__account_type__in=['D', 'E'])),
+                    Value(Decimal('0.00')), output_field=DecimalField()),
+                valor_total=Coalesce(Sum('amount'), Value(Decimal('0.00')),
+                                     output_field=DecimalField()),
+            )
+            .order_by('-total_lancamentos')
+        )
+
     # ── Resumo por usuário ────────────────────────────────────────
+    user_values = ['created_by__id', 'created_by__username',
+                   'created_by__first_name', 'created_by__last_name']
+    if all_companies:
+        user_values.append('company__name')
+
     by_user = (
-        qs.values('created_by__id', 'created_by__username',
-                  'created_by__first_name', 'created_by__last_name')
+        qs.values(*user_values)
         .annotate(
             total_lancamentos=Count('id'),
             qtd_receitas=Count('id', filter=Q(account__account_type='R')),
@@ -791,19 +825,21 @@ def productivity_report(request):
         )
         .order_by('-total_lancamentos')
     )
-
-    # Nome amigável para exibição
     user_summary = []
     for row in by_user:
-        fn = row['created_by__first_name'] or ''
-        ln = row['created_by__last_name'] or ''
+        fn   = row['created_by__first_name'] or ''
+        ln   = row['created_by__last_name'] or ''
         full = f"{fn} {ln}".strip() or row['created_by__username'] or '(sem usuário)'
         user_summary.append({**row, 'display_name': full})
 
     # ── Evolução diária por usuário ───────────────────────────────
+    daily_values = ['created_at__date', 'created_by__username',
+                    'created_by__first_name', 'created_by__last_name']
+    if all_companies:
+        daily_values.append('company__name')
+
     daily_qs = (
-        qs.values('created_at__date', 'created_by__username',
-                  'created_by__first_name', 'created_by__last_name')
+        qs.values(*daily_values)
         .annotate(
             lancamentos=Count('id'),
             valor=Coalesce(Sum('amount'), Value(Decimal('0.00')),
@@ -813,8 +849,8 @@ def productivity_report(request):
     )
     daily_rows = []
     for row in daily_qs:
-        fn = row['created_by__first_name'] or ''
-        ln = row['created_by__last_name'] or ''
+        fn   = row['created_by__first_name'] or ''
+        ln   = row['created_by__last_name'] or ''
         full = f"{fn} {ln}".strip() or row['created_by__username'] or '(sem usuário)'
         daily_rows.append({**row, 'display_name': full})
 
@@ -825,25 +861,32 @@ def productivity_report(request):
                              output_field=DecimalField()),
     )
     usuarios_ativos = qs.values('created_by').distinct().count()
-    top_user = user_summary[0] if user_summary else None
+    top_user        = user_summary[0] if user_summary else None
 
-    # Lista de usuários da empresa para o filtro
-    company_users = User.objects.filter(
-        companies=active_company
-    ).order_by('username')
+    if all_companies:
+        company_users = User.objects.filter(
+            companies__users=request.user
+        ).distinct().order_by('username')
+    else:
+        company_users = User.objects.filter(
+            companies=active_company
+        ).order_by('username')
 
     context = {
-        'company':        active_company,
-        'start_date_str': start_date_str,
-        'end_date_str':   end_date_str,
-        'user_filter_id': user_filter_id,
-        'company_users':  company_users,
-        'user_summary':   user_summary,
-        'daily_rows':     daily_rows,
+        'company':           active_company,
+        'is_admin':          is_admin,
+        'all_companies':     all_companies,
+        'start_date_str':    start_date_str,
+        'end_date_str':      end_date_str,
+        'user_filter_id':    user_filter_id,
+        'company_users':     company_users,
+        'by_company':        by_company,
+        'user_summary':      user_summary,
+        'daily_rows':        daily_rows,
         'total_lancamentos': totals['total_lancamentos'],
-        'total_valor':    totals['total_valor'],
-        'usuarios_ativos': usuarios_ativos,
-        'top_user':       top_user,
+        'total_valor':       totals['total_valor'],
+        'usuarios_ativos':   usuarios_ativos,
+        'top_user':          top_user,
     }
     return render(request, 'core/productivity_report.html', context)
 

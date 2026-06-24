@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% load l10n humanize %}
-{% block title %}Produtividade da Equipe — {{ company.name }}{% endblock %}
+{% block title %}Produtividade{% if all_companies %} — Todas as Empresas{% else %} — {{ company.name }}{% endif %}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -9,47 +9,80 @@
 .stat-card.green  { border-color: #057a55; }
 .stat-card.purple { border-color: #7c3aed; }
 .progress { height: 8px; border-radius: 4px; }
-.table-user thead th { background: #f8f9fa; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: #6c757d; }
-.badge-rank { width: 24px; height: 24px; border-radius: 50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:.75rem; }
+.table-user thead th { background:#f8f9fa; font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; color:#6c757d; }
+.badge-rank { width:24px; height:24px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:.75rem; }
+
+@media print {
+    .sidebar, .no-print { display: none !important; }
+    .main-content { padding: 0 !important; margin: 0 !important; }
+    body { background: #fff !important; }
+    .card { box-shadow: none !important; border: 1px solid #dee2e6 !important; margin-bottom: .5rem !important; }
+    .print-header { display: block !important; }
+    .table { font-size: .78rem; }
+    @page { size: A4 landscape; margin: 1cm; }
+}
+@media screen {
+    .print-header { display: none; }
+}
 </style>
 {% endblock %}
 
 {% block content %}
 
+<!-- Cabeçalho de impressão -->
+<div class="print-header mb-3">
+    <h3 class="fw-bold mb-0">Produtividade da Equipe</h3>
+    <p class="text-muted mb-1">
+        {% if all_companies %}Todas as Empresas{% else %}{{ company.name }}{% endif %}
+        &nbsp;·&nbsp; Período: {{ start_date_str }} a {{ end_date_str }}
+        &nbsp;·&nbsp; Gerado em: {% now "d/m/Y \à\s H:i" %}
+    </p>
+    <hr>
+</div>
+
 <!-- Cabeçalho -->
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 no-print">
     <div>
         <h1 class="fw-bold text-primary mb-0">
             <i class="bi bi-people-fill me-2"></i>Produtividade da Equipe
         </h1>
-        <p class="text-muted mb-0">{{ company.name }}</p>
+        <p class="text-muted mb-0">
+            {% if all_companies %}
+                <span class="badge bg-primary me-1">Todas as Empresas</span>
+            {% else %}
+                {{ company.name }}
+            {% endif %}
+        </p>
     </div>
-    <a href="{% url 'core:reports_hub' %}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i> Relatórios
-    </a>
+    <div class="d-flex gap-2">
+        <button onclick="window.print()" class="btn btn-outline-danger">
+            <i class="bi bi-file-earmark-pdf me-1"></i> Baixar PDF
+        </button>
+        <a href="{% url 'core:reports_hub' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Relatórios
+        </a>
+    </div>
 </div>
 
 <!-- Filtros -->
-<div class="card border-0 shadow-sm mb-4">
+<div class="card border-0 shadow-sm mb-4 no-print">
     <div class="card-body">
         <form method="get" class="row g-3 align-items-end">
+            {% if all_companies %}<input type="hidden" name="all_companies" value="1">{% endif %}
             <div class="col-md-3">
                 <label class="form-label fw-semibold">Data Início</label>
-                <input type="date" name="start_date" class="form-control"
-                       value="{{ start_date_str }}">
+                <input type="date" name="start_date" class="form-control" value="{{ start_date_str }}">
             </div>
             <div class="col-md-3">
                 <label class="form-label fw-semibold">Data Fim</label>
-                <input type="date" name="end_date" class="form-control"
-                       value="{{ end_date_str }}">
+                <input type="date" name="end_date" class="form-control" value="{{ end_date_str }}">
             </div>
             <div class="col-md-3">
                 <label class="form-label fw-semibold">Usuário</label>
                 <select name="user_id" class="form-select">
                     <option value="">Todos os usuários</option>
                     {% for u in company_users %}
-                    <option value="{{ u.pk }}"
-                        {% if user_filter_id == u.pk|stringformat:"s" %}selected{% endif %}>
+                    <option value="{{ u.pk }}" {% if user_filter_id == u.pk|stringformat:"s" %}selected{% endif %}>
                         {{ u.get_full_name|default:u.username }}
                     </option>
                     {% endfor %}
@@ -64,6 +97,20 @@
                 </a>
             </div>
         </form>
+
+        {% if is_admin %}
+        <div class="mt-3 pt-3 border-top">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="toggleAllCompanies"
+                       {% if all_companies %}checked{% endif %}
+                       onchange="toggleConsolidado(this)">
+                <label class="form-check-label fw-semibold" for="toggleAllCompanies">
+                    <i class="bi bi-buildings me-1 text-primary"></i>
+                    Relatório consolidado — todas as empresas
+                </label>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -96,10 +143,62 @@
     </div>
 </div>
 
-<!-- Tabela de resumo por usuário -->
+{% if all_companies and by_company %}
+<!-- SEÇÃO A: Resumo por Empresa -->
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white border-bottom fw-semibold">
-        <i class="bi bi-bar-chart-fill text-primary me-2"></i>Resumo por Usuário
+        <i class="bi bi-buildings text-primary me-2"></i>Resumo por Empresa
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 table-user">
+                <thead>
+                    <tr>
+                        <th class="px-3">#</th>
+                        <th>Empresa</th>
+                        <th class="text-center">Total</th>
+                        <th class="text-center text-success">Receitas (qtd)</th>
+                        <th class="text-end text-success">Valor Receitas</th>
+                        <th class="text-center text-danger">Despesas (qtd)</th>
+                        <th class="text-end text-danger">Valor Despesas</th>
+                        <th class="text-end">Valor Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in by_company %}
+                    <tr>
+                        <td class="px-3 text-muted small">{{ forloop.counter }}</td>
+                        <td class="fw-semibold">{{ row.company__name }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-primary rounded-pill fs-6">{{ row.total_lancamentos }}</span>
+                        </td>
+                        <td class="text-center text-success fw-semibold">{{ row.qtd_receitas }}</td>
+                        <td class="text-end text-success">R$ {{ row.valor_receitas|floatformat:2|intcomma }}</td>
+                        <td class="text-center text-danger fw-semibold">{{ row.qtd_despesas }}</td>
+                        <td class="text-end text-danger">R$ {{ row.valor_despesas|floatformat:2|intcomma }}</td>
+                        <td class="text-end fw-bold">R$ {{ row.valor_total|floatformat:2|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <td colspan="2" class="fw-bold px-3">Total Geral</td>
+                        <td class="text-center fw-bold">{{ total_lancamentos }}</td>
+                        <td colspan="4"></td>
+                        <td class="text-end fw-bold">R$ {{ total_valor|floatformat:2|intcomma }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- SEÇÃO B: Resumo por Usuário -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-bottom fw-semibold">
+        <i class="bi bi-bar-chart-fill text-primary me-2"></i>
+        {% if all_companies %}Detalhamento por Usuário{% else %}Resumo por Usuário{% endif %}
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -108,18 +207,18 @@
                     <tr>
                         <th class="px-3" style="width:40px;">#</th>
                         <th>Usuário</th>
+                        {% if all_companies %}<th>Empresa</th>{% endif %}
                         <th class="text-center">Total</th>
                         <th class="text-center text-success">Receitas (qtd)</th>
                         <th class="text-end text-success">Valor Receitas</th>
                         <th class="text-center text-danger">Despesas (qtd)</th>
                         <th class="text-end text-danger">Valor Despesas</th>
                         <th class="text-end">Valor Total</th>
-                        <th style="width:15%">Participação</th>
+                        {% if not all_companies %}<th style="width:15%">Participação</th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
                     {% for row in user_summary %}
-                    {% with pct=row.total_lancamentos|default:0 %}
                     <tr>
                         <td class="px-3">
                             {% if forloop.counter == 1 %}
@@ -136,6 +235,9 @@
                             <div class="fw-semibold">{{ row.display_name }}</div>
                             <small class="text-muted">@{{ row.created_by__username|default:"—" }}</small>
                         </td>
+                        {% if all_companies %}
+                        <td class="small text-muted">{{ row.company__name }}</td>
+                        {% endif %}
                         <td class="text-center">
                             <span class="badge bg-primary rounded-pill fs-6">{{ row.total_lancamentos }}</span>
                         </td>
@@ -144,23 +246,23 @@
                         <td class="text-center text-danger fw-semibold">{{ row.qtd_despesas }}</td>
                         <td class="text-end text-danger">R$ {{ row.valor_despesas|floatformat:2|intcomma }}</td>
                         <td class="text-end fw-bold">R$ {{ row.valor_total|floatformat:2|intcomma }}</td>
+                        {% if not all_companies %}
                         <td>
                             {% if total_lancamentos > 0 %}
                             {% widthratio row.total_lancamentos total_lancamentos 100 as pct_val %}
                             <div class="d-flex align-items-center gap-2">
                                 <div class="progress flex-grow-1">
-                                    <div class="progress-bar bg-primary"
-                                         style="width:{{ pct_val }}%"></div>
+                                    <div class="progress-bar bg-primary" style="width:{{ pct_val }}%"></div>
                                 </div>
                                 <small class="text-muted" style="min-width:32px;">{{ pct_val }}%</small>
                             </div>
                             {% endif %}
                         </td>
+                        {% endif %}
                     </tr>
-                    {% endwith %}
                     {% empty %}
                     <tr>
-                        <td colspan="9" class="text-center py-5 text-muted">
+                        <td colspan="{% if all_companies %}9{% else %}9{% endif %}" class="text-center py-5 text-muted">
                             <i class="bi bi-inbox fs-3 d-block mb-2"></i>
                             Nenhum lançamento encontrado no período.
                         </td>
@@ -170,11 +272,11 @@
                 {% if user_summary %}
                 <tfoot class="table-light">
                     <tr>
-                        <td colspan="2" class="fw-bold px-3">Total</td>
+                        <td colspan="{% if all_companies %}3{% else %}2{% endif %}" class="fw-bold px-3">Total</td>
                         <td class="text-center fw-bold">{{ total_lancamentos }}</td>
                         <td colspan="4"></td>
                         <td class="text-end fw-bold">R$ {{ total_valor|floatformat:2|intcomma }}</td>
-                        <td></td>
+                        {% if not all_companies %}<td></td>{% endif %}
                     </tr>
                 </tfoot>
                 {% endif %}
@@ -183,7 +285,7 @@
     </div>
 </div>
 
-<!-- Evolução diária -->
+<!-- Evolução Diária -->
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-white border-bottom fw-semibold">
         <i class="bi bi-calendar3 text-primary me-2"></i>Evolução Diária
@@ -195,6 +297,7 @@
                     <tr>
                         <th class="px-3">Data</th>
                         <th>Usuário</th>
+                        {% if all_companies %}<th>Empresa</th>{% endif %}
                         <th class="text-center">Lançamentos</th>
                         <th class="text-end">Valor Movimentado</th>
                     </tr>
@@ -210,9 +313,11 @@
                             <i class="bi bi-person-fill text-muted me-1"></i>
                             <span class="fw-semibold">{{ row.display_name }}</span>
                         </td>
+                        {% if all_companies %}
+                        <td class="small text-muted">{{ row.company__name }}</td>
+                        {% endif %}
                         <td class="text-center">
-                            <span class="badge rounded-pill"
-                                  style="background:#0e9f6e;font-size:.85rem;">
+                            <span class="badge rounded-pill" style="background:#0e9f6e;font-size:.85rem;">
                                 {{ row.lancamentos }}
                             </span>
                         </td>
@@ -222,7 +327,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="4" class="text-center py-4 text-muted">
+                        <td colspan="{% if all_companies %}5{% else %}4{% endif %}" class="text-center py-4 text-muted">
                             Nenhum dado no período.
                         </td>
                     </tr>
@@ -233,4 +338,19 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleConsolidado(checkbox) {
+    const url = new URL(window.location.href);
+    if (checkbox.checked) {
+        url.searchParams.set('all_companies', '1');
+    } else {
+        url.searchParams.delete('all_companies');
+    }
+    // Preserva os outros filtros ativos
+    window.location.href = url.toString();
+}
+</script>
 {% endblock %}
