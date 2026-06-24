@@ -271,10 +271,8 @@
                                             box-shadow:0 4px 8px rgba(0,0,0,.15)">
                                 </div>
                             </div>
-                            {# Input hidden que realmente envia o valor da conta no POST #}
-                            <input type="hidden" name="account" id="id_account_submit">
-                            {# Select do Django usado só para ler valor inicial (form com erro); disabled = não envia #}
-                            <div style="display:none">{{ form.account }}</div>
+                            {# Único campo que envia account no POST — pre-preenchido se form retornou com erro #}
+                            <input type="hidden" name="account" id="id_account_submit" value="{{ form.account.value|default:'' }}">
                             {% for e in form.account.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                         </div>
                         <div class="col-md-5">
@@ -329,21 +327,17 @@ function populateAccountSelect(selectEl, filterType, currentValue) {
 }
 
 // ── 1. Typeahead customizado no MODAL (novo lançamento) ─────────────────────
-const modalTypeFilter  = document.getElementById('{{ form.account_type_filter.id_for_label }}');
-const modalAccountSel  = document.getElementById('{{ form.account.id_for_label }}');
+const modalTypeFilter    = document.getElementById('{{ form.account_type_filter.id_for_label }}');
 const accountSubmitInput = document.getElementById('id_account_submit');
-const contaSearch      = document.getElementById('conta-search');
-const contaDropdown    = document.getElementById('conta-dropdown');
+const contaSearch        = document.getElementById('conta-search');
+const contaDropdown      = document.getElementById('conta-dropdown');
 
 let currentTypeFilter = '';
 
-// Desabilita o select do Django para que não envie valor duplicado no POST
-if (modalAccountSel) modalAccountSel.disabled = true;
-
-// Se o form voltou com erro, lê o valor do select do Django e preenche o hidden + search
-if (modalAccountSel && modalAccountSel.value && accountSubmitInput) {
-    accountSubmitInput.value = modalAccountSel.value;
-    const saved = allAccounts.find(a => String(a.pk) === String(modalAccountSel.value));
+// Se o form voltou com erro, o hidden input já tem o valor (via template {{ form.account.value }})
+// Basta preencher o campo de busca com o nome da conta
+if (accountSubmitInput && accountSubmitInput.value) {
+    const saved = allAccounts.find(a => String(a.pk) === String(accountSubmitInput.value));
     if (saved) contaSearch.value = `${saved.code} – ${saved.name}`;
 }
 
