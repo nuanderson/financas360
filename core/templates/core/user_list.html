@@ -85,6 +85,13 @@
                                     {% endif %}
                                 </button>
                             </form>
+                            <button type="button" class="btn btn-sm btn-outline-danger ms-1"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#modalExcluir"
+                                    data-user-id="{{ u.pk }}"
+                                    data-username="{{ u.username }}">
+                                <i class="bi bi-trash"></i>
+                            </button>
                             {% endif %}
                         </td>
                     </tr>
@@ -101,4 +108,43 @@
         </div>
     </div>
 </div>
+
+<!-- Modal de Confirmação de Exclusão -->
+<div class="modal fade" id="modalExcluir" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title text-danger fw-bold">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Excluir Usuário
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-1">Tem certeza que deseja excluir o usuário <strong id="modalUsername"></strong>?</p>
+                <p class="text-danger small mb-0">Esta ação não pode ser desfeita.</p>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="formExcluir" method="post" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-1"></i>Excluir
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('modalExcluir').addEventListener('show.bs.modal', function (e) {
+    const btn = e.relatedTarget;
+    const userId = btn.getAttribute('data-user-id');
+    const username = btn.getAttribute('data-username');
+    document.getElementById('modalUsername').textContent = '@' + username;
+    document.getElementById('formExcluir').action = '/usuarios/' + userId + '/excluir/';
+});
+</script>
 {% endblock %}

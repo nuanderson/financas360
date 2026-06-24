@@ -65,6 +65,7 @@ urlpatterns = [
     path('usuarios/novo/', views.user_create, name='user_create'),
     path('usuarios/<int:user_id>/editar/', views.user_edit, name='user_edit'),
     path('usuarios/<int:user_id>/toggle-ativo/', views.user_toggle_active, name='user_toggle_active'),
+    path('usuarios/<int:user_id>/excluir/', views.user_delete, name='user_delete'),
     # Bloco de Notas
     path('notas/', views.note_list, name='note_list'),
     path('notas/nova/', views.NoteCreateView.as_view(), name='note_create'),

@@ -22,4 +22,4 @@ from .api import (
     revenue_vs_expense_12m_data,
 )
 from .notes import note_list, NoteCreateView, NoteUpdateView, NoteDeleteView, tag_create, note_archive
-from .users import user_list, user_create, user_edit, user_toggle_active
+from .users import user_list, user_create, user_edit, user_toggle_active, user_delete

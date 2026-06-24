@@ -80,6 +80,27 @@
                 </div>
             </div>
 
+            {% if companies %}
+            <hr class="my-3">
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Empresas</label>
+                <div class="border rounded p-3" style="max-height:200px;overflow-y:auto;">
+                    {% for company in companies %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox"
+                               name="companies" value="{{ company.pk }}"
+                               id="company_{{ company.pk }}"
+                               {% if company.pk in selected_company_ids %}checked{% endif %}>
+                        <label class="form-check-label" for="company_{{ company.pk }}">
+                            {{ company.name }}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="form-text">Selecione as empresas que este usuário poderá acessar.</div>
+            </div>
+            {% endif %}
+
             <hr class="my-3">
             <p class="fw-semibold mb-2">
                 {% if action == 'create' %}Senha <span class="text-danger">*</span>{% else %}Redefinir senha <span class="text-muted fw-normal">(deixe em branco para manter a atual)</span>{% endif %}
