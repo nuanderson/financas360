@@ -767,7 +767,7 @@ def productivity_report(request):
 
     qs = Transaction.objects.filter(
         company=active_company,
-        date__range=[start_date, end_date],
+        created_at__date__range=[start_date, end_date],
     )
     if user_filter_id:
         qs = qs.filter(created_by_id=user_filter_id)
@@ -802,14 +802,14 @@ def productivity_report(request):
 
     # ── Evolução diária por usuário ───────────────────────────────
     daily_qs = (
-        qs.values('date', 'created_by__username',
+        qs.values('created_at__date', 'created_by__username',
                   'created_by__first_name', 'created_by__last_name')
         .annotate(
             lancamentos=Count('id'),
             valor=Coalesce(Sum('amount'), Value(Decimal('0.00')),
                            output_field=DecimalField()),
         )
-        .order_by('-date', '-lancamentos')
+        .order_by('-created_at__date', '-lancamentos')
     )
     daily_rows = []
     for row in daily_qs:
