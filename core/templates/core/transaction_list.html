@@ -271,7 +271,7 @@
                                             box-shadow:0 4px 8px rgba(0,0,0,.15)">
                                 </div>
                             </div>
-                            {{ form.account }}
+                            <div style="display:none">{{ form.account }}</div>
                             {% for e in form.account.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                         </div>
                         <div class="col-md-5">
@@ -333,6 +333,18 @@ const contaDropdown   = document.getElementById('conta-dropdown');
 
 let currentTypeFilter = '';
 
+// Move o dropdown para body para evitar clipping do overflow do modal
+document.body.appendChild(contaDropdown);
+
+function positionDropdown() {
+    const rect = contaSearch.getBoundingClientRect();
+    contaDropdown.style.position = 'fixed';
+    contaDropdown.style.top      = (rect.bottom + 2) + 'px';
+    contaDropdown.style.left     = rect.left + 'px';
+    contaDropdown.style.width    = rect.width + 'px';
+    contaDropdown.style.right    = 'auto';
+}
+
 function buildContaDropdown(term) {
     const lower = term.toLowerCase();
     const results = allAccounts.filter(a =>
@@ -361,6 +373,7 @@ function buildContaDropdown(term) {
             contaDropdown.appendChild(btn);
         });
     }
+    positionDropdown();
     contaDropdown.style.display = 'block';
 }
 
