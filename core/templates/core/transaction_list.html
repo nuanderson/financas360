@@ -287,7 +287,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-gradient-save">
+                    <button type="submit" class="btn btn-gradient-save" id="btnSalvarLancamento">
                         <i class="bi bi-check-circle me-1"></i> Salvar Lançamento
                     </button>
                 </div>
@@ -386,7 +386,12 @@ if (contaSearch && modalAccountSel) {
         if (saved) contaSearch.value = `${saved.code} – ${saved.name}`;
     }
 
-    contaSearch.addEventListener('input', function () { buildContaDropdown(this.value); });
+    contaSearch.addEventListener('input', function () {
+        // Limpa seleção ao digitar (usuário precisa clicar no resultado)
+        modalAccountSel.value = '';
+        contaSearch.classList.remove('is-invalid');
+        buildContaDropdown(this.value);
+    });
     contaSearch.addEventListener('focus', function () { buildContaDropdown(this.value); });
     contaSearch.addEventListener('blur',  function () {
         setTimeout(() => { contaDropdown.style.display = 'none'; }, 200);
@@ -398,6 +403,25 @@ if (contaSearch && modalAccountSel) {
             contaSearch.value     = '';
             modalAccountSel.value = '';
             contaDropdown.style.display = 'none';
+        });
+    }
+
+    // Validação antes de enviar: exige que uma conta tenha sido selecionada
+    const modalForm = contaSearch.closest('form');
+    if (modalForm) {
+        modalForm.addEventListener('submit', function (e) {
+            if (!modalAccountSel.value) {
+                e.preventDefault();
+                contaSearch.classList.add('is-invalid');
+                contaSearch.focus();
+                if (!document.getElementById('conta-search-feedback')) {
+                    const fb = document.createElement('div');
+                    fb.id = 'conta-search-feedback';
+                    fb.className = 'invalid-feedback d-block';
+                    fb.textContent = 'Selecione uma conta da lista.';
+                    contaSearch.parentElement.appendChild(fb);
+                }
+            }
         });
     }
 }
